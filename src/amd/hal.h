@@ -6,8 +6,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// Hardware Abstraction Layer for AMD GPUs, inspired by drm-kmod and NVIDIA
-// Uses modular IP Block architecture for true hardware abstraction
+// Hardware Abstraction Layer for AMD GPUs
+// Uses modular IP Block architecture
 
 #define AMDGPU_MAX_IP_BLOCKS 16
 
@@ -28,7 +28,7 @@ enum amd_ip_block_type {
   AMD_IP_BLOCK_TYPE_DCE,
 };
 
-// Modular IP functions (inspired by amd_ip_funcs in drm-kmod)
+// Modular IP functions
 struct amd_ip_funcs {
   const char *name;
   int (*early_init)(struct OBJGPU *adev);
@@ -57,7 +57,7 @@ struct amd_ip_block {
   bool status; // true if initialized
 };
 
-// Existing Resource Management structures (kept for compatibility/hierarchy)
+// Existing Resource Management structures
 struct RsResource {
   uint32_t handle;
   struct RsResource *parent;
