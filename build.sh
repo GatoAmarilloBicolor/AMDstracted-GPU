@@ -25,22 +25,10 @@ fi
 echo "🧹 Cleaning up old files..."
 make clean > /dev/null 2>&1
 
-# 4. Build based on OS
-case "$OS_NAME" in
-    linux)
-        echo "🐧 Optimizing for Linux..."
-        make OS=linux USERLAND_MODE=$USER_MODE rmapi_server rmapi_client_demo
-        ;;
-    haiku)
-        echo "🌀 Optimizing for Haiku OS..."
-        # On Haiku, we ensure we use the right compiler and library flags
-        make OS=haiku USERLAND_MODE=$USER_MODE rmapi_server rmapi_client_demo
-        ;;
-    *)
-        echo "🌍 System not officially optimized, but trying with Linux fallback..."
-        make OS=linux USERLAND_MODE=$USER_MODE rmapi_server rmapi_client_demo
-        ;;
-esac
+# 4. Build the project
+echo "🛠 Building for your system..."
+# We let the Makefile do the heavy lifting of OS detection and mapping!
+make USERLAND_MODE=$USER_MODE rmapi_server rmapi_client_demo
 
 # 5. Check if it worked
 if [ $? -eq 0 ]; then
