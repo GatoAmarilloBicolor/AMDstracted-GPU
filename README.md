@@ -32,6 +32,7 @@ Check out our easy-to-read guides:
 - 🎢 **[How we built this](docs/TRANSITION.md)**: Moving from old, messy code to this shiny new version.
 - 🧩 **[The Step-by-Step](docs/ARCHITECTURE_STEP_BY_STEP.md)**: How data moves through the driver like a pro athlete.
 - 🛠 **[How to Use It](docs/USAGE_GUIDE.md)**: Start building your own GPU-powered apps in minutes!
+- ⚔️ **[Haiku vs. NVIDIA](docs/HAIKU_COMPARISON.md)**: How we stack up against the pro drivers and our roadmap.
 - 💡 **[The "Why and How"](docs/WHY_HOW.md)**: Our master plan for world... I mean, GPU domination.
 
 ---
