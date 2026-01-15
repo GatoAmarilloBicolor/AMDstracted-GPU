@@ -71,11 +71,11 @@ clean:
 real_compute: real_compute.c $(filter-out src/amd/rmapi_server.o, $(SRC_OBJS)) $(OS_OBJS)
 	$(CC) -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives -Wall $< $(filter-out src/amd/rmapi_server.o, $(SRC_OBJS)) $(OS_OBJS) -o $@
 
-rmapi_server: $(SRC_DIR)/rmapi_server.o $(SRC_DIR)/hal.o $(SRC_DIR)/objgpu.o $(COMMON_DIR)/ipc_lib.o $(OS_OBJS)
+rmapi_server: $(SRC_DIR)/rmapi_server.o $(SRC_DIR)/hal.o $(SRC_DIR)/objgpu.o $(SRC_DIR)/rmapi.o $(SRC_DIR)/resserv.o $(COMMON_DIR)/ipc_lib.o $(OS_OBJS)
 	$(CC) -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives -Wall $^ -lpthread -o $@
 
-rmapi_client_demo: rmapi_client_demo.c src/common/ipc_lib.o $(SRC_OBJS) $(OS_OBJS)
-	$(CC) -I. -Wall rmapi_client_demo.c src/common/ipc_lib.o $(SRC_OBJS) $(OS_OBJS) -o $@
+rmapi_client_demo: rmapi_client_demo.c $(filter-out $(SRC_DIR)/rmapi_server.o, $(SRC_OBJS)) $(OS_OBJS)
+	$(CC) -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives -Wall $^ -lpthread -o $@
 
 vkinfo_amd: vkinfo_amd.c $(filter-out src/amd/rmapi_server.o, $(SRC_OBJS)) $(OS_OBJS)
 	$(CC) -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives -Wall $< $(filter-out src/amd/rmapi_server.o, $(SRC_OBJS)) $(OS_OBJS) -o $@

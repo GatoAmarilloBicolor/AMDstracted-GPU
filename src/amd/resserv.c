@@ -23,10 +23,17 @@ struct RsResource* rs_resource_create(uint32_t handle, struct RsResource* parent
 void rs_resource_add_child(struct RsResource* parent, struct RsResource* child) {
     if (!parent || !child) return;
     pthread_mutex_lock(&parent->lock);  // Sync for multi-GPU
-    parent->children = os_prim_alloc(sizeof(struct RsResource*) * (parent->num_children + 1));
-    parent->children[parent->num_children++] = child;
+    
+    struct RsResource** new_children = realloc(parent->children, sizeof(struct RsResource*) * (parent->num_children + 1));
+    if (new_children) {
+        parent->children = new_children;
+        parent->children[parent->num_children++] = child;
+        os_prim_log("RESSERV: Added child resource with sync\n");
+    } else {
+        os_prim_log("RESSERV: Failed to add child resource (OOM)\n");
+    }
+    
     pthread_mutex_unlock(&parent->lock);
-    os_prim_log("RESSERV: Added child resource with sync\n");
 }
 
 void rs_resource_destroy(struct RsResource* res) {

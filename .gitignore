@@ -1,0 +1,8 @@
+*.o
+*.so
+*.ko
+rmapi_server
+rmapi_client_demo
+real_compute
+vkinfo_amd
+config.h
