@@ -47,6 +47,14 @@ chmod +x build.sh
 ```
 This script will automatically detect if you are on Linux or Haiku and set everything up for a safe simulation!
 
+### 🌀 Installing on Haiku (Userland)
+To set up the driver for games and Vulkan tests on Haiku:
+```bash
+chmod +x install_haiku_userland.sh
+./install_haiku_userland.sh
+```
+This will install the specialists into your `non-packaged` folders and set up the driver to start automatically when you boot your PC!
+
 ### Running the Server (The "Brain")
 ```bash
 ./rmapi_server &
