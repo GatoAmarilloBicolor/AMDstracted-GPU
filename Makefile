@@ -1,101 +1,89 @@
 # Top-level Makefile for AMDGPU_Abstracted
 
-# Detect OS automatically if not specified (POSIX compliant)
+# 1. Detect OS automatically (POSIX compliant)
 DETECTED_OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 
-# Map OSes to supported adapters (expand as needed)
+# 2. Map OSes to supported "Brains" (OS Adapters)
 ifeq ($(DETECTED_OS),linux)
   MAPPED_OS := linux
 else ifeq ($(DETECTED_OS),freebsd)
-  MAPPED_OS := linux  # Uses similar APIs
-else ifeq ($(DETECTED_OS),darwin)
-  MAPPED_OS := haiku  # Placeholder for macOS-like
+  MAPPED_OS := linux
 else ifeq ($(DETECTED_OS),haiku)
   MAPPED_OS := haiku
 else ifeq ($(DETECTED_OS),redox)
-  MAPPED_OS := linux  # Redox is POSIX-compatible, fallback to linux
+  MAPPED_OS := linux
 else ifeq ($(DETECTED_OS),fuchsia)
-  MAPPED_OS := fuchsia  # Fuchsia uses Zircon, not POSIX
-else ifeq ($(DETECTED_OS),netbsd)
-  MAPPED_OS := linux  # BSD family, POSIX
-else ifeq ($(DETECTED_OS),openbsd)
-  MAPPED_OS := linux
-else ifeq ($(DETECTED_OS),dragonfly)
-  MAPPED_OS := linux
-else ifeq ($(DETECTED_OS),solaris)
-  MAPPED_OS := linux  # illumos/Solaris
-else ifeq ($(DETECTED_OS),minix)
-  MAPPED_OS := linux  # Minix is POSIX
+  MAPPED_OS := fuchsia
+else ifeq ($(DETECTED_OS),darwin)
+  MAPPED_OS := haiku
 else
-  MAPPED_OS := linux  # Default fallback for other POSIX systems
-endif
-
-OS ?= $(MAPPED_OS)
-
-# Haiku specific tweaks
-ifeq ($(OS),haiku)
-  LDFLAGS += -lroot
-  # On Haiku, pthreads are in libroot
-  PTHREAD_LIBS = 
-else
-  PTHREAD_LIBS = -lpthread
+  # "Exotic" POSIX system fallback
   MAPPED_OS := generic_posix
 endif
 
+# Allow user to override OS via 'make OS=...'
 OS ?= $(MAPPED_OS)
 
-$(info Detected OS: $(DETECTED_OS), mapped to: $(MAPPED_OS), using OS=$(OS))
+# 3. Handle Library Tweaks (Haiku, etc.)
+ifeq ($(OS),haiku)
+  LDFLAGS += -lroot -lnetwork
+  PTHREAD_LIBS = # Already in libroot
+else
+  PTHREAD_LIBS = -lpthread
+  # If we're on an exotic system, we just use the Linux logic but strip it down
+  ifeq ($(OS),generic_posix)
+    LDFLAGS += 
+  endif
+endif
 
-# If the OS is unknown or "generic_posix", we use the Linux adapter but 
-# strip away any Linux-specific headers, relying on pure POSIX.
+$(info [HIT] Building for OS: $(OS) (Detected: $(DETECTED_OS)))
+
+# 4. Set Directory Paths
+# If we don't have a specific adapter for the OS, we use the Linux one 
+# as a "Generic POSIX" template.
 ifeq ($(wildcard kernel-amd/os-interface/$(OS)),)
-  $(warning OS adapter for $(OS) not found! Attempting GENERIC POSIX build...)
+  $(warning [HIT] OS adapter for $(OS) not found. Using Generic POSIX template.)
+  OS_DIR_SUFFIX = linux
   OS_INTERFACE_DIR = kernel-amd/os-interface/linux
   OS_PRIMITIVES_DIR = kernel-amd/os-primitives/linux
 else
+  OS_DIR_SUFFIX = $(OS)
   OS_INTERFACE_DIR = kernel-amd/os-interface/$(OS)
   OS_PRIMITIVES_DIR = kernel-amd/os-primitives/$(OS)
 endif
 
-# POSIX userland mode for testing (no kernel deps)
+# 5. Build Options
 USERLAND_MODE ?= 0
 CFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c99 -include config.h
+
 SRC_DIR = src/amd
 COMMON_DIR = src/common
-OS_INTERFACE_DIR ?= kernel-amd/os-interface/$(OS)
-OS_PRIMITIVES_DIR ?= kernel-amd/os-primitives/$(OS)
-KERNEL_DIR = kernel-amd
 
-SRC_OBJS = $(SRC_DIR)/objgpu.o $(SRC_DIR)/hal.o $(SRC_DIR)/amdgpu_gem_userland.o $(SRC_DIR)/amdgpu_kms_userland.o $(SRC_DIR)/resserv.o $(SRC_DIR)/rmapi.o $(SRC_DIR)/rmapi_server.o $(COMMON_DIR)/ipc_lib.o
-# We define which specific file names we expect for the OS adapter
-ifeq ($(OS),generic_posix)
-  OS_SUFFIX = linux
-else
-  OS_SUFFIX = $(OS)
-endif
+# List of Objects to build
+SRC_OBJS = $(SRC_DIR)/objgpu.o $(SRC_DIR)/hal.o $(SRC_DIR)/amdgpu_gem_userland.o \
+           $(SRC_DIR)/amdgpu_kms_userland.o $(SRC_DIR)/resserv.o $(SRC_DIR)/rmapi.o \
+           $(SRC_DIR)/rmapi_server.o $(COMMON_DIR)/ipc_lib.o
 
-OS_OBJS = $(OS_INTERFACE_DIR)/os_interface_$(OS_SUFFIX).o $(OS_PRIMITIVES_DIR)/os_primitives_$(OS_SUFFIX).o
-KERNEL_OBJS = # Add kernel interface objs
+OS_OBJS = $(OS_INTERFACE_DIR)/os_interface_$(OS_DIR_SUFFIX).o \
+          $(OS_PRIMITIVES_DIR)/os_primitives_$(OS_DIR_SUFFIX).o
 
-# Build target
-all: libamdgpu.so
+# 6. Build Targets
+all: libamdgpu.so rmapi_server rmapi_client_demo
 
 %.o: %.c
 	$(CC) $(CFLAGS) -fPIC -c $< -o $@
 
-libamdgpu.so: $(SRC_OBJS) $(OS_OBJS) $(KERNEL_OBJS)
-	$(CC) -shared -o $@ $^
+libamdgpu.so: $(SRC_OBJS) $(OS_OBJS)
+	$(CC) -shared -o $@ $^ $(LDFLAGS)
 
-clean:
-	rm -f *.o *.ko src/amd/*.o kernel-amd/os-interface/*/*.o kernel-amd/os-primitives/*/*.o
-real_compute: real_compute.c $(filter-out src/amd/rmapi_server.o, $(SRC_OBJS)) $(OS_OBJS)
-	$(CC) -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives -Wall $< $(filter-out src/amd/rmapi_server.o, $(SRC_OBJS)) $(OS_OBJS) -o $@
-
-rmapi_server: $(SRC_DIR)/rmapi_server.o $(SRC_DIR)/hal.o $(SRC_DIR)/objgpu.o $(SRC_DIR)/rmapi.o $(SRC_DIR)/resserv.o $(COMMON_DIR)/ipc_lib.o $(OS_OBJS)
+rmapi_server: $(SRC_DIR)/rmapi_server.o $(SRC_DIR)/hal.o $(SRC_DIR)/objgpu.o \
+               $(SRC_DIR)/rmapi.o $(SRC_DIR)/resserv.o $(COMMON_DIR)/ipc_lib.o $(OS_OBJS)
 	$(CC) -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives -Wall $^ $(PTHREAD_LIBS) $(LDFLAGS) -o $@
 
 rmapi_client_demo: rmapi_client_demo.c $(filter-out $(SRC_DIR)/rmapi_server.o, $(SRC_OBJS)) $(OS_OBJS)
 	$(CC) -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives -Wall $^ $(PTHREAD_LIBS) $(LDFLAGS) -o $@
 
-vkinfo_amd: vkinfo_amd.c $(filter-out src/amd/rmapi_server.o, $(SRC_OBJS)) $(OS_OBJS)
-	$(CC) -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives -Wall $< $(filter-out src/amd/rmapi_server.o, $(SRC_OBJS)) $(OS_OBJS) -o $@
+clean:
+	rm -f *.o *.so *.ko $(SRC_DIR)/*.o $(COMMON_DIR)/*.o \
+	kernel-amd/os-interface/*/*.o kernel-amd/os-primitives/*/*.o \
+	rmapi_server rmapi_client_demo
