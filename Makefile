@@ -32,6 +32,15 @@ endif
 
 OS ?= $(MAPPED_OS)
 
+# Haiku specific tweaks
+ifeq ($(OS),haiku)
+  LDFLAGS += -lroot
+  # On Haiku, pthreads are in libroot
+  PTHREAD_LIBS = 
+else
+  PTHREAD_LIBS = -lpthread
+endif
+
 $(info Detected OS: $(DETECTED_OS), mapped to: $(MAPPED_OS), using OS=$(OS))
 
 # Check if OS adapter exists; if not, warn and use stubs
@@ -72,10 +81,10 @@ real_compute: real_compute.c $(filter-out src/amd/rmapi_server.o, $(SRC_OBJS)) $
 	$(CC) -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives -Wall $< $(filter-out src/amd/rmapi_server.o, $(SRC_OBJS)) $(OS_OBJS) -o $@
 
 rmapi_server: $(SRC_DIR)/rmapi_server.o $(SRC_DIR)/hal.o $(SRC_DIR)/objgpu.o $(SRC_DIR)/rmapi.o $(SRC_DIR)/resserv.o $(COMMON_DIR)/ipc_lib.o $(OS_OBJS)
-	$(CC) -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives -Wall $^ -lpthread -o $@
+	$(CC) -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives -Wall $^ $(PTHREAD_LIBS) $(LDFLAGS) -o $@
 
 rmapi_client_demo: rmapi_client_demo.c $(filter-out $(SRC_DIR)/rmapi_server.o, $(SRC_OBJS)) $(OS_OBJS)
-	$(CC) -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives -Wall $^ -lpthread -o $@
+	$(CC) -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives -Wall $^ $(PTHREAD_LIBS) $(LDFLAGS) -o $@
 
 vkinfo_amd: vkinfo_amd.c $(filter-out src/amd/rmapi_server.o, $(SRC_OBJS)) $(OS_OBJS)
 	$(CC) -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives -Wall $< $(filter-out src/amd/rmapi_server.o, $(SRC_OBJS)) $(OS_OBJS) -o $@

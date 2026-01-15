@@ -39,12 +39,15 @@ Check out our easy-to-read guides:
 
 ## 🛠 Start playing now!
 
-### 1. Build the engine
+### Building
+The easiest way is to use our new universal build script:
 ```bash
-make OS=linux  # Or OS=haiku if you're feeling adventurous
+chmod +x build.sh
+./build.sh
 ```
+This script will automatically detect if you are on Linux or Haiku and set everything up for a safe simulation!
 
-### 2. Start the Server (The "Brain")
+### Running the Server (The "Brain")
 ```bash
 ./rmapi_server &
 ```
