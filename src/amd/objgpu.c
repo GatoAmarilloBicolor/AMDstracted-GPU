@@ -1,4 +1,5 @@
 // Abstracted AMD GPU Device Driver
+// OS-agnostic hardware layer inspired by NVIDIA HAL
 
 #include "../../kernel-amd/os-interface/os_interface.h"
 #include "hal.h"

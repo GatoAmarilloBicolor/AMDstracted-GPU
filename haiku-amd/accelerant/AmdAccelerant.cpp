@@ -3,6 +3,7 @@
 #include <OS.h>
 
 // AMD Accelerant for Haiku - Compatible with Tracker/Zink
+// Inspired by NVIDIA-Haiku accelerant
 
 class AmdAccelerant {
 public:

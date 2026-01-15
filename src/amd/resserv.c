@@ -1,4 +1,5 @@
-// Resource hierarchy management (RESSERV)
+// RESSERV-like hierarchy implementation, inspired by NVIDIA
+// For better resource management in AMD driver
 
 #include "../../kernel-amd/os-primitives/os_primitives.h"
 #include "hal.h"
