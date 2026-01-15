@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Developed by: Haiku Imposible Team
+// Optimized HAL with full lifecycle and ASIC modularity
+
 // IP Block Management Logic
 
 int amdgpu_device_ip_block_add(
@@ -24,15 +27,27 @@ static int navi10_common_early_init(struct OBJGPU *adev) {
   return 0;
 }
 
+static int navi10_common_sw_init(struct OBJGPU *adev) {
+  os_prim_log("HAL: Navi10 Common SW Init (Software state setup)\n");
+  return 0;
+}
+
 static int navi10_common_hw_init(struct OBJGPU *adev) {
-  os_prim_log("HAL: Navi10 Common HW Init\n");
+  os_prim_log("HAL: Navi10 Common HW Init (Hardware engine start)\n");
+  return 0;
+}
+
+static int navi10_common_late_init(struct OBJGPU *adev) {
+  os_prim_log("HAL: Navi10 Common Late Init (Post-init polish)\n");
   return 0;
 }
 
 static const struct amd_ip_funcs navi10_common_ip_funcs = {
     .name = "navi10_common",
     .early_init = navi10_common_early_init,
+    .sw_init = navi10_common_sw_init,
     .hw_init = navi10_common_hw_init,
+    .late_init = navi10_common_late_init,
 };
 
 static const struct amd_ip_block_version navi10_common_ip_block = {
@@ -84,27 +99,47 @@ static const struct amd_ip_block_version navi10_gmc_ip_block = {
 // HAL API Implementation
 
 int amdgpu_device_init_hal(struct OBJGPU *adev) {
-  os_prim_log("HAL: Initializing device with IP Block architecture\n");
+  os_prim_log(
+      "HAL: Initializing device with IP Block architecture (HIT Edition)\n");
 
   pthread_mutex_init(&adev->gpu_lock, NULL);
   adev->res_root = rs_resource_create(0, NULL);
 
-  // Add Navi10 blocks by default for this demo
-  amdgpu_device_ip_block_add(adev, &navi10_common_ip_block);
-  amdgpu_device_ip_block_add(adev, &navi10_gmc_ip_block);
-  amdgpu_device_ip_block_add(adev, &navi10_gfx_ip_block);
+  // ASIC Discovery based on asic_type
+  if (adev->asic_type == 0x1000) { // Navi10
+    amdgpu_device_ip_block_add(adev, &navi10_common_ip_block);
+    amdgpu_device_ip_block_add(adev, &navi10_gmc_ip_block);
+    amdgpu_device_ip_block_add(adev, &navi10_gfx_ip_block);
+  } else {
+    os_prim_log("HAL: Unknown ASIC type, using default Navi10 blocks\n");
+    amdgpu_device_ip_block_add(adev, &navi10_common_ip_block);
+  }
 
-  // Run Init sequences for all blocks
+  // Complete PROFESSIONAL Initialization Sequence
+  // 1. Early Init
   for (int i = 0; i < adev->num_ip_blocks; i++) {
     if (adev->ip_blocks[i].version->funcs->early_init)
       adev->ip_blocks[i].version->funcs->early_init(adev);
   }
 
+  // 2. SW Init
+  for (int i = 0; i < adev->num_ip_blocks; i++) {
+    if (adev->ip_blocks[i].version->funcs->sw_init)
+      adev->ip_blocks[i].version->funcs->sw_init(adev);
+  }
+
+  // 3. HW Init
   for (int i = 0; i < adev->num_ip_blocks; i++) {
     if (adev->ip_blocks[i].version->funcs->hw_init) {
       adev->ip_blocks[i].version->funcs->hw_init(adev);
       adev->ip_blocks[i].status = true;
     }
+  }
+
+  // 4. Late Init
+  for (int i = 0; i < adev->num_ip_blocks; i++) {
+    if (adev->ip_blocks[i].version->funcs->late_init)
+      adev->ip_blocks[i].version->funcs->late_init(adev);
   }
 
   return 0;

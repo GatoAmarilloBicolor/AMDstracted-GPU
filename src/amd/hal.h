@@ -8,6 +8,7 @@
 
 // Hardware Abstraction Layer for AMD GPUs, inspired by drm-kmod and NVIDIA
 // Uses modular IP Block architecture for true hardware abstraction
+// Maintained by: Haiku Imposible Team
 
 #define AMDGPU_MAX_IP_BLOCKS 16
 
@@ -34,6 +35,7 @@ struct amd_ip_funcs {
   int (*early_init)(struct OBJGPU *adev);
   int (*sw_init)(struct OBJGPU *adev);
   int (*hw_init)(struct OBJGPU *adev);
+  int (*late_init)(struct OBJGPU *adev);
   int (*hw_fini)(struct OBJGPU *adev);
   int (*suspend)(struct OBJGPU *adev);
   int (*resume)(struct OBJGPU *adev);

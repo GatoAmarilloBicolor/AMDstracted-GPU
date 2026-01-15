@@ -10,6 +10,7 @@
 
 // RMAPI Server: Handles IPC requests for GPU operations
 // Optimized with threading and caching
+// Developed by: Haiku Imposible Team
 
 #define SOCKET_PATH "/tmp/amdgpu_rmapi.sock"
 
@@ -41,6 +42,27 @@ void *handle_client(void *arg) {
       rmapi_get_gpu_info(NULL, &info);
       ipc_send_message(&server->conn,
                        &(ipc_message_t){4, msg.id, sizeof(info), &info});
+      if (msg.data)
+        free(msg.data);
+      break;
+    }
+    case 5: { // IPC_FREE_MEMORY
+      uint64_t addr = *(uint64_t *)msg.data;
+      // In real RM, search buffer by addr
+      // For now, stub success
+      int success = 0;
+      ipc_send_message(&server->conn,
+                       &(ipc_message_t){6, msg.id, sizeof(success), &success});
+      if (msg.data)
+        free(msg.data);
+      break;
+    }
+    case 7: { // IPC_SUBMIT_COMMAND
+      // Data contains command stream (stub)
+      struct amdgpu_command_buffer cb = {msg.data, msg.data_size};
+      int ret = rmapi_submit_command(NULL, &cb);
+      ipc_send_message(&server->conn,
+                       &(ipc_message_t){8, msg.id, sizeof(ret), &ret});
       if (msg.data)
         free(msg.data);
       break;

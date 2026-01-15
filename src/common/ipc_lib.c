@@ -2,6 +2,8 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+// Developed by: Haiku Imposible Team
 #include <string.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>

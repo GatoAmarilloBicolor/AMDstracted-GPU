@@ -3,7 +3,11 @@
 
 #include "rmapi.h"
 #include "../../kernel-amd/os-primitives/os_primitives.h"
+#include "hal.h"
+#include <stdlib.h>
 #include <string.h>
+
+// Developed by: Haiku Imposible Team
 
 static struct OBJGPU *global_gpu = NULL;
 
