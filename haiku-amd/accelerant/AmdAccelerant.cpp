@@ -1,53 +1,91 @@
+#include "../../src/amd/rmapi.h"
+#include "../../src/common/ipc_lib.h"
 #include <Accelerant.h>
 #include <GraphicsDefs.h>
 #include <OS.h>
+#include <stdio.h>
+#include <string.h>
 
-// AMD Accelerant for Haiku - Compatible with Tracker/Zink
-// Inspired by NVIDIA-Haiku accelerant
+/*
+ * 🌀 HIT Edition: The Real Haiku Accelerant (Proxy Mode)
+ *
+ * This is the "face" of our driver for Haiku. It talks to the RMAPI Server
+ * (The Brain) to get stuff done. It implements the official Haiku
+ * accelerant API so things like GLInfo and Mesa can finally work!
+ */
 
 class AmdAccelerant {
 public:
+  AmdAccelerant() : m_connected(false) { memset(&m_conn, 0, sizeof(m_conn)); }
+
   status_t Init();
   void Uninit();
-  status_t GetMode(display_mode *mode);
-  status_t SetMode(display_mode *mode);
 
-  // Zink support
-  status_t InitZink();
-  status_t RenderWithZink(void *buffer);
+  // Real Info Discovery
+  status_t GetDeviceInfo(accelerant_device_info *info);
+  status_t GetModeList(display_mode *modes);
 
-  // Tracker integration
-  status_t AcquireEngine(uint32 capabilities, uint32 *engine, bool wait);
-  status_t ReleaseEngine(uint32 engine);
+private:
+  ipc_connection_t m_conn;
+  bool m_connected;
 };
 
+// Start talking to the RMAPI Brain!
 status_t AmdAccelerant::Init() {
-  // Init AMD HAL/RMAPI
-  // Similar to NVIDIA: load kernel addon, init GPU
+  if (ipc_client_connect("/tmp/amdgpu_rmapi.sock", &m_conn) < 0) {
+    return B_ERROR;
+  }
+  m_connected = true;
   return B_OK;
 }
 
-status_t AmdAccelerant::InitZink() {
-  // Init Zink OpenGL-on-Vulkan for AMD
-  // Load Vulkan backend
-  return B_OK;
+void AmdAccelerant::Uninit() {
+  if (m_connected) {
+    ipc_close(&m_conn);
+    m_connected = false;
+  }
 }
 
-status_t AmdAccelerant::RenderWithZink(void *buffer) {
-  // Render via Zink
-  return B_OK;
+// Responding to Haiku's "Tell me about this GPU" request
+status_t AmdAccelerant::GetDeviceInfo(accelerant_device_info *info) {
+  if (!m_connected)
+    return B_ERROR;
+
+  struct amdgpu_gpu_info gpu_info;
+  ipc_message_t msg = {3, 101, 0, NULL}; // IPC_GET_GPU_INFO
+
+  if (ipc_send_message(&m_conn, &msg) == 0) {
+    ipc_message_t reply;
+    if (ipc_recv_message(&m_conn, &reply) > 0) {
+      memcpy(&gpu_info, reply.data, sizeof(gpu_info));
+      free(reply.data);
+
+      info->version = 1;
+      strncpy(info->name, gpu_info.gpu_name, 31);
+      strncpy(info->chipset, "AMDGPU Abstracted (HIT)", 31);
+      info->memory = gpu_info.vram_size_mb * 1024 * 1024;
+      return B_OK;
+    }
+  }
+  return B_ERROR;
 }
 
-// Tracker hooks
-status_t AmdAccelerant::AcquireEngine(uint32 capabilities, uint32 *engine,
-                                      bool wait) {
-  // Acquire for tracker rendering
-  return B_OK;
-}
+// Standard Haiku Entry Point for Accelerants
+extern "C" status_t get_accelerant_hook(uint32 feature, void **hook) {
+  static AmdAccelerant acc;
+  static bool initialized = false;
 
-// Export functions for Haiku
-extern "C" {
-status_t amd_get_accelerant_hook(uint32 feature, void **hook);
-}
+  if (!initialized) {
+    if (acc.Init() == B_OK)
+      initialized = true;
+  }
 
-// Similar to NVIDIA-Haiku hooks
+  switch (feature) {
+  case B_ACCELERANT_DEVICE_INFO:
+    *hook = (void *)&acc.GetDeviceInfo;
+    return B_OK;
+    // Add more hooks as we implement the "Muscle" (GFX/Compute)
+  }
+
+  return B_ERROR;
+}
