@@ -39,18 +39,22 @@ ifeq ($(OS),haiku)
   PTHREAD_LIBS = 
 else
   PTHREAD_LIBS = -lpthread
+  MAPPED_OS := generic_posix
 endif
+
+OS ?= $(MAPPED_OS)
 
 $(info Detected OS: $(DETECTED_OS), mapped to: $(MAPPED_OS), using OS=$(OS))
 
-# Check if OS adapter exists; if not, warn and use stubs
+# If the OS is unknown or "generic_posix", we use the Linux adapter but 
+# strip away any Linux-specific headers, relying on pure POSIX.
 ifeq ($(wildcard kernel-amd/os-interface/$(OS)),)
-$(warning OS adapter for $(OS) not found, using linux as fallback)
-OS := linux
-endif
-ifeq ($(wildcard kernel-amd/os-primitives/$(OS)),)
-$(warning OS primitives for $(OS) not found, using linux as fallback)
-OS := linux
+  $(warning OS adapter for $(OS) not found! Attempting GENERIC POSIX build...)
+  OS_INTERFACE_DIR = kernel-amd/os-interface/linux
+  OS_PRIMITIVES_DIR = kernel-amd/os-primitives/linux
+else
+  OS_INTERFACE_DIR = kernel-amd/os-interface/$(OS)
+  OS_PRIMITIVES_DIR = kernel-amd/os-primitives/$(OS)
 endif
 
 # POSIX userland mode for testing (no kernel deps)
@@ -58,12 +62,19 @@ USERLAND_MODE ?= 0
 CFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c99 -include config.h
 SRC_DIR = src/amd
 COMMON_DIR = src/common
-OS_INTERFACE_DIR = kernel-amd/os-interface/$(OS)
-OS_PRIMITIVES_DIR = kernel-amd/os-primitives/$(OS)
+OS_INTERFACE_DIR ?= kernel-amd/os-interface/$(OS)
+OS_PRIMITIVES_DIR ?= kernel-amd/os-primitives/$(OS)
 KERNEL_DIR = kernel-amd
 
 SRC_OBJS = $(SRC_DIR)/objgpu.o $(SRC_DIR)/hal.o $(SRC_DIR)/amdgpu_gem_userland.o $(SRC_DIR)/amdgpu_kms_userland.o $(SRC_DIR)/resserv.o $(SRC_DIR)/rmapi.o $(SRC_DIR)/rmapi_server.o $(COMMON_DIR)/ipc_lib.o
-OS_OBJS = $(OS_INTERFACE_DIR)/os_interface_$(OS).o $(OS_PRIMITIVES_DIR)/os_primitives_$(OS).o
+# We define which specific file names we expect for the OS adapter
+ifeq ($(OS),generic_posix)
+  OS_SUFFIX = linux
+else
+  OS_SUFFIX = $(OS)
+endif
+
+OS_OBJS = $(OS_INTERFACE_DIR)/os_interface_$(OS_SUFFIX).o $(OS_PRIMITIVES_DIR)/os_primitives_$(OS_SUFFIX).o
 KERNEL_OBJS = # Add kernel interface objs
 
 # Build target

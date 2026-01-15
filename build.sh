@@ -9,7 +9,21 @@ echo "🚀 Starting the HIT Edition build process..."
 OS_NAME=$(uname -s | tr '[:upper:]' '[:lower:]')
 echo "🌍 Detected System: $OS_NAME"
 
-# 2. Set Build Mode
+# 2. Check for minimum POSIX requirements
+echo "🔍 Checking for POSIX essentials..."
+MISSING=0
+for tool in cc make; do
+    if ! command -v $tool &> /dev/null; then
+        echo "❌ Error: '$tool' not found. It's needed to build the engine!"
+        MISSING=1
+    fi
+done
+
+if [ "$MISSING" -eq 1 ]; then
+    exit 1
+fi
+
+# 3. Set Build Mode
 # We recommend USERLAND_MODE=1 for testing and development.
 # If you want real kernel access, set it to 0.
 USER_MODE=${USERLAND_MODE:-1}

@@ -3,7 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef __linux__
 #include <sys/epoll.h>
+#endif
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -50,12 +52,16 @@ int ipc_server_init(const char *socket_path, ipc_connection_t *conn) {
     return -1;
   }
 
-  // 5. Setting up "Caller ID" (epoll) to see who is calling!
+  // 5. Setting up "Caller ID" (epoll) to see who is calling! (Linux only)
+#ifdef __linux__
   conn->epoll_fd = epoll_create1(0);
   if (conn->epoll_fd >= 0) {
     struct epoll_event ev = {.events = EPOLLIN, .data.fd = conn->sock_fd};
     epoll_ctl(conn->epoll_fd, EPOLL_CTL_ADD, conn->sock_fd, &ev);
   }
+#else
+  conn->epoll_fd = -1; // Not used on this OS
+#endif
 
   return 0;
 }
