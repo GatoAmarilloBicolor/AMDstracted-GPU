@@ -2,11 +2,13 @@
 #include "hal.h"
 #include "rmapi.h"
 #include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <unistd.h>
 
 /*
  * Yo! This is the RMAPI Server - The "Brain" of our driver.
@@ -16,6 +18,16 @@
  */
 
 #define SOCKET_PATH "/tmp/amdgpu_rmapi.sock"
+
+// Safe Shutdown: If the server crashes or someone stops it, we clean up!
+void safe_shutdown(int sig) {
+  printf(
+      "\n[ALERT] Signal %d received! Cleaning up GPU city before leaving...\n",
+      sig);
+  rmapi_fini();
+  unlink(SOCKET_PATH);
+  exit(sig == SIGINT ? 0 : 1);
+}
 
 typedef struct {
   ipc_connection_t conn; // The "phone line" to the client
@@ -89,7 +101,15 @@ void *handle_client(void *arg) {
   return NULL;
 }
 
+#include <unistd.h>
+
 int main() {
+  // --- Safety First! ---
+  // Catching crashes and interrupts to prevent hardware leftovers
+  signal(SIGINT, safe_shutdown);
+  signal(SIGSEGV, safe_shutdown);
+  signal(SIGTERM, safe_shutdown);
+
   rmapi_server_t server = {0};
 
   // Starting the brain and setting up the specialists

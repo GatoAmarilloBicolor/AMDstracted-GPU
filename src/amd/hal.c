@@ -43,12 +43,18 @@ static int navi10_common_late_init(struct OBJGPU *adev) {
   return 0;
 }
 
+static int navi10_common_hw_fini(struct OBJGPU *adev) {
+  os_prim_log("HAL: [Manager] Powering down engines... See ya!\n");
+  return 0;
+}
+
 static const struct amd_ip_funcs navi10_common_ip_funcs = {
     .name = "navi10_common",
     .early_init = navi10_common_early_init,
     .sw_init = navi10_common_sw_init,
     .hw_init = navi10_common_hw_init,
     .late_init = navi10_common_late_init,
+    .hw_fini = navi10_common_hw_fini,
 };
 
 static const struct amd_ip_block_version navi10_common_ip_block = {
@@ -65,9 +71,15 @@ static int navi10_gfx_hw_init(struct OBJGPU *adev) {
   return 0;
 }
 
+static int navi10_gfx_hw_fini(struct OBJGPU *adev) {
+  os_prim_log("HAL: [Artist] Brushes cleaned and put away.\n");
+  return 0;
+}
+
 static const struct amd_ip_funcs navi10_gfx_ip_funcs = {
     .name = "navi10_gfx",
     .hw_init = navi10_gfx_hw_init,
+    .hw_fini = navi10_gfx_hw_fini,
 };
 
 static const struct amd_ip_block_version navi10_gfx_ip_block = {
@@ -84,9 +96,15 @@ static int navi10_gmc_hw_init(struct OBJGPU *adev) {
   return 0;
 }
 
+static int navi10_gmc_hw_fini(struct OBJGPU *adev) {
+  os_prim_log("HAL: [Librarian] Library is closed for the night.\n");
+  return 0;
+}
+
 static const struct amd_ip_funcs navi10_gmc_ip_funcs = {
     .name = "navi10_gmc",
     .hw_init = navi10_gmc_hw_init,
+    .hw_fini = navi10_gmc_hw_fini,
 };
 
 static const struct amd_ip_block_version navi10_gmc_ip_block = {
@@ -142,6 +160,31 @@ int amdgpu_device_init_hal(struct OBJGPU *adev) {
     os_prim_log(
         "HAL: Unknown chip type? Just using Navi10 defaults for now.\n");
     amdgpu_device_ip_block_add(adev, &navi10_common_ip_block);
+  }
+
+  // --- Hardware Link: Mapping the MMIO Registers ---
+  os_prim_log("HAL: Connecting to hardware registers (MMIO Mapping)...\n");
+  // We use our PCI handle (simulated or real) to map BAR 0 or 2
+  adev->mmio_base = os_prim_pci_map_resource((void *)0x9806, 0);
+
+  if (!adev->mmio_base) {
+    os_prim_log("HAL: Error! Failed to map GPU registers. Aborting.\n");
+    return -1;
+  }
+
+  // Double check our connection with a poke!
+  os_prim_log("HAL: Poking hardware... Hello?\n");
+
+  // SAFETY CHECK: Only write if the offset is within a known safe range
+  // (example)
+  uintptr_t poke_addr = (uintptr_t)adev->mmio_base + 0x100;
+  if (poke_addr >= (uintptr_t)adev->mmio_base &&
+      poke_addr < (uintptr_t)adev->mmio_base + 0x100000) {
+    os_prim_write32(poke_addr, 0x1); // Send identifying signal
+    os_prim_read32(poke_addr);
+  } else {
+    os_prim_log("HAL: [SAFETY] Blocked illegal hardware poke at out-of-bounds "
+                "address!\n");
   }
 
   // The 4-Step Start Sequence (Like a professional athlete's warm-up)
