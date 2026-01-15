@@ -1,4 +1,4 @@
-# Top-level Makefile for AMDGPU_Abstracted
+# Top-level Makefile for AMDGPU_Abstracted (HIT Edition)
 
 # 1. Detect OS automatically (POSIX compliant)
 DETECTED_OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
@@ -17,32 +17,25 @@ else ifeq ($(DETECTED_OS),fuchsia)
 else ifeq ($(DETECTED_OS),darwin)
   MAPPED_OS := haiku
 else
-  # "Exotic" POSIX system fallback
   MAPPED_OS := generic_posix
 endif
 
-# Allow user to override OS via 'make OS=...'
 OS ?= $(MAPPED_OS)
 
 # 3. Handle Library Tweaks (Haiku, etc.)
 ifeq ($(OS),haiku)
   LDFLAGS += -lroot -lnetwork
   PTHREAD_LIBS = # Already in libroot
+  # Special for Haiku Kernel/Accelerant
+  HAIKU_LDFLAGS = -lbe -ltranslation
 else
   PTHREAD_LIBS = -lpthread
-  # If we're on an exotic system, we just use the Linux logic but strip it down
-  ifeq ($(OS),generic_posix)
-    LDFLAGS += 
-  endif
 endif
 
 $(info [HIT] Building for OS: $(OS) (Detected: $(DETECTED_OS)))
 
 # 4. Set Directory Paths
-# If we don't have a specific adapter for the OS, we use the Linux one 
-# as a "Generic POSIX" template.
 ifeq ($(wildcard kernel-amd/os-interface/$(OS)),)
-  $(warning [HIT] OS adapter for $(OS) not found. Using Generic POSIX template.)
   OS_DIR_SUFFIX = linux
   OS_INTERFACE_DIR = kernel-amd/os-interface/linux
   OS_PRIMITIVES_DIR = kernel-amd/os-primitives/linux
@@ -54,7 +47,8 @@ endif
 
 # 5. Build Options
 USERLAND_MODE ?= 0
-CFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c99 -include config.h
+CFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c99 -include config.h -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives
+CXXFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c++11 -include config.h -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives
 
 SRC_DIR = src/amd
 COMMON_DIR = src/common
@@ -68,22 +62,39 @@ OS_OBJS = $(OS_INTERFACE_DIR)/os_interface_$(OS_DIR_SUFFIX).o \
           $(OS_PRIMITIVES_DIR)/os_primitives_$(OS_DIR_SUFFIX).o
 
 # 6. Build Targets
-all: libamdgpu.so rmapi_server rmapi_client_demo
+TARGETS = libamdgpu.so rmapi_server rmapi_client_demo
+
+ifeq ($(OS),haiku)
+  TARGETS += amdgpu amdgpu.accelerant
+endif
+
+all: $(TARGETS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -fPIC -c $< -o $@
+
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -fPIC -c $< -o $@
 
 libamdgpu.so: $(SRC_OBJS) $(OS_OBJS)
 	$(CC) -shared -o $@ $^ $(LDFLAGS)
 
 rmapi_server: $(SRC_DIR)/rmapi_server.o $(SRC_DIR)/hal.o $(SRC_DIR)/objgpu.o \
                $(SRC_DIR)/rmapi.o $(SRC_DIR)/resserv.o $(COMMON_DIR)/ipc_lib.o $(OS_OBJS)
-	$(CC) -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives -Wall $^ $(PTHREAD_LIBS) $(LDFLAGS) -o $@
+	$(CC) $(CFLAGS) -Wall $^ $(PTHREAD_LIBS) $(LDFLAGS) -o $@
 
 rmapi_client_demo: rmapi_client_demo.c $(filter-out $(SRC_DIR)/rmapi_server.o, $(SRC_OBJS)) $(OS_OBJS)
-	$(CC) -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives -Wall $^ $(PTHREAD_LIBS) $(LDFLAGS) -o $@
+	$(CC) $(CFLAGS) -Wall $^ $(PTHREAD_LIBS) $(LDFLAGS) -o $@
+
+# --- Haiku Specific Specialist Binaries ---
+amdgpu: haiku-amd/addon/AmdAddon.o $(OS_OBJS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
+
+amdgpu.accelerant: haiku-amd/accelerant/AmdAccelerant.o $(OS_OBJS)
+	$(CXX) -shared -o $@ $^ $(LDFLAGS) $(HAIKU_LDFLAGS)
 
 clean:
 	rm -f *.o *.so *.ko $(SRC_DIR)/*.o $(COMMON_DIR)/*.o \
 	kernel-amd/os-interface/*/*.o kernel-amd/os-primitives/*/*.o \
-	rmapi_server rmapi_client_demo
+	haiku-amd/addon/*.o haiku-amd/accelerant/*.o \
+	rmapi_server rmapi_client_demo amdgpu amdgpu.accelerant
