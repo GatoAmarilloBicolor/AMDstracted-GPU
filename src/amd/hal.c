@@ -97,6 +97,28 @@ static const struct amd_ip_block_version navi10_gmc_ip_block = {
     .funcs = &navi10_gmc_ip_funcs,
 };
 
+/* --- Wrestler (Family 14h / APU) Specialist Skills --- */
+
+static int wrestler_common_early_init(struct OBJGPU *adev) {
+  os_prim_log(
+      "HAL: [Wrestler Manager] Hello, little APU! Checking systems...\n");
+  return 0;
+}
+
+static const struct amd_ip_funcs wrestler_common_ip_funcs = {
+    .name = "wrestler_common",
+    .early_init = wrestler_common_early_init,
+    .hw_init = navi10_common_hw_init, // Reusing high-level warm-up
+};
+
+static const struct amd_ip_block_version wrestler_common_ip_block = {
+    .type = AMD_IP_BLOCK_TYPE_COMMON,
+    .major = 1,
+    .minor = 0,
+    .rev = 0,
+    .funcs = &wrestler_common_ip_funcs,
+};
+
 /* --- The Main HAL Commands --- */
 
 // Turning on the whole GPU city!
@@ -107,10 +129,15 @@ int amdgpu_device_init_hal(struct OBJGPU *adev) {
   adev->res_root = rs_resource_create(0, NULL);
 
   // Discovering which GPU chip we have
-  if (adev->asic_type == 0x1000) { // Navi10 (The cool one)
+  if (adev->asic_type == AMD_ASIC_NAVI10) {
     amdgpu_device_ip_block_add(adev, &navi10_common_ip_block);
     amdgpu_device_ip_block_add(adev, &navi10_gmc_ip_block);
     amdgpu_device_ip_block_add(adev, &navi10_gfx_ip_block);
+  } else if (adev->asic_type == AMD_ASIC_WRESTLER) {
+    os_prim_log("HAL: Recognized your Radeon HD 7290 APU! 🌀\n");
+    amdgpu_device_ip_block_add(adev, &wrestler_common_ip_block);
+    amdgpu_device_ip_block_add(adev,
+                               &navi10_gmc_ip_block); // APU uses GTT memory
   } else {
     os_prim_log(
         "HAL: Unknown chip type? Just using Navi10 defaults for now.\n");
@@ -163,9 +190,16 @@ void amdgpu_device_fini_hal(struct OBJGPU *adev) {
 // Just asking the GPU "Who are you?"
 int amdgpu_gpu_get_info_hal(struct OBJGPU *adev, amdgpu_gpu_info_t *info) {
   os_prim_log("HAL: [Manager] Giving out the GPU ID card.\n");
-  info->vram_size_mb = 8192;
-  info->gpu_clock_mhz = 1710;
-  strncpy(info->gpu_name, "Radeon RX 5700 XT (Abstracted)", 31);
+
+  if (adev->asic_type == AMD_ASIC_WRESTLER) {
+    info->vram_size_mb = 512; // Typical for this APU
+    info->gpu_clock_mhz = 400;
+    strncpy(info->gpu_name, "Radeon HD 7290 (Wrestler)", 31);
+  } else {
+    info->vram_size_mb = 8192;
+    info->gpu_clock_mhz = 1710;
+    strncpy(info->gpu_name, "Radeon RX 5700 XT (Abstracted)", 31);
+  }
   return 0;
 }
 

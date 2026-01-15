@@ -27,6 +27,18 @@ int rmapi_init(void) {
     return -1; // Big sadness, we ran out of memory!
 
   memset(global_gpu, 0, sizeof(struct OBJGPU));
+
+  // --- Hardware Discovery ---
+  // We check if there's an actual AMD card in the system!
+  void *pci_handle;
+  if (os_prim_pci_find_device(0x1002, 0x9806, &pci_handle) == 0) {
+    // Found a Wrestler APU! (Like the user's Radeon HD 7290)
+    global_gpu->asic_type = AMD_ASIC_WRESTLER;
+  } else {
+    // Default to Navi10 for simulators
+    global_gpu->asic_type = AMD_ASIC_NAVI10;
+  }
+
   amdgpu_device_init_hal(
       global_gpu); // Starting the especialistas (Specialists)
 

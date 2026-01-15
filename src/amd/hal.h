@@ -103,10 +103,16 @@ struct amdgpu_gpu_info {
 
 typedef struct amdgpu_gpu_info amdgpu_gpu_info_t;
 
+// Different ASIC types
+enum amd_asic_type {
+  AMD_ASIC_NAVI10,
+  AMD_ASIC_WRESTLER, // Added for your Radeon HD 7290!
+};
+
 // The "Main Brain" (OBJGPU) that manages all our specialists
 struct OBJGPU {
-  uint32_t asic_type; // What kind of GPU chip is this?
-  uint32_t family;    // Which GPU family does it belong to?
+  enum amd_asic_type asic_type; // What kind of GPU chip is this?
+  uint32_t family;              // Which GPU family does it belong to?
 
   struct amd_ip_block ip_blocks[AMDGPU_MAX_IP_BLOCKS]; // List of workers
   int num_ip_blocks;

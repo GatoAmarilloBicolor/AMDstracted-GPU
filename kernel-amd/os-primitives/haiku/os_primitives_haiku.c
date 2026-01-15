@@ -77,7 +77,12 @@ void os_prim_log(const char *msg) {
 
 // Searching for the graphics card on the PCI bus
 int os_prim_pci_find_device(uint16_t vendor, uint16_t device, void **handle) {
-  // We pretend we found a shiny Navi10 card!
+  if (vendor == 0x1002 && device == 0x9806) {
+    // We found your shiny Radeon HD 7290!
+    *handle = (void *)0x9806;
+    return 0;
+  }
+  // Fallback for Navi10 or others
   *handle = (void *)0x7310;
   return 0;
 }
