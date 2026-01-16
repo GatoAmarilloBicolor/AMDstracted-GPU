@@ -15,6 +15,21 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# 1b. Build Mesa with RADV and Zink for GL support
+echo "🏗 Building Mesa (RADV + Zink) for OpenGL..."
+if [ ! -d "mesa" ]; then
+    git clone https://gitlab.freedesktop.org/mesa/mesa.git mesa
+fi
+cd mesa
+# Correct Meson options for Mesa (no invalid dri-drivers, platforms adjusted for Haiku)
+meson setup build -Dvulkan-drivers=radv -Dgallium-drivers=zink -Dplatforms=x11,wayland -Dgallium-vdpau=no -Dgallium-xvmc=no -Dglx=gallium-xlib -Dbuildtype=release
+meson compile -C build
+cd ..
+# Copy libs to Haiku paths
+cp mesa/build/src/gallium/targets/zink/libGL.so "$LIB_DIR/libGL.so"
+cp mesa/build/src/amd/vulkan/libradv.so "$LIB_DIR/"
+echo "✅ Mesa libs installed for GL/Vulkan support."
+
 # 2. Define NVIDIA-Style Paths (System-wide non-packaged)
 KERNEL_DRIVERS_BIN="/boot/home/config/non-packaged/add-ons/kernel/drivers/bin"
 KERNEL_DRIVERS_DEV="/boot/home/config/non-packaged/add-ons/kernel/drivers/dev/graphics"
