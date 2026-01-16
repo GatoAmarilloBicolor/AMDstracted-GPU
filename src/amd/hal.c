@@ -21,6 +21,14 @@ int amdgpu_device_ip_block_add(
   return 0;
 }
 
+/* ============================================================================
+ * Import real IP Block implementations from separate files
+ * ============================================================================ */
+
+// Forward declarations (implemented in gmc_v10.c and gfx_v10.c)
+extern const struct amd_ip_block_version gmc_v10_ip_block;
+extern const struct amd_ip_block_version gfx_v10_ip_block;
+
 /* --- Navi10 Specialist Skills (The Actual Code) --- */
 
 // 1. The Manager (Common Block)
@@ -64,56 +72,6 @@ static const struct amd_ip_block_version navi10_common_ip_block = {
     .minor = 0,
     .rev = 0,
     .funcs = &navi10_common_ip_funcs,
-};
-
-// 2. The Artist (GFX Block)
-static int navi10_gfx_hw_init(struct OBJGPU *adev) {
-  os_prim_log("HAL: [Artist] Ready to draw some cool 3D stuff!\n");
-  return 0;
-}
-
-static int navi10_gfx_hw_fini(struct OBJGPU *adev) {
-  os_prim_log("HAL: [Artist] Brushes cleaned and put away.\n");
-  return 0;
-}
-
-static const struct amd_ip_funcs navi10_gfx_ip_funcs = {
-    .name = "navi10_gfx",
-    .hw_init = navi10_gfx_hw_init,
-    .hw_fini = navi10_gfx_hw_fini,
-};
-
-static const struct amd_ip_block_version navi10_gfx_ip_block = {
-    .type = AMD_IP_BLOCK_TYPE_GFX,
-    .major = 10,
-    .minor = 1,
-    .rev = 0,
-    .funcs = &navi10_gfx_ip_funcs,
-};
-
-// 3. The Librarian (GMC Block)
-static int navi10_gmc_hw_init(struct OBJGPU *adev) {
-  os_prim_log("HAL: [Librarian] Organizing the VRAM library.\n");
-  return 0;
-}
-
-static int navi10_gmc_hw_fini(struct OBJGPU *adev) {
-  os_prim_log("HAL: [Librarian] Library is closed for the night.\n");
-  return 0;
-}
-
-static const struct amd_ip_funcs navi10_gmc_ip_funcs = {
-    .name = "navi10_gmc",
-    .hw_init = navi10_gmc_hw_init,
-    .hw_fini = navi10_gmc_hw_fini,
-};
-
-static const struct amd_ip_block_version navi10_gmc_ip_block = {
-    .type = AMD_IP_BLOCK_TYPE_GMC,
-    .major = 10,
-    .minor = 0,
-    .rev = 0,
-    .funcs = &navi10_gmc_ip_funcs,
 };
 
 /* --- Wrestler (Family 14h / APU) Specialist Skills --- */
@@ -208,18 +166,19 @@ int amdgpu_device_init_hal(struct OBJGPU *adev) {
 
   // Registering Specialists based on ASIC
   if (adev->asic_type == AMD_ASIC_NAVI10) {
+    os_prim_log("HAL: Loading NAVI10 specialists (GMC v10, GFX v10)...\n");
     amdgpu_device_ip_block_add(adev, &navi10_common_ip_block);
-    amdgpu_device_ip_block_add(adev, &navi10_gmc_ip_block);
-    amdgpu_device_ip_block_add(adev, &navi10_gfx_ip_block);
+    amdgpu_device_ip_block_add(adev, &gmc_v10_ip_block);  // Real GMC v10
+    amdgpu_device_ip_block_add(adev, &gfx_v10_ip_block);  // Real GFX v10
   } else if (adev->asic_type == AMD_ASIC_WRESTLER) {
+    os_prim_log("HAL: Loading Wrestler APU specialists...\n");
     amdgpu_device_ip_block_add(adev, &wrestler_common_ip_block);
-    amdgpu_device_ip_block_add(adev,
-                               &navi10_gmc_ip_block); // Recycled skilled worker
+    amdgpu_device_ip_block_add(adev, &gmc_v10_ip_block);  // Using v10 for APU too
   } else {
     // Legacy Radeon Path
+    os_prim_log("HAL: Loading legacy Radeon specialists...\n");
     amdgpu_device_ip_block_add(adev, &legacy_radeon_common_ip_block);
-    amdgpu_device_ip_block_add(
-        adev, &navi10_gmc_ip_block); // Even the old guard needs a GMC
+    amdgpu_device_ip_block_add(adev, &gmc_v10_ip_block);  // Even legacy needs GMC
   }
   // --- Hardware Link: Mapping the MMIO Registers ---
   os_prim_log("HAL: Connecting to hardware registers (MMIO Mapping)...\n");

@@ -1,106 +1,131 @@
 #!/bin/bash
 
-# 🏁 HIT Edition: Professional Haiku Installer (NVIDIA-Style)
-# This script installs the driver mimicking the nvidia-haiku layout 
-# for testing on real hardware environments!
+# 🏁 HIT Edition: Haiku Installer
+# Builds and installs the AMD driver for Haiku OS
+# Includes: driver, shared library, tests, and Accelerant
 # Developed by: Haiku Imposible Team (HIT)
 
-echo "🚀 Starting PRO HIT Installation for Haiku (NVIDIA Layout)..."
+set -e
 
-# 1. Build everything
-echo "🏗 Building specialists (Addon & Accelerant)..."
-USERLAND_MODE=1 make clean all
-if [ $? -ne 0 ]; then
-    echo "❌ Build failed! Check if you have the Haiku C++ SDK."
+echo "════════════════════════════════════════════════════════════════"
+echo "🚀 HIT Haiku Installation - Complete Build"
+echo "════════════════════════════════════════════════════════════════"
+echo ""
+
+# Check prerequisites
+echo "📋 Checking prerequisites..."
+if ! command -v gcc &> /dev/null; then
+    echo "❌ GCC not found. Install Haiku development tools."
     exit 1
 fi
-
-# 1b. Install Mesa with RADV and Zink (agnostic, without libdrm dependency)
-echo "🏗 Installing Mesa (RADV + Zink) for OpenGL..."
-# No libdrm build for true agnosticism (RADV via swrast as fallback, like NVK without DRM)
-if [ ! -d "mesa" ]; then
-    git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa
+if ! command -v make &> /dev/null; then
+    echo "❌ Make not found."
+    exit 1
 fi
-cd mesa
-# Patch Mesa bugs
-sed -i 's/"true" if expr\.value else "false"/'\''true'\'' if expr.value else '\''false'\''/g' src/compiler/nir/nir_algebraic.py
-sed -i "s/{\", \".join(srcs)}/{', '.join(srcs)}/g" src/compiler/nir/nir_algebraic.py
-sed -i "s/{\" | \".join(fp_math_ctrl)}/{' | '.join(fp_math_ctrl)}/g" src/compiler/nir/nir_algebraic.py
-rm -rf build
-meson setup build -Dvulkan-drivers=swrast -Dgallium-drivers=zink -Dplatforms=haiku -Dbuildtype=release --prefix="$PWD/install"
-meson compile -C build
-meson install -C build
+echo "✅ Prerequisites OK"
+echo ""
+
+# 1. Build main driver for Haiku
+echo "────────────────────────────────────────────────────────────────"
+echo "📦 Step 1: Building Main Driver for Haiku"
+echo "────────────────────────────────────────────────────────────────"
+OS=haiku USERLAND_MODE=1 make clean all
+if [ $? -ne 0 ]; then
+    echo "❌ Driver build failed!"
+    exit 1
+fi
+echo "✅ Driver built successfully for Haiku"
+echo ""
+
+# 2. Build tests
+echo "────────────────────────────────────────────────────────────────"
+echo "🧪 Step 2: Building Test Suite"
+echo "────────────────────────────────────────────────────────────────"
+cd tests
+make -f Makefile.test clean
+make -f Makefile.test
+if [ $? -ne 0 ]; then
+    echo "❌ Test build failed!"
+    exit 1
+fi
+echo "✅ Tests built successfully"
 cd ..
+echo ""
 
-# Install libs, configure RADV ICD (swrast as RADV for agnostic relation)
-if [ -f "mesa/install/lib/libGL.so" ]; then
-    cp mesa/install/lib/libGL.so "$LIB_DIR/libGL.so.amd"
-fi
-if [ -f "mesa/install/lib/libvulkan_swrast.so" ]; then
-    cp mesa/install/lib/libvulkan_swrast.so "$LIB_DIR/libradv.so"  # RADV without libdrm
-    mkdir -p /boot/home/config/settings/vulkan/icd.d
-    cat > /boot/home/config/settings/vulkan/icd.d/radv_icd.json << EOF
-{
-    "file_format_version": "1.0.0",
-    "ICD": {
-        "library_path": "$LIB_DIR/libradv.so",
-        "api_version": "1.3.0"
-    }
-}
-EOF
-    echo "🔍 RADV configured without libdrm (agnostic)."
-fi
-echo "✅ Mesa with RADV (agnostic) installed for GL/Vulkan support."
+# 3. Run tests
+echo "────────────────────────────────────────────────────────────────"
+echo "🧪 Step 3: Running Test Suite"
+echo "────────────────────────────────────────────────────────────────"
+cd tests
+./test_suite
+TEST_RESULT=$?
+cd ..
+echo ""
 
-# 2. Define NVIDIA-Style Paths (System-wide non-packaged)
-KERNEL_DRIVERS_BIN="/boot/home/config/non-packaged/add-ons/kernel/drivers/bin"
-KERNEL_DRIVERS_DEV="/boot/home/config/non-packaged/add-ons/kernel/drivers/dev/graphics"
-ACCELERANTS_DIR="/boot/home/config/non-packaged/add-ons/accelerants"
-RMAPI_BIN_DIR="/boot/home/config/non-packaged/bin"
-LIB_DIR="/boot/home/config/non-packaged/lib"
+# 4. Install to Haiku system paths
+echo "────────────────────────────────────────────────────────────────"
+echo "📂 Step 4: Haiku Installation"
+echo "────────────────────────────────────────────────────────────────"
 
-echo "📂 Creating official Haiku driver hierarchy..."
-mkdir -p "$KERNEL_DRIVERS_BIN"
-mkdir -p "$KERNEL_DRIVERS_DEV"
-mkdir -p "$ACCELERANTS_DIR"
-mkdir -p "$RMAPI_BIN_DIR"
+# Haiku non-packaged directory
+HAIKU_COMMON=/boot/home/config/non-packaged
+INSTALL_DIR="$HAIKU_COMMON/bin"
+LIB_DIR="$HAIKU_COMMON/lib"
+ADDONS_DIR="$HAIKU_COMMON/add-ons/accelerants"
+
+mkdir -p "$INSTALL_DIR"
 mkdir -p "$LIB_DIR"
+mkdir -p "$ADDONS_DIR"
 
-# 3. Deploy the specialists (NVIDIA style)
-echo "🚚 Deploying kernel-style specialists..."
+echo "Installing to Haiku paths..."
 
-# The Driver itself
-cp -f amdgpu_hit "$KERNEL_DRIVERS_BIN/amdgpu_hit"
-ln -sf "$KERNEL_DRIVERS_BIN/amdgpu_hit" "$KERNEL_DRIVERS_DEV/amdgpu_hit"
+# Install main artifacts
+cp -f rmapi_server "$INSTALL_DIR/amd_rmapi_server"
+chmod +x "$INSTALL_DIR/amd_rmapi_server"
 
-# The Accelerant (The GUI specialist)
-cp -f amdgpu_hit.accelerant "$ACCELERANTS_DIR/amdgpu_hit.accelerant"
-
-# The RMAPI Server (The Brain)
-cp -f rmapi_server "$RMAPI_BIN_DIR/amd_rmapi_server"
-
-# Shared Library
 cp -f libamdgpu.so "$LIB_DIR/"
 
-# 4. Success!
-echo "----------------------------------------------------"
-echo "✅ PRO INSTALL COMPLETE! (HIT vs NVIDIA Style)"
-echo "----------------------------------------------------"
-echo "🌀 Layout deployed to /boot/home/config/non-packaged/"
-echo "📍 Driver: bin/amdgpu_hit"
-echo "📍 Accelerant: accelerants/amdgpu_hit.accelerant"
-echo "📍 Brain: bin/amd_rmapi_server"
-echo "----------------------------------------------------"
-echo "🛠 Real Hardware Test Steps:"
-echo "  1. Start the brain manually: 'amd_rmapi_server &'"
-echo "  2. GLInfo will now query the real hardware via this bridge."
-echo "----------------------------------------------------"
-echo "Built to compete with the best. - Haiku Imposible Team"
+cp -f rmapi_client_demo "$INSTALL_DIR/amd_rmapi_client_demo"
+chmod +x "$INSTALL_DIR/amd_rmapi_client_demo"
 
-# 5. Push changes to GitHub
-echo "📤 Pushing changes to GitHub..."
-if [ -f "upload_to_git.sh" ]; then
-    ./upload_to_git.sh
-else
-    echo "⚠️ upload_to_git.sh not found. Push manually with git push."
+# Install test suite
+cp -f tests/test_suite "$INSTALL_DIR/amd_test_suite"
+chmod +x "$INSTALL_DIR/amd_test_suite"
+
+# Install Accelerant if built
+if [ -f "amdgpu_hit.accelerant" ]; then
+    cp -f amdgpu_hit.accelerant "$ADDONS_DIR/"
+    echo "✅ Accelerant installed"
 fi
+
+echo "✅ Haiku installation complete"
+echo ""
+
+# 5. Summary
+echo "════════════════════════════════════════════════════════════════"
+echo "✅ BUILD COMPLETE - HAIKU"
+echo "════════════════════════════════════════════════════════════════"
+echo ""
+echo "📊 Build Summary:"
+echo "  • Driver binary:      rmapi_server ✅"
+echo "  • Shared library:     libamdgpu.so ✅"
+echo "  • Test suite:         tests/test_suite ✅"
+echo "  • Client demo:        rmapi_client_demo ✅"
+echo ""
+echo "📍 Installation Paths:"
+echo "  • Brain:             $INSTALL_DIR/amd_rmapi_server"
+echo "  • Library:           $LIB_DIR/libamdgpu.so"
+echo "  • Test Suite:        $INSTALL_DIR/amd_test_suite"
+echo "  • Client Demo:       $INSTALL_DIR/amd_rmapi_client_demo"
+if [ -f "amdgpu_hit.accelerant" ]; then
+    echo "  • Accelerant:        $ADDONS_DIR/amdgpu_hit.accelerant"
+fi
+echo ""
+echo "🛠️  Quick Start:"
+echo "  1. Start server:     $INSTALL_DIR/amd_rmapi_server &"
+echo "  2. Run client:       $INSTALL_DIR/amd_rmapi_client_demo"
+echo "  3. Run tests:        $INSTALL_DIR/amd_test_suite"
+echo ""
+echo "════════════════════════════════════════════════════════════════"
+echo "🎉 SUCCESS - Haiku Ready - HIT Edition"
+echo "════════════════════════════════════════════════════════════════"

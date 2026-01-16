@@ -1,0 +1,87 @@
+# Test Suite Makefile
+# Builds and runs unit tests for AMDGPU_Abstracted
+
+CC = gcc
+CFLAGS = -std=c99 -Wall -Wextra -I.. -I../src/amd -I../kernel-amd/os-interface -I../kernel-amd/os-primitives
+LDFLAGS = -lm -pthread
+
+# Test sources
+TEST_SOURCES = test_runner.c test_gmc_v10.c
+TEST_OBJS = $(TEST_SOURCES:.c=.o)
+
+# Core driver sources needed for testing
+DRIVER_SOURCES = ../src/amd/hal.c ../src/amd/gmc_v10.c ../src/amd/gfx_v10.c \
+                 ../src/amd/resserv.c ../src/common/ipc_lib.c \
+                 ../kernel-amd/os-primitives/linux/os_primitives_linux.c
+DRIVER_OBJS = $(DRIVER_SOURCES:.c=.o)
+
+# Test executable
+TEST_BIN = test_suite
+
+# Default target
+all: $(TEST_BIN)
+
+# Build test executable
+$(TEST_BIN): $(TEST_OBJS) $(DRIVER_OBJS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	@echo "✅ Test suite built: $(TEST_BIN)"
+
+# Compile test source files
+%.o: %.c test_framework.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Run tests
+test: $(TEST_BIN)
+	@echo ""
+	@echo "Running tests..."
+	@echo ""
+	./$(TEST_BIN)
+
+# Run tests with verbose output
+test-verbose: $(TEST_BIN)
+	./$(TEST_BIN) -v
+
+# Run tests with coverage
+test-coverage: CFLAGS += --coverage
+test-coverage: LDFLAGS += --coverage
+test-coverage: clean $(TEST_BIN)
+	@echo "Running tests with coverage..."
+	./$(TEST_BIN)
+	@echo "Generating coverage report..."
+	gcov $(TEST_SOURCES) $(DRIVER_SOURCES)
+	@echo "Coverage data written to *.gcov files"
+
+# Run tests with memory checking (valgrind)
+test-memory: $(TEST_BIN)
+	@echo "Running tests with memory checking..."
+	@echo ""
+	valgrind --leak-check=full --show-leak-kinds=all ./$(TEST_BIN)
+
+# Run tests with AddressSanitizer
+test-asan: CFLAGS += -fsanitize=address -fno-omit-frame-pointer
+test-asan: LDFLAGS += -fsanitize=address
+test-asan: clean $(TEST_BIN)
+	@echo "Running tests with AddressSanitizer..."
+	./$(TEST_BIN)
+
+# Clean build artifacts
+clean:
+	rm -f $(TEST_BIN) $(TEST_OBJS) $(DRIVER_OBJS)
+	rm -f *.gcov *.gcda *.gcno
+	@echo "✅ Cleaned test artifacts"
+
+# Help target
+help:
+	@echo "Test Suite Makefile"
+	@echo ""
+	@echo "Targets:"
+	@echo "  make test              - Build and run tests"
+	@echo "  make test-verbose      - Run tests with verbose output"
+	@echo "  make test-coverage     - Run tests with gcov coverage"
+	@echo "  make test-memory       - Run tests with valgrind memory check"
+	@echo "  make test-asan         - Run tests with AddressSanitizer"
+	@echo "  make clean             - Clean build artifacts"
+	@echo "  make help              - Show this help message"
+	@echo ""
+
+.PHONY: all test test-verbose test-coverage test-memory test-asan clean help

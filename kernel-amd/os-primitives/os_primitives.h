@@ -46,8 +46,19 @@ void os_prim_display_put_pixel(int x, int y, uint32_t color);
 
 // Threads/Interrupts (minimal)
 typedef void (*os_prim_interrupt_handler)(void *data);
+typedef int (*os_prim_thread_func)(void *arg);
+
 int os_prim_register_interrupt(int irq, os_prim_interrupt_handler handler,
                                void *data);
 void os_prim_unregister_interrupt(int irq);
+
+// Thread spawning (basic)
+typedef int32_t os_prim_thread_id_t;
+os_prim_thread_id_t os_prim_spawn_thread(const char *name, int priority,
+                                         os_prim_thread_func func, void *arg);
+void os_prim_wait_thread(os_prim_thread_id_t tid);
+
+// Cleanup
+void os_prim_cleanup(void);
 
 #endif // OS_PRIMITIVES_H

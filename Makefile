@@ -55,7 +55,8 @@ COMMON_DIR = src/common
 # List of Objects to build
 SRC_OBJS = $(SRC_DIR)/objgpu.o $(SRC_DIR)/hal.o $(SRC_DIR)/amdgpu_gem_userland.o \
            $(SRC_DIR)/amdgpu_kms_userland.o $(SRC_DIR)/resserv.o $(SRC_DIR)/rmapi.o \
-           $(SRC_DIR)/rmapi_server.o $(COMMON_DIR)/ipc_lib.o
+           $(SRC_DIR)/rmapi_server.o $(SRC_DIR)/gmc_v10.o $(SRC_DIR)/gfx_v10.o \
+           $(COMMON_DIR)/ipc_lib.o
 
 OS_OBJS = $(OS_INTERFACE_DIR)/os_interface_$(OS_DIR_SUFFIX).o \
           $(OS_PRIMITIVES_DIR)/os_primitives_$(OS_DIR_SUFFIX).o
@@ -79,7 +80,8 @@ libamdgpu.so: $(SRC_OBJS) $(OS_OBJS)
 	$(CC) -shared -o $@ $^ $(LDFLAGS)
 
 rmapi_server: $(SRC_DIR)/rmapi_server.o $(SRC_DIR)/hal.o $(SRC_DIR)/objgpu.o \
-               $(SRC_DIR)/rmapi.o $(SRC_DIR)/resserv.o $(COMMON_DIR)/ipc_lib.o $(OS_OBJS)
+               $(SRC_DIR)/rmapi.o $(SRC_DIR)/resserv.o $(SRC_DIR)/gmc_v10.o \
+               $(SRC_DIR)/gfx_v10.o $(COMMON_DIR)/ipc_lib.o $(OS_OBJS)
 	$(CC) $(CFLAGS) -Wall $^ $(PTHREAD_LIBS) $(LDFLAGS) -o $@
 
 rmapi_client_demo: rmapi_client_demo.c $(filter-out $(SRC_DIR)/rmapi_server.o, $(SRC_OBJS)) $(OS_OBJS)

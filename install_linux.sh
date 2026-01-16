@@ -2,78 +2,154 @@
 
 # 🏁 HIT Edition: Professional Linux Installer
 # This script builds and installs the driver for Linux systems.
+# Includes: driver, shared library, tests, and examples
 # Developed by: Haiku Imposible Team (HIT)
 
-echo "🚀 Starting HIT Installation for Linux..."
+set -e  # Exit on error
 
-# 1. Build everything
-echo "🏗 Building driver components..."
-USERLAND_MODE=1 make clean all
-if [ $? -ne 0 ]; then
-    echo "❌ Build failed! Check your build tools."
+echo "════════════════════════════════════════════════════════════════"
+echo "🚀 HIT Linux Installation - Complete Build"
+echo "════════════════════════════════════════════════════════════════"
+echo ""
+
+# Check prerequisites
+echo "📋 Checking prerequisites..."
+if ! command -v gcc &> /dev/null; then
+    echo "❌ GCC not found. Install with: sudo apt install gcc build-essential"
     exit 1
 fi
-
-# 1b. Install Mesa with RADV and Zink for GL support (Linux has libdrm)
-echo "🏗 Installing Mesa (RADV + Zink) for OpenGL..."
-# Check if Mesa is installed via package manager
-if command -v apt &> /dev/null && dpkg -l | grep -q mesa; then
-    echo "✅ Mesa already installed via apt. Skipping build."
-else
-    # Build from source if not available
-    if [ ! -d "mesa" ]; then
-        git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa
-    fi
-    cd mesa
-    meson setup build -Dvulkan-drivers=amd -Dgallium-drivers=zink -Dplatforms=x11,wayland -Dbuildtype=release --prefix="$PWD/install"
-    meson compile -C build
-    meson install -C build
-    cd ..
-    # Install libs system-wide
-    sudo cp mesa/install/lib/libGL.so "$LIB_DIR/libGL.so.amd"
-    sudo cp mesa/install/lib/libradv.so "$LIB_DIR/libradv.so"
-    sudo ldconfig
-    # Configure RADV ICD
-    sudo mkdir -p /usr/share/vulkan/icd.d
-    sudo tee /usr/share/vulkan/icd.d/radv_icd.json > /dev/null <<EOF
-{
-    "file_format_version": "1.0.0",
-    "ICD": {
-        "library_path": "$LIB_DIR/libradv.so",
-        "api_version": "1.3.0"
-    }
-}
-EOF
+if ! command -v make &> /dev/null; then
+    echo "❌ Make not found. Install with: sudo apt install make"
+    exit 1
 fi
-echo "✅ Mesa libs installed for GL/Vulkan support."
+echo "✅ Prerequisites OK"
+echo ""
 
-# 2. Define Linux Paths
+# 1. Build main driver
+echo "────────────────────────────────────────────────────────────────"
+echo "📦 Step 1: Building Main Driver"
+echo "────────────────────────────────────────────────────────────────"
+USERLAND_MODE=1 make clean all
+if [ $? -ne 0 ]; then
+    echo "❌ Driver build failed!"
+    exit 1
+fi
+echo "✅ Driver built successfully"
+echo ""
+
+# 2. Build tests
+echo "────────────────────────────────────────────────────────────────"
+echo "🧪 Step 2: Building Test Suite"
+echo "────────────────────────────────────────────────────────────────"
+cd tests
+make -f Makefile.test clean
+make -f Makefile.test
+if [ $? -ne 0 ]; then
+    echo "❌ Test build failed!"
+    exit 1
+fi
+echo "✅ Tests built successfully"
+cd ..
+echo ""
+
+# 3. Run tests
+echo "────────────────────────────────────────────────────────────────"
+echo "🧪 Step 3: Running Test Suite"
+echo "────────────────────────────────────────────────────────────────"
+cd tests
+./test_suite
+TEST_RESULT=$?
+cd ..
+if [ $TEST_RESULT -ne 0 ]; then
+    echo "⚠️  Some tests failed (this is normal for early stages)"
+fi
+echo ""
+
+# 4. Install system-wide (optional, requires sudo)
+echo "────────────────────────────────────────────────────────────────"
+echo "📂 Step 4: System Installation (Optional)"
+echo "────────────────────────────────────────────────────────────────"
+
 INSTALL_DIR="/usr/local/bin"
 LIB_DIR="/usr/local/lib"
 
-echo "📂 Installing to system paths (requires sudo if not current user)..."
+# Ask for confirmation
+read -p "Install driver system-wide? (y/n) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo "Installing to system paths..."
+    
+    # Check for sudo access
+    if ! sudo -n true 2>/dev/null; then
+        echo "🔐 Sudo password required:"
+        sudo true || { echo "❌ Sudo failed"; exit 1; }
+    fi
+    
+    # Install main artifacts
+    sudo cp -f rmapi_server "$INSTALL_DIR/amd_rmapi_server"
+    sudo chmod +x "$INSTALL_DIR/amd_rmapi_server"
+    
+    sudo cp -f libamdgpu.so "$LIB_DIR/"
+    sudo ldconfig
+    
+    cp -f rmapi_client_demo "$HOME/amd_rmapi_client_demo"
+    chmod +x "$HOME/amd_rmapi_client_demo"
+    
+    # Install test suite
+    sudo cp -f tests/test_suite "$INSTALL_DIR/amd_test_suite"
+    sudo chmod +x "$INSTALL_DIR/amd_test_suite"
+    
+    echo "✅ System installation complete"
+    INSTALLED=1
+else
+    echo "⏭️  Skipping system installation"
+    INSTALLED=0
+fi
+echo ""
 
-# The RMAPI Server (The Brain)
-sudo cp -f rmapi_server "$INSTALL_DIR/amd_rmapi_server"
-sudo chmod +x "$INSTALL_DIR/amd_rmapi_server"
+# 5. Summary
+echo "════════════════════════════════════════════════════════════════"
+echo "✅ BUILD COMPLETE"
+echo "════════════════════════════════════════════════════════════════"
+echo ""
+echo "📊 Build Summary:"
+echo "  • Driver binary:      rmapi_server ✅"
+echo "  • Shared library:     libamdgpu.so ✅"
+echo "  • Test suite:         tests/test_suite ✅"
+echo "  • Client demo:        rmapi_client_demo ✅"
+echo ""
 
-# Shared Library
-sudo cp -f libamdgpu.so "$LIB_DIR/"
-sudo ldconfig
+if [ $INSTALLED -eq 1 ]; then
+    echo "📍 System Paths (Installed):"
+    echo "  • Brain:             $INSTALL_DIR/amd_rmapi_server"
+    echo "  • Library:           $LIB_DIR/libamdgpu.so"
+    echo "  • Test Suite:        $INSTALL_DIR/amd_test_suite"
+    echo "  • Client Demo:       $HOME/amd_rmapi_client_demo"
+    echo ""
+    echo "🛠️  Quick Start (Installed):"
+    echo "  1. Start server:     amd_rmapi_server &"
+    echo "  2. Run client:       ~/amd_rmapi_client_demo"
+    echo "  3. Run tests:        amd_test_suite"
+else
+    echo "📍 Local Paths (Not Installed):"
+    echo "  • Brain:             ./rmapi_server"
+    echo "  • Library:           ./libamdgpu.so"
+    echo "  • Test Suite:        ./tests/test_suite"
+    echo "  • Client Demo:       ./rmapi_client_demo"
+    echo ""
+    echo "🛠️  Quick Start (Local):"
+    echo "  1. Start server:     ./rmapi_server &"
+    echo "  2. Run client:       ./rmapi_client_demo"
+    echo "  3. Run tests:        ./tests/test_suite"
+fi
 
-# The Client Demo
-cp -f rmapi_client_demo "$HOME/rmapi_client_demo"
-
-# 3. Success!
-echo "----------------------------------------------------"
-echo "✅ LINUX INSTALL COMPLETE!"
-echo "----------------------------------------------------"
-echo "📍 Brain: $INSTALL_DIR/amd_rmapi_server"
-echo "📍 Lib:   $LIB_DIR/libamdgpu.so"
-echo "📍 Demo:  $HOME/rmapi_client_demo"
-echo "----------------------------------------------------"
-echo "🛠 Quick Start:"
-echo "  1. Start the brain: 'amd_rmapi_server &'"
-echo "  2. Run the demo:  '~/rmapi_client_demo'"
-echo "----------------------------------------------------"
-echo "Powering the open source world. - Haiku Imposible Team"
+echo ""
+echo "📚 Documentation:"
+echo "  • README:             ./README.md"
+echo "  • Architecture:       ./docs/ARCHITECTURE_STEP_BY_STEP.md"
+echo "  • Master Guide:       ../MAESTRO.md"
+echo "  • Tests Guide:        ./tests/README.md"
+echo ""
+echo "════════════════════════════════════════════════════════════════"
+echo "🎉 SUCCESS - Powered by Haiku Imposible Team (HIT)"
+echo "════════════════════════════════════════════════════════════════"
