@@ -7,6 +7,8 @@
  * Developed by: Haiku Imposible Team (HIT)
  */
 
+#define _POSIX_C_SOURCE 199309L
+
 #include "../os_primitives.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,17 +17,30 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <signal.h>
+#include <time.h>
 
-/* Haiku headers - only include if on Haiku */
+/* Haiku headers - only include if available */
 #ifdef __HAIKU__
-#include <OS.h>
-#include <device/device_manager.h>
-#include <drivers/pci/pci.h>
-#include <drivers/usb/USB.h>
-#include <drivers/KernelExport.h>
-#include <drivers/Drivers.h>
+#if __has_include(<OS.h>)
+    /* Real Haiku system */
+    #include <OS.h>
+    #include <device/device_manager.h>
+    #include <drivers/pci/pci.h>
+    #include <drivers/usb/USB.h>
+    #include <drivers/KernelExport.h>
+    #include <drivers/Drivers.h>
+    #define HAIKU_NATIVE 1
 #else
-/* Stubs for non-Haiku systems */
+    /* Haiku target but headers not available - use stubs */
+    #define HAIKU_NATIVE 0
+#endif
+#else
+    /* Not on Haiku - use stubs */
+    #define HAIKU_NATIVE 0
+#endif
+
+#if !HAIKU_NATIVE
+/* Stubs for non-Haiku systems or Haiku without headers */
 #define dprintf(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
 typedef int32_t sem_id;
 typedef int32_t thread_id;
@@ -41,21 +56,25 @@ typedef int32_t thread_id;
 #define resume_thread(tid) do {} while(0)
 #define kill_thread(tid) do {} while(0)
 #define wait_for_thread(tid, exit) do {} while(0)
-#define snooze(us) usleep(us)
+#define snooze(us) do { struct timespec ts = {.tv_sec = (us)/1000000, .tv_nsec = ((us)%1000000)*1000}; nanosleep(&ts, NULL); } while(0)
+#define g_device_manager NULL
 #endif
 
 /* ============================================================================
  * GLOBAL STATE
  * ============================================================================ */
 
+#if HAIKU_NATIVE
 static device_manager_info *g_device_manager = NULL;
 static pci_module_info *g_pci = NULL;
+#endif
 static sem_id g_lock_sem = -1;
 
 /* ============================================================================
  * INITIALIZATION
  * ============================================================================ */
 
+#if HAIKU_NATIVE
 static int os_prim_init_haiku(void) {
     // Get device_manager interface
     g_device_manager = (device_manager_info *)load_driver_symbol("device_manager");
@@ -81,6 +100,12 @@ static int os_prim_init_haiku(void) {
     os_prim_log("HAIKU: Initialized device_manager and PCI module\n");
     return 0;
 }
+#else
+static int os_prim_init_haiku(void) {
+    os_prim_log("HAIKU: Using stubs (not on native Haiku)\n");
+    return 0;
+}
+#endif
 
 /* ============================================================================
  * MEMORY ALLOCATION
@@ -167,6 +192,7 @@ void os_prim_log(const char *fmt, ...) {
 int os_prim_pci_find_device(uint16_t vendor, uint16_t device, void **handle) {
     if (!handle) return -1;
     
+#if HAIKU_NATIVE
     // Initialize if needed
     if (!g_pci && os_prim_init_haiku() < 0) {
         *handle = (void *)0x9806;  // Fallback to simulation
@@ -191,6 +217,7 @@ int os_prim_pci_find_device(uint16_t vendor, uint16_t device, void **handle) {
         }
         index++;
     }
+#endif
     
     os_prim_log("HAIKU: No AMD GPU found, using simulation\n");
     *handle = (void *)0x9806;  // Wrestler APU fallback
@@ -198,7 +225,12 @@ int os_prim_pci_find_device(uint16_t vendor, uint16_t device, void **handle) {
 }
 
 int os_prim_pci_read_config(void *handle, int offset, uint32_t *val) {
-    if (!val || !g_pci) {
+    if (!val) {
+        return -1;
+    }
+    
+#if HAIKU_NATIVE
+    if (!g_pci) {
         return -1;
     }
     
@@ -216,9 +248,15 @@ int os_prim_pci_read_config(void *handle, int offset, uint32_t *val) {
     }
     
     return -1;
+#else
+    // Stub: return device_id
+    *val = (uint32_t)(uintptr_t)handle;
+    return 0;
+#endif
 }
 
 int os_prim_pci_write_config(void *handle, int offset, uint32_t val) {
+#if HAIKU_NATIVE
     if (!g_pci) return -1;
     
     uint16_t device_id = (uint16_t)(uintptr_t)handle;
@@ -235,6 +273,10 @@ int os_prim_pci_write_config(void *handle, int offset, uint32_t val) {
     }
     
     return -1;
+#else
+    // Stub
+    return 0;
+#endif
 }
 
 int os_prim_pci_get_ids(void *handle, uint16_t *vendor, uint16_t *device) {
@@ -326,7 +368,7 @@ static irq_handler_entry_t g_irq_handlers[MAX_IRQ_HANDLERS];
 static int g_irq_count = 0;
 static sem_id g_irq_sem = -1;
 
-static int32 os_prim_irq_thread(void *arg) {
+static int32_t os_prim_irq_thread(void *arg) {
     irq_handler_entry_t *entry = (irq_handler_entry_t *)arg;
     
     while (1) {
@@ -399,7 +441,7 @@ thread_id os_prim_spawn_thread(const char *name, int priority,
 }
 
 void os_prim_wait_thread(thread_id tid) {
-    int32 exit_code;
+    int32_t exit_code;
     wait_for_thread(tid, &exit_code);
 }
 
