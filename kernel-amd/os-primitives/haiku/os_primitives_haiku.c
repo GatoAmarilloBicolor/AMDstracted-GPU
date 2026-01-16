@@ -20,12 +20,10 @@
  * ============================================================================ */
 
 #ifdef __HAIKU__
-#include <OS.h>
-#include <KernelKit.h>
-#include <support/SupportKit.h>
-#include <device/pci.h>
-#include <drivers/driver_settings.h>
-#include <sys/ioctl.h>
+#include <OS.h>                    /* Haiku OS API: threads, semaphores, snooze */
+#include <drivers/driver_settings.h> /* Driver configuration */
+#include <device/pci.h>            /* PCI bus access */
+#include <sys/ioctl.h>             /* I/O control for device drivers */
 
 /* ============================================================================
  * GLOBAL STATE (Haiku)
