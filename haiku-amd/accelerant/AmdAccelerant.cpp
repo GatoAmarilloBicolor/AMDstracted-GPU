@@ -6,6 +6,7 @@
 #include <OS.h>
 #include <SupportDefs.h>
 #include <Errors.h>
+#include <kits/opengl/GLRenderer.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -247,13 +248,13 @@ _EXPORT void *get_accelerant_hook(uint32 feature, void *data) {
      return (void *)amd_get_clone_info;
    case B_CLONE_ACCELERANT:
      return (void *)amd_clone_accelerant;
-   // BGL Hooks
-   case BGL_GET_RENDERER:
-     return (void *)amd_get_gl_renderer;
-   case BGL_CREATE_CONTEXT:
-     return (void *)amd_create_gl_context;
-   case BGL_DESTROY_CONTEXT:
-     return (void *)amd_destroy_gl_context;
+    // BGL Hooks (commented out until BGL constants are available)
+    // case BGL_GET_RENDERER:
+    //   return (void *)amd_get_gl_renderer;
+    // case BGL_CREATE_CONTEXT:
+    //   return (void *)amd_create_gl_context;
+    // case BGL_DESTROY_CONTEXT:
+    //   return (void *)amd_destroy_gl_context;
    default:
      return NULL;
    }
