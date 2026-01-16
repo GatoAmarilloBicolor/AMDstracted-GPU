@@ -3,10 +3,10 @@
 #include <string.h>
 
 /*
- * 🌀 HIT Edition: The Haiku Kernel Addon (Entry Point)
+ * 🌀 HIT Edition: The Haiku Kernel Addon (The Gateway)
  *
- * This follows the NVIDIA-Haiku architecture, providing the official
- * hooks that Haiku expects for any real graphics device.
+ * This publishes the /dev/graphics/amdgpu_hit device.
+ * It follows the exact structure of NVIDIA-Haiku's kernel components.
  */
 
 extern "C" {

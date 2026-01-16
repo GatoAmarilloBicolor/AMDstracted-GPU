@@ -65,7 +65,7 @@ OS_OBJS = $(OS_INTERFACE_DIR)/os_interface_$(OS_DIR_SUFFIX).o \
 TARGETS = libamdgpu.so rmapi_server rmapi_client_demo
 
 ifeq ($(OS),haiku)
-  TARGETS += amdgpu amdgpu.accelerant
+  TARGETS += amdgpu_hit amdgpu_hit.accelerant
 endif
 
 all: $(TARGETS)
@@ -87,14 +87,14 @@ rmapi_client_demo: rmapi_client_demo.c $(filter-out $(SRC_DIR)/rmapi_server.o, $
 	$(CC) $(CFLAGS) -Wall $^ $(PTHREAD_LIBS) $(LDFLAGS) -o $@
 
 # --- Haiku Specific Specialist Binaries ---
-amdgpu: haiku-amd/addon/AmdAddon.o $(OS_OBJS)
+amdgpu_hit: haiku-amd/addon/AmdAddon.o $(OS_OBJS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-amdgpu.accelerant: haiku-amd/accelerant/AmdAccelerant.o $(COMMON_DIR)/ipc_lib.o $(OS_OBJS)
+amdgpu_hit.accelerant: haiku-amd/accelerant/AmdAccelerant.o $(COMMON_DIR)/ipc_lib.o $(OS_OBJS)
 	$(CXX) -shared -o $@ $^ $(LDFLAGS) $(HAIKU_LDFLAGS)
 
 clean:
 	rm -f *.o *.so *.ko $(SRC_DIR)/*.o $(COMMON_DIR)/*.o \
 	kernel-amd/os-interface/*/*.o kernel-amd/os-primitives/*/*.o \
 	haiku-amd/addon/*.o haiku-amd/accelerant/*.o \
-	rmapi_server rmapi_client_demo amdgpu amdgpu.accelerant
+	rmapi_server rmapi_client_demo amdgpu_hit amdgpu_hit.accelerant

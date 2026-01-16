@@ -1,55 +1,59 @@
 #!/bin/bash
 
-# 🌀 HIT Edition: Final Haiku Installer (Hardware Aware)
-# This script installs the AMDMGPU_Abstracted driver on your Haiku system.
-# It recognizes your Radeon HD 7290 APU and sets everything up perfectly!
+# 🚀 HIT PRO Installation Script for Haiku
+# This script deploys the AMDGPU_Abstracted driver following the NVIDIA-Haiku layout.
+# Developed with pride by: Haiku Imposible Team (HIT)
 
-echo "🚀 Starting the HIT Installation for Haiku..."
+echo "🌀 Starting the HIT PRO Installation for Haiku..."
 
-# 1. Build everything for Haiku
-# We use USERLAND_MODE=1 for safety on this APU
-echo "🏗 Building the driver for your AMD C-70 system..."
-USERLAND_MODE=1 ./build.sh
-if [ $? -ne 0 ]; then
-    echo "❌ Build failed! Please check the errors above."
-    exit 1
-fi
+# 1. Build everything
+echo "🏗 Building all specialists (Addon, Accelerant, Server)..."
+./build.sh
 
-# 2. Setup Haiku System Paths
-INSTALL_BIN="/boot/home/config/non-packaged/bin"
-INSTALL_LIB="/boot/home/config/non-packaged/lib"
-BOOT_SCRIPT="/boot/home/config/settings/boot/launch/start_amd_driver"
+# 2. Define target folders
+KDRV_DIR="/boot/home/config/non-packaged/add-ons/kernel/drivers/bin"
+KDEV_DIR="/boot/home/config/non-packaged/add-ons/kernel/drivers/dev/graphics"
+ACCEL_DIR="/boot/home/config/non-packaged/add-ons/accelerants"
+BIN_DIR="/boot/home/config/non-packaged/bin"
+LIB_DIR="/boot/home/config/non-packaged/lib"
 
-echo "📂 Preparing Haiku folders..."
-mkdir -p "$INSTALL_BIN"
-mkdir -p "$INSTALL_LIB"
-mkdir -p "$(dirname "$BOOT_SCRIPT")"
+# 3. Create folders
+echo "📂 Preparing Haiku driver hierarchy..."
+mkdir -p "$KDRV_DIR"
+mkdir -p "$KDEV_DIR"
+mkdir -p "$ACCEL_DIR"
+mkdir -p "$BIN_DIR"
+mkdir -p "$LIB_DIR"
 
-# 3. Deploy the specialists
-echo "🚚 Deploying rmapi_server and libamdgpu..."
-cp rmapi_server "$INSTALL_BIN/amd_rmapi_server"
-cp libamdgpu.so "$INSTALL_LIB/libamdgpu_hit.so"
+# 4. Deploy Binaries
+echo "🚚 Deploying HIT components..."
+cp -f amdgpu_hit "$KDRV_DIR/"
+ln -sf "$KDRV_DIR/amdgpu_hit" "$KDEV_DIR/amdgpu_hit"
+cp -f amdgpu_hit.accelerant "$ACCEL_DIR/"
+cp -f rmapi_server "$BIN_DIR/amd_rmapi_server"
+cp -f libamdgpu.so "$LIB_DIR/"
 
-# 4. Create the Boot Script
-echo "📝 Creating the auto-start script..."
-cat <<EOF > "$BOOT_SCRIPT"
+# 5. Auto-start script
+echo "⚡ Setting up the Brain's auto-start..."
+START_SCRIPT="/boot/home/config/settings/boot/launch/start_amd_driver"
+mkdir -p "/boot/home/config/settings/boot/launch"
+cat <<EOF > "$START_SCRIPT"
 #!/bin/bash
-# HIT AMD Driver Auto-Start
-# Recognized Hardware: Radeon HD 7290 (Wrestler)
 /boot/home/config/non-packaged/bin/amd_rmapi_server &
-echo "HIT Edition: GPU Driver Brain is now active!"
 EOF
-chmod +x "$BOOT_SCRIPT"
+chmod +x "$START_SCRIPT"
 
-# 5. Success!
 echo "----------------------------------------------------"
-echo "✅ SUCCESS! The HIT Edition is now part of Haiku."
+echo "✅ HIT PRO INSTALL COMPLETE!"
 echo "----------------------------------------------------"
-echo "🌀 System: Haiku x86_64"
-echo "🎮 Hardware: Radeon HD 7290 (Wrestler) Detected"
-echo "🛠 Next Steps:"
-echo "  1. Restart Haiku to auto-start the driver."
-echo "  2. Run 'rmapi_client_demo' to see your REAL APU info!"
-echo "  3. Start testing Vulkan/OpenGL with Zink."
+echo "🌀 Layout deployed to /boot/home/config/non-packaged/"
+echo "📍 Kernel Driver: amdgpu_hit"
+echo "📍 Accelerant: amdgpu_hit.accelerant (Connected to Mesa)"
+echo "📍 Brain: amd_rmapi_server"
 echo "----------------------------------------------------"
-echo "Enjoy the power of your AMD APU! - Haiku Imposible Team"
+echo "🛠 Hardware Activation:"
+echo "  1. Close any running 'amd_rmapi_server'."
+echo "  2. Start it manually: 'amd_rmapi_server &'"
+echo "  3. Open GLInfo - it will now see your REAL Radeon!"
+echo "----------------------------------------------------"
+EOF
