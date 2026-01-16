@@ -2,7 +2,7 @@
 // OS-agnostic hardware layer inspired by NVIDIA HAL
 // Developed by: Haiku Imposible Team
 
-#include "../../kernel-amd/os-interface/os_interface.h"
+#include "../os/os_interface.h"
 #include "hal.h"
 
 // Global OS interface

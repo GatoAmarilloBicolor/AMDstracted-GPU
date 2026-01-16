@@ -80,9 +80,7 @@ INSTALL_DIR="$HAIKU_COMMON/bin"
 LIB_DIR="$HAIKU_COMMON/lib"
 ADDONS_DIR="$HAIKU_COMMON/add-ons/accelerants"
 
-# Haiku system directories (if running as root)
-SYSTEM_ADDONS="/boot/system/add-ons/accelerants"
-KERNEL_ADDONS="/boot/system/add-ons/kernel/drivers/graphics"
+# Userland only - no system directories
 
 mkdir -p "$INSTALL_DIR"
 mkdir -p "$LIB_DIR"
@@ -105,22 +103,9 @@ chmod +x "$INSTALL_DIR/amd_test_suite"
 
 # Install Accelerant
 if [ -f "amdgpu_hit.accelerant" ]; then
-    # Install to non-packaged first (always works)
+    # Install to non-packaged (userland only)
     cp -f amdgpu_hit.accelerant "$ADDONS_DIR/"
     echo "✅ Accelerant installed to $ADDONS_DIR"
-    
-    # If root, also install to system paths for better integration
-    if [ "$EUID" -eq 0 ]; then
-        mkdir -p "$SYSTEM_ADDONS"
-        mkdir -p "$KERNEL_ADDONS"
-        cp -f amdgpu_hit.accelerant "$SYSTEM_ADDONS/"
-        echo "✅ Accelerant installed to $SYSTEM_ADDONS (system)"
-        
-        if [ -f "amdgpu_hit" ]; then
-            cp -f amdgpu_hit "$KERNEL_ADDONS/"
-            echo "✅ Kernel addon installed to $KERNEL_ADDONS (system)"
-        fi
-    fi
 fi
 
 # Create environment setup script
@@ -133,9 +118,8 @@ export AMD_GPU_BIN=/boot/home/config/non-packaged/bin
 export AMD_GPU_LIB=/boot/home/config/non-packaged/lib
 export LD_LIBRARY_PATH=$AMD_GPU_LIB:$LD_LIBRARY_PATH
 
-# Graphics settings
-export ACCELERANT_PATH=/boot/system/add-ons/accelerants
-export DRIVER_PATH=/boot/system/add-ons/kernel/drivers/graphics
+# Graphics settings (userland)
+export ACCELERANT_PATH=/boot/home/config/non-packaged/add-ons/accelerants
 
 # Debugging (set to 1 to enable)
 export AMD_DEBUG=0

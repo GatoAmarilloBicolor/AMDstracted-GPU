@@ -1,4 +1,4 @@
-#include "../../../kernel-amd/os-primitives/os_primitives.h"
+#include "../../os/os_primitives.h"
 #include "../os_interface.h"
 
 /*

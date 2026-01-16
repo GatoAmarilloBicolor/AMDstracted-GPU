@@ -1,7 +1,8 @@
 // Reciclado de KMS para userland: Abstracciones de display simples
 // Adaptado de amdgpu_kms.c para POSIX userland
 
-#include "../../kernel-amd/os-interface/os_interface.h"
+#include <stdio.h>
+#include "../os/os_interface.h"
 
 // Función reciclada para "configurar" display en userland
 int amdgpu_kms_setup_display(int width, int height) {

@@ -35,14 +35,14 @@ endif
 $(info [HIT] Building for OS: $(OS) (Detected: $(DETECTED_OS)))
 
 # 4. Set Directory Paths
-ifeq ($(wildcard kernel-amd/os-interface/$(OS)),)
+ifeq ($(wildcard src/os/$(OS)),)
   OS_DIR_SUFFIX = linux
-  OS_INTERFACE_DIR = kernel-amd/os-interface/linux
-  OS_PRIMITIVES_DIR = kernel-amd/os-primitives/linux
+  OS_INTERFACE_DIR = src/os/linux
+  OS_PRIMITIVES_DIR = src/os/linux
 else
   OS_DIR_SUFFIX = $(OS)
-  OS_INTERFACE_DIR = kernel-amd/os-interface/$(OS)
-  OS_PRIMITIVES_DIR = kernel-amd/os-primitives/$(OS)
+  OS_INTERFACE_DIR = src/os/$(OS)
+  OS_PRIMITIVES_DIR = src/os/$(OS)
 endif
 
 # 5. Build Options
@@ -61,10 +61,10 @@ else ifeq ($(OS),freebsd)
 endif
 
 CFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c99 -include config.h -I. \
-          -Ikernel-amd/os-interface -Ikernel-amd/os-primitives \
+          -I$(OS_INTERFACE_DIR) -I$(OS_PRIMITIVES_DIR) \
           -Isrc -Isrc/common -Isrc/amd -Isrc/amd/hal -Isrc/amd/rmapi
 CXXFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c++11 -include config.h -I. \
-            -Ikernel-amd/os-interface -Ikernel-amd/os-primitives \
+            -I$(OS_INTERFACE_DIR) -I$(OS_PRIMITIVES_DIR) \
             -Isrc -Isrc/common -Isrc/amd -Isrc/amd/hal -Isrc/amd/rmapi \
             $(HAIKU_INCLUDES)
 

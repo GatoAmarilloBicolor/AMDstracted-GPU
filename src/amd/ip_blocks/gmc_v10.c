@@ -6,7 +6,7 @@
  */
 
 #include "hal.h"
-#include "../../kernel-amd/os-primitives/os_primitives.h"
+#include "../os/os_primitives.h"
 #include <string.h>
 
 /* ============================================================================

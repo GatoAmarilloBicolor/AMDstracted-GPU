@@ -2,7 +2,7 @@
 // Adaptado de amdgpu_gem.c para usar abstracciones POSIX
 
 #include "hal.h"
-#include "../../kernel-amd/os-primitives/os_primitives.h"
+#include "../os/os_primitives.h"
 
 // Función reciclada para crear buffer GEM-like en userland
 int amdgpu_gem_create(struct OBJGPU* adev, size_t size, struct amdgpu_buffer* buf) {

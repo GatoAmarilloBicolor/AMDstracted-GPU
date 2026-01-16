@@ -25,7 +25,7 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include "../../kernel-amd/os-interface/os_interface.h"
+#include "../os/os_interface.h"
 #include "../hal.h"
 // Abstracted includes - hardware headers remain
 #include "amdgpu.h"

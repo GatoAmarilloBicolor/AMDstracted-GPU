@@ -1,5 +1,5 @@
 #include "rmapi.h"
-#include "../../kernel-amd/os-primitives/os_primitives.h"
+#include "../os/os_primitives.h"
 #include "../../src/common/ipc/ipc_lib.h"
 #include "../../src/common/ipc/ipc_protocol.h"
 #include "../hal/hal.h"
