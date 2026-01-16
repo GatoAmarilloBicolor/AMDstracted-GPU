@@ -95,6 +95,12 @@ amdgpu_hit: haiku-amd/addon/AmdAddon.o $(OS_OBJS)
 amdgpu_hit.accelerant: haiku-amd/accelerant/AmdAccelerant.o $(COMMON_DIR)/ipc_lib.o $(OS_OBJS)
 	$(CXX) -shared -o $@ $^ $(LDFLAGS) $(HAIKU_LDFLAGS)
 
+# --- DRM Compatibility Shim for RADV/Zink ---
+drm-shim/libdrm_amdgpu.so: drm-shim/drm_shim.c $(COMMON_DIR)/ipc_lib.o $(OS_OBJS)
+	$(CC) -shared -fPIC -o $@ $^ $(LDFLAGS) -I./src/common
+
+drm-shim: drm-shim/libdrm_amdgpu.so
+
 clean:
 	rm -f *.o *.so *.ko $(SRC_DIR)/*.o $(COMMON_DIR)/*.o \
 	kernel-amd/os-interface/*/*.o kernel-amd/os-primitives/*/*.o \
