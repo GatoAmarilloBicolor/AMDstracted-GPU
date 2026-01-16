@@ -1,3 +1,4 @@
+#include "../../kernel-amd/os-primitives/os_primitives.h"
 #include "../common/ipc_lib.h"
 #include "../common/ipc_protocol.h"
 #include "hal.h"
@@ -10,6 +11,9 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+
+// Extern global GPU from rmapi.c
+extern struct OBJGPU *global_gpu;
 
 /*
  * Yo! This is the RMAPI Server - The "Brain" of our driver.
@@ -82,6 +86,95 @@ void *handle_client(void *arg) {
       ipc_send_message(
           &server->conn,
           &(ipc_message_t){IPC_REP_SUBMIT_COMMAND, msg.id, sizeof(ret), &ret});
+      break;
+    }
+    case IPC_REQ_VK_CREATE_INSTANCE: {
+      os_prim_log("RMAPI Server: VK_CREATE_INSTANCE received\n");
+      void *instance = (void *)0xCAFEBABE; // Dummy handle
+      os_prim_log("RMAPI Server: Returning instance handle %p\n", instance);
+      ipc_send_message(&server->conn,
+                       &(ipc_message_t){IPC_REP_VK_CREATE_INSTANCE, msg.id,
+                                        sizeof(instance), &instance});
+      break;
+    }
+    case IPC_REQ_VK_ENUMERATE_PHYSICAL_DEVICES: {
+      os_prim_log("RMAPI Server: VK_ENUMERATE_PHYSICAL_DEVICES received\n");
+      // Pack count + device list in response
+      struct {
+        uint32_t count;
+        void *device;
+      } response = {1, (void *)global_gpu};
+      os_prim_log("RMAPI Server: Returning %u device(s)\n", response.count);
+      ipc_send_message(&server->conn,
+                       &(ipc_message_t){IPC_REP_VK_ENUMERATE_PHYSICAL_DEVICES,
+                                        msg.id, sizeof(response), &response});
+      break;
+    }
+    case IPC_REQ_VK_CREATE_DEVICE: {
+      os_prim_log("RMAPI Server: VK_CREATE_DEVICE received\n");
+      // Parse packed arguments
+      struct {
+        void *phys_dev;
+        void *create_info;
+      } *args = msg.data;
+      void *device = (void *)0xDEADBEEF; // Dummy
+      os_prim_log("RMAPI Server: Returning device handle %p\n", device);
+      ipc_send_message(&server->conn,
+                       &(ipc_message_t){IPC_REP_VK_CREATE_DEVICE, msg.id,
+                                        sizeof(device), &device});
+      break;
+    }
+    case IPC_REQ_VK_ALLOC_MEMORY: {
+      os_prim_log("RMAPI Server: VK_ALLOC_MEMORY received\n");
+      struct {
+        void *device;
+        void *alloc_info;
+      } *args = msg.data;
+      // TODO: Call real rmapi_alloc_memory
+      void *memory = (void *)0xBEEFBEEF; // Dummy
+      os_prim_log("RMAPI Server: Returning memory handle %p\n", memory);
+      ipc_send_message(&server->conn,
+                       &(ipc_message_t){IPC_REP_VK_ALLOC_MEMORY, msg.id,
+                                        sizeof(memory), &memory});
+      break;
+    }
+    case IPC_REQ_VK_FREE_MEMORY: {
+      os_prim_log("RMAPI Server: VK_FREE_MEMORY received\n");
+      struct {
+        void *device;
+        void *memory;
+      } *args = msg.data;
+      int ret = 0; // Success
+      ipc_send_message(
+          &server->conn,
+          &(ipc_message_t){IPC_REP_VK_FREE_MEMORY, msg.id, sizeof(ret), &ret});
+      break;
+    }
+    case IPC_REQ_VK_CREATE_COMMAND_POOL: {
+      os_prim_log("RMAPI Server: VK_CREATE_COMMAND_POOL received\n");
+      struct {
+        void *device;
+        void *create_info;
+      } *args = msg.data;
+      void *pool = (void *)0xFACEBEEF; // Dummy
+      os_prim_log("RMAPI Server: Returning pool handle %p\n", pool);
+      ipc_send_message(&server->conn,
+                       &(ipc_message_t){IPC_REP_VK_CREATE_COMMAND_POOL, msg.id,
+                                        sizeof(pool), &pool});
+      break;
+    }
+    case IPC_REQ_VK_SUBMIT_QUEUE: {
+      os_prim_log("RMAPI Server: VK_SUBMIT_QUEUE received\n");
+      struct {
+        void *queue;
+        uint32_t count;
+        void *submits;
+        void *fence;
+      } *args = msg.data;
+      int ret = 0; // Success
+      ipc_send_message(
+          &server->conn,
+          &(ipc_message_t){IPC_REP_VK_SUBMIT_QUEUE, msg.id, sizeof(ret), &ret});
       break;
     }
     }
