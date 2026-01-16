@@ -15,66 +15,52 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 1b. Install Mesa with RADV and Zink for GL support (Userland-Only, Secure - Solucionando Críticas 20/20)
+# 1b. Install Mesa with RADV and Zink for GL support (Relating to RADV like NVK in nvidia-haiku)
 echo "🏗 Installing Mesa (RADV + Zink) for OpenGL..."
-# Solución Crítica 1: Usar package manager oficial para evitar downloads inseguros
-if command -v pkgman &> /dev/null; then
-    pkgman install mesa_devel radv_devel zink_devel && {
-        # Auto-detect RADV instalado via pkgman
-        mkdir -p /boot/home/config/settings/vulkan/icd.d
-        cat > /boot/home/config/settings/vulkan/icd.d/radv_icd.json << EOF
-{
-    "file_format_version": "1.0.0",
-    "ICD": {
-        "library_path": "/boot/system/lib/libradv.so",
-        "api_version": "1.3.0"
-    }
-}
-EOF
-        echo "🔍 RADV from repo auto-detected and configured."
-    } || {
-        echo "⚠️ pkgman failed. Falling back to upstream build..."
-        # Solución: Contribuir upstream - Simular con PR link (real: submit to Mesa repo)
-        echo "📤 Upstream contribution recommended: https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests"
-        # Build local como último recurso
-        if [ ! -d "mesa" ]; then
-            git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa
-        fi
-        # Patch Mesa bug: fix f-string syntax errors in nir_algebraic.py
-        sed -i 's/"true" if expr\.value else "false"/'\''true'\'' if expr.value else '\''false'\''/g' mesa/src/compiler/nir/nir_algebraic.py
-        sed -i "s/{\", \".join(srcs)}/{', '.join(srcs)}/g" mesa/src/compiler/nir/nir_algebraic.py
-        sed -i "s/{\" | \".join(fp_math_ctrl)}/{' | '.join(fp_math_ctrl)}/g" mesa/src/compiler/nir/nir_algebraic.py
-        cd mesa
-        # Limpiar build corrupto para evitar errores legacy
-        rm -rf build
-        meson setup build -Dvulkan-drivers=swrast -Dgallium-drivers=zink -Dplatforms=haiku -Dbuildtype=release --prefix="$PWD/install"
-        meson compile -C build
-        meson install -C build
-        cd ..
-        # Copiar con verificación de conflictos
-        if [ -f "mesa/install/lib/libGL.so" ]; then
-            cp mesa/install/lib/libGL.so "$LIB_DIR/libGL.so.amd" || echo "⚠️ Conflict detected, using suffix"
-        fi
-        if [ -f "mesa/install/lib/libradv.so" ]; then
-            cp mesa/install/lib/libradv.so "$LIB_DIR/libradv.so.amd" || echo "⚠️ Conflict detected, using suffix"
-            # Auto-detect RADV: Configurar Vulkan ICD para reconocimiento automático
-            mkdir -p /boot/home/config/settings/vulkan/icd.d
-            cat > /boot/home/config/settings/vulkan/icd.d/radv_icd.json << EOF
-{
-    "file_format_version": "1.0.0",
-    "ICD": {
-        "library_path": "$LIB_DIR/libradv.so.amd",
-        "api_version": "1.3.0"
-    }
-}
-EOF
-            echo "🔍 RADV auto-detected and configured for Vulkan loader."
-        fi
-    }
-else
-    echo "⚠️ pkgman not available. Install Mesa manually."
+# Build libdrm first (dep for RADV, similar to LLVM deps in nvidia-haiku)
+if [ ! -d "libdrm" ]; then
+    git clone --depth 1 https://gitlab.freedesktop.org/mesa/drm.git libdrm
 fi
-echo "✅ Mesa libs installed securely for GL/Vulkan support."
+cd libdrm
+meson setup build --prefix="$PWD/install"
+meson compile -C build
+meson install -C build
+cd ..
+
+# Build Mesa with RADV (similar to mesa-nvk in nvidia-haiku with nouveau -> amd)
+if [ ! -d "mesa" ]; then
+    git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa
+fi
+cd mesa
+# Patch Mesa bugs
+sed -i 's/"true" if expr\.value else "false"/'\''true'\'' if expr.value else '\''false'\''/g' src/compiler/nir/nir_algebraic.py
+sed -i "s/{\", \".join(srcs)}/{', '.join(srcs)}/g" src/compiler/nir/nir_algebraic.py
+sed -i "s/{\" | \".join(fp_math_ctrl)}/{' | '.join(fp_math_ctrl)}/g" src/compiler/nir/nir_algebraic.py
+rm -rf build
+meson setup build -Dvulkan-drivers=amd -Dgallium-drivers=zink -Dplatforms=haiku -Dpkg_config_path="../libdrm/install/lib/pkgconfig:$PKG_CONFIG_PATH" -Dbuildtype=release --prefix="$PWD/install"
+meson compile -C build
+meson install -C build
+cd ..
+
+# Install libs and configure RADV ICD (similar to NVK in nvidia-haiku)
+if [ -f "mesa/install/lib/libGL.so" ]; then
+    cp mesa/install/lib/libGL.so "$LIB_DIR/libGL.so.amd" || echo "⚠️ Conflict detected, using suffix"
+fi
+if [ -f "mesa/install/lib/libradv.so" ]; then
+    cp mesa/install/lib/libradv.so "$LIB_DIR/libradv.so"
+    mkdir -p /boot/home/config/settings/vulkan/icd.d
+    cat > /boot/home/config/settings/vulkan/icd.d/radv_icd.json << EOF
+{
+    "file_format_version": "1.0.0",
+    "ICD": {
+        "library_path": "$LIB_DIR/libradv.so",
+        "api_version": "1.3.0"
+    }
+}
+EOF
+    echo "🔍 RADV configured like NVK in nvidia-haiku."
+fi
+echo "✅ Mesa with RADV installed for GL/Vulkan support."
 
 # 2. Define NVIDIA-Style Paths (System-wide non-packaged)
 KERNEL_DRIVERS_BIN="/boot/home/config/non-packaged/add-ons/kernel/drivers/bin"
