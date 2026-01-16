@@ -26,22 +26,22 @@ case "$OS" in
         echo "📍 Detected: Linux"
         echo "Running Linux installer..."
         echo ""
-        chmod +x install_linux.sh
-        ./install_linux.sh
+        chmod +x scripts/install_linux.sh
+        ./scripts/install_linux.sh
         ;;
     haiku)
         echo "📍 Detected: Haiku"
         echo "Running Haiku installer..."
         echo ""
-        chmod +x install_haiku.sh
-        ./install_haiku.sh
+        chmod +x scripts/install_haiku.sh
+        ./scripts/install_haiku.sh
         ;;
     freebsd)
         echo "📍 Detected: FreeBSD"
         echo "Running FreeBSD installer..."
         echo ""
-        chmod +x install_freebsd.sh
-        ./install_freebsd.sh
+        chmod +x scripts/install_freebsd.sh
+        ./scripts/install_freebsd.sh
         ;;
     darwin)
         echo "📍 Detected: macOS (Darwin)"
