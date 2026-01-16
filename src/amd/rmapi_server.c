@@ -17,7 +17,7 @@
  * Developed with pride by: Haiku Imposible Team (HIT)
  */
 
-#define SOCKET_PATH "/tmp/amdgpu_rmapi.sock"
+#define SOCKET_PATH "/tmp/amdgpu_hit.sock"
 
 // Safe Shutdown: If the server crashes or someone stops it, we clean up!
 void safe_shutdown(int sig) {

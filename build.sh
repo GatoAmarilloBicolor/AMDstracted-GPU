@@ -42,7 +42,7 @@ make clean > /dev/null 2>&1
 # 4. Build the project
 echo "🛠 Building for your system..."
 # We let the Makefile do the heavy lifting of OS detection and mapping!
-make USERLAND_MODE=$USER_MODE rmapi_server rmapi_client_demo
+make USERLAND_MODE=$USER_MODE all
 
 # 5. Check if it worked
 if [ $? -eq 0 ]; then

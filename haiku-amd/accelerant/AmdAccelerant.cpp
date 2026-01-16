@@ -32,7 +32,7 @@ private:
 
 // Start talking to the RMAPI Brain!
 status_t AmdAccelerant::Init() {
-  if (ipc_client_connect("/tmp/amdgpu_rmapi.sock", &m_conn) < 0) {
+  if (ipc_client_connect("/tmp/amdgpu_hit.sock", &m_conn) < 0) {
     return B_ERROR;
   }
   m_connected = true;

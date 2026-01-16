@@ -5,29 +5,48 @@
 /*
  * 🌀 HIT Edition: The Haiku Kernel Addon (Entry Point)
  *
- * This file tells Haiku that we have an AMD driver ready to go.
- * It's the "Front Door" that the OS knocks on when it finds a GPU.
+ * This follows the NVIDIA-Haiku architecture, providing the official
+ * hooks that Haiku expects for any real graphics device.
  */
 
 extern "C" {
 
-status_t init_hardware() {
-  return B_OK; // Let Tracker/AppServer handle discovery
+status_t device_open(const char *name, uint32 flags, void **cookie) {
+  *cookie = NULL;
+  return B_OK;
 }
 
+status_t device_close(void *cookie) { return B_OK; }
+
+status_t device_free(void *cookie) { return B_OK; }
+
+status_t device_read(void *cookie, off_t pos, void *buffer, size_t *length) {
+  *length = 0;
+  return B_NOT_ALLOWED;
+}
+
+status_t device_write(void *cookie, off_t pos, const void *buffer,
+                      size_t *length) {
+  *length = 0;
+  return B_NOT_ALLOWED;
+}
+
+status_t device_control(void *cookie, uint32 op, void *arg, size_t length) {
+  return B_DEV_INVALID_IOCTL;
+}
+
+device_hooks g_device_hooks = {device_open,    device_close, device_free,
+                               device_control, device_read,  device_write};
+
+status_t init_hardware() { return B_OK; }
+
 const char **publish_devices() {
-  static const char *devices[] = {
-      "graphics/amdgpu_hit", // Our unique device path
-      NULL};
+  static const char *devices[] = {"graphics/amdgpu_hit", NULL};
   return devices;
 }
 
-device_hooks *find_device(const char *name) {
-  // Return standard graphics stubs like nvidia-haiku
-  return NULL;
-}
+device_hooks *find_device(const char *name) { return &g_device_hooks; }
 
-// Haiku Version Info
 int32 api_version = B_CUR_DRIVER_API_VERSION;
 
 } // extern "C"

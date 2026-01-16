@@ -90,7 +90,7 @@ rmapi_client_demo: rmapi_client_demo.c $(filter-out $(SRC_DIR)/rmapi_server.o, $
 amdgpu: haiku-amd/addon/AmdAddon.o $(OS_OBJS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-amdgpu.accelerant: haiku-amd/accelerant/AmdAccelerant.o $(OS_OBJS)
+amdgpu.accelerant: haiku-amd/accelerant/AmdAccelerant.o $(COMMON_DIR)/ipc_lib.o $(OS_OBJS)
 	$(CXX) -shared -o $@ $^ $(LDFLAGS) $(HAIKU_LDFLAGS)
 
 clean:
