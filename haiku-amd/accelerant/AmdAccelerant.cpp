@@ -1,7 +1,7 @@
 #include "../../src/amd/rmapi.h"
 #include "../../src/common/ipc_lib.h"
 #include "../../src/common/ipc_protocol.h"
-#include <add-ons/accelerant/Accelerant.h>
+#include <Accelerant.h>
 #include <GraphicsDefs.h>
 #include <OS.h>
 #include <SupportDefs.h>

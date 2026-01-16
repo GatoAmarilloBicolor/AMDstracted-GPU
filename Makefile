@@ -24,13 +24,11 @@ OS ?= $(MAPPED_OS)
 
 # 3. Handle Library Tweaks (Haiku, etc.)
 ifeq ($(OS),haiku)
-  LDFLAGS += -lroot -lnetwork
-  PTHREAD_LIBS = # Already in libroot
-  # Special for Haiku Kernel/Accelerant
-  HAIKU_LDFLAGS = -lbe -ltranslation
-else
-  PTHREAD_LIBS = -lpthread
-  LDFLAGS += -lrt
+   LDFLAGS += -lroot -lnetwork
+   PTHREAD_LIBS = # Already in libroot
+   # Special for Haiku Kernel/Accelerant
+   HAIKU_LDFLAGS = -lbe -ltranslation
+   HAIKU_INCLUDES = -I/boot/system/develop/headers
 endif
 
 $(info [HIT] Building for OS: $(OS) (Detected: $(DETECTED_OS)))
@@ -49,7 +47,7 @@ endif
 # 5. Build Options
 USERLAND_MODE ?= 0
 CFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c99 -include config.h -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives
-CXXFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c++11 -include config.h -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives
+CXXFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c++11 -include config.h -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives $(HAIKU_INCLUDES)
 
 SRC_DIR = src/amd
 COMMON_DIR = src/common
