@@ -5,6 +5,10 @@
 
 echo "🚀 Starting AMDGPU_Abstracted Tests (OS-Agnostic)..."
 
+# Ensure we're in the correct directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 # 1. Detect OS
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 echo "🌍 Detected OS: $OS"
