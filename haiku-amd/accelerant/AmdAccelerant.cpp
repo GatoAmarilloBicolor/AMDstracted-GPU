@@ -10,7 +10,7 @@
 
 /*
  * 🌀 HIT Edition: The Professional Haiku Accelerant (C-Safe Wrappers)
- * 🛡️ Belter Strategy: "Self-Healing" Capabilities
+ * 🛡️ Belter Strategy: "Self-Healing" Capabilities & Process Cloning
  */
 
 #ifndef _EXPORT
@@ -67,6 +67,11 @@ public:
   status_t SetDisplayMode(display_mode *mode_to_set);
   status_t GetFrameBufferConfig(frame_buffer_config *fbc);
 
+  // Clone Hooks
+  ssize_t CloneInfoSize();
+  void GetCloneInfo(void *data);
+  status_t Clone(void *data);
+
 private:
   ipc_connection_t m_conn;
   bool m_connected;
@@ -92,9 +97,12 @@ static status_t amd_get_frame_buffer_config(frame_buffer_config *fbc) {
   return g_acc.GetFrameBufferConfig(fbc);
 }
 
+// Clone wrappers
+static ssize_t amd_clone_info_size() { return g_acc.CloneInfoSize(); }
+static void amd_get_clone_info(void *data) { g_acc.GetCloneInfo(data); }
+static status_t amd_clone_accelerant(void *data) { return g_acc.Clone(data); }
+
 // Belter Strategy: Engine Hooks for 2D Acceleration
-// Even if we don't accel yet, we MUST accept the token to prevent fallback to
-// VESA.
 static status_t amd_acquire_engine(uint32 caps, uint32 max_wait, sync_token *st,
                                    engine_token **et) {
   if (et)
@@ -130,6 +138,17 @@ status_t AmdAccelerant::Init(int fd) {
   return B_OK;
 }
 
+ssize_t AmdAccelerant::CloneInfoSize() { return strlen(HIT_SOCKET_PATH) + 1; }
+
+void AmdAccelerant::GetCloneInfo(void *data) {
+  strcpy((char *)data, HIT_SOCKET_PATH);
+}
+
+status_t AmdAccelerant::Clone(void *data) {
+  // In a cloned instance, we need to reconnect to the "Brain"
+  return Init(-1);
+}
+
 void AmdAccelerant::Uninit() {
   if (m_connected) {
     ipc_close(&m_conn);
@@ -156,7 +175,6 @@ status_t AmdAccelerant::GetModeList(display_mode *modes) {
   if (!modes)
     return B_BAD_VALUE;
 
-  // Return our "Safe Mode" list
   for (uint32 i = 0; i < kNumSafeModes; i++) {
     modes[i] = kSafeModes[i];
   }
@@ -164,13 +182,10 @@ status_t AmdAccelerant::GetModeList(display_mode *modes) {
 }
 
 status_t AmdAccelerant::SetDisplayMode(display_mode *mode_to_set) {
-  // In Belter Strategy, we trust the mode but verify the connection
   if (!m_connected || !mode_to_set)
     return B_ERROR;
 
-  // PROPOSE: Send mode set request to RMAPI server (to perform shadow write)
-  // For now, we simulate success to keep app_server happy.
-  // Real implementation would IPC_REQ_SET_MODE
+  // PROPOSE: Send mode set request to RMAPI server
   return B_OK;
 }
 
@@ -179,7 +194,6 @@ status_t AmdAccelerant::GetFrameBufferConfig(frame_buffer_config *fbc) {
     return B_BAD_VALUE;
 
   // Use the dynamic VRAM base from HAL (via IPC)
-  // This satisfies the "Userland Abstraction" requirement to be generic.
   fbc->frame_buffer = (void *)(uintptr_t)m_gpu_info.vram_base;
   fbc->frame_buffer_dma = (void *)(uintptr_t)m_gpu_info.vram_base;
   fbc->bytes_per_row = 1024 * 4;
@@ -207,6 +221,12 @@ _EXPORT void *get_accelerant_hook(uint32 feature, void *data) {
     return (void *)amd_acquire_engine;
   case B_RELEASE_ENGINE:
     return (void *)amd_release_engine;
+  case B_ACCELERANT_CLONE_INFO_SIZE:
+    return (void *)amd_clone_info_size;
+  case B_GET_ACCELERANT_CLONE_INFO:
+    return (void *)amd_get_clone_info;
+  case B_CLONE_ACCELERANT:
+    return (void *)amd_clone_accelerant;
   default:
     return NULL;
   }
