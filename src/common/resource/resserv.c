@@ -6,24 +6,24 @@
 #include "hal.h"
 #include <string.h>
 
-// RESSERV: Simple resource hierarchy (synchronization via os_prim_lock/unlock if needed)
+// RESSERV: Resource hierarchy management
+// Thread-safety: Use os_prim_lock/unlock for multi-threaded access if needed
 
 #define RS_HASH_SIZE 128
 static struct RsResource *rs_hash_table[RS_HASH_SIZE];
-/* Use os_prim_lock/unlock for hash table synchronization when needed */
 
 static int rs_hash(uint32_t handle) { return handle % RS_HASH_SIZE; }
 
 static void rs_hash_add(struct RsResource *res) {
-  /* os_prim_lock(); // if multi-threaded access needed */
+  /* Lock needed if concurrent access: os_prim_lock(); */
   int idx = rs_hash(res->handle);
   res->hash_next = rs_hash_table[idx];
   rs_hash_table[idx] = res;
-  /* os_prim_unlock(); // if multi-threaded access needed */
+  /* Unlock: os_prim_unlock(); */
 }
 
 static void rs_hash_remove(struct RsResource *res) {
-  pthread_mutex_lock(&rs_hash_lock);
+  /* Lock needed if concurrent access: os_prim_lock(); */
   int idx = rs_hash(res->handle);
   struct RsResource **curr = &rs_hash_table[idx];
   while (*curr) {
@@ -33,21 +33,21 @@ static void rs_hash_remove(struct RsResource *res) {
     }
     curr = &((*curr)->hash_next);
   }
-  pthread_mutex_unlock(&rs_hash_lock);
+  /* Unlock: os_prim_unlock(); */
 }
 
 struct RsResource *rs_resource_lookup(uint32_t handle) {
-  pthread_mutex_lock(&rs_hash_lock);
+  /* Lock needed if concurrent access: os_prim_lock(); */
   int idx = rs_hash(handle);
   struct RsResource *curr = rs_hash_table[idx];
   while (curr) {
     if (curr->handle == handle) {
-      pthread_mutex_unlock(&rs_hash_lock);
+      /* Unlock: os_prim_unlock(); */
       return curr;
     }
     curr = curr->hash_next;
   }
-  pthread_mutex_unlock(&rs_hash_lock);
+  /* Unlock: os_prim_unlock(); */
   return NULL;
 }
 
@@ -63,7 +63,7 @@ struct RsResource *rs_resource_create(uint32_t handle,
   res->sibling = NULL;
   res->hash_next = NULL;
   res->data = NULL;
-  pthread_mutex_init(&res->lock, NULL);
+  /* Mutex initialization no longer needed - use os_prim_lock/unlock */
 
   rs_hash_add(res);
 
@@ -75,7 +75,7 @@ void rs_resource_add_child(struct RsResource *parent,
                            struct RsResource *child) {
   if (!parent || !child)
     return;
-  pthread_mutex_lock(&parent->lock);
+  /* Lock needed if concurrent access: os_prim_lock(); */
 
   // Link as the new first child (O(1) insertion)
   child->sibling = parent->child_list;
@@ -83,7 +83,7 @@ void rs_resource_add_child(struct RsResource *parent,
   os_prim_log("RESSERV: Linked child 0x%X to parent 0x%X\n", child->handle,
               parent->handle);
 
-  pthread_mutex_unlock(&parent->lock);
+  /* Unlock: os_prim_unlock(); */
 }
 
 void rs_resource_destroy(struct RsResource *res) {
@@ -102,7 +102,7 @@ void rs_resource_destroy(struct RsResource *res) {
   rs_hash_remove(res);
 
   // 3. Cleanup hardware specialists / data if any
-  pthread_mutex_destroy(&res->lock);
+  /* Mutex destroy no longer needed - cleanup via os_prim_cleanup if needed */
   os_prim_free(res);
   os_prim_log("RESSERV: Destroyed resource\n");
 }
