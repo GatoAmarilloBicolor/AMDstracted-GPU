@@ -46,6 +46,19 @@ endif
 
 # 5. Build Options
 USERLAND_MODE ?= 0
+
+# Define OS flag for conditional compilation
+ifeq ($(OS),linux)
+  CFLAGS += -D__LINUX__
+  CXXFLAGS += -D__LINUX__
+else ifeq ($(OS),haiku)
+  CFLAGS += -D__HAIKU__
+  CXXFLAGS += -D__HAIKU__
+else ifeq ($(OS),freebsd)
+  CFLAGS += -D__FreeBSD__
+  CXXFLAGS += -D__FreeBSD__
+endif
+
 CFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c99 -include config.h -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives
 CXXFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c++11 -include config.h -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives $(HAIKU_INCLUDES)
 
