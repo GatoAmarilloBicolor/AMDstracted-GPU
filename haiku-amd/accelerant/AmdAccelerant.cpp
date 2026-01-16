@@ -6,6 +6,12 @@
 #include <OS.h>
 #include <SupportDefs.h>
 #include <Errors.h>
+
+// BGL Hook definitions (from Haiku accelerant.h)
+#define BGL_GET_RENDERER 0x100
+#define BGL_CREATE_CONTEXT 0x101
+#define BGL_DESTROY_CONTEXT 0x102
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
