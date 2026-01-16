@@ -6,7 +6,6 @@
 #include <OS.h>
 #include <SupportDefs.h>
 #include <Errors.h>
-#include <kits/opengl/GLRenderer.h>
 
 #include <stdio.h>
 #include <stdlib.h>
