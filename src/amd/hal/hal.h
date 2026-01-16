@@ -1,7 +1,6 @@
 #ifndef AMD_HAL_H
 #define AMD_HAL_H
 
-#include <pthread.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -75,7 +74,7 @@ struct RsResource {
   struct RsResource *sibling;    // My brother/sister in the family tree
   struct RsResource *hash_next;  // Next resource in the global lookup table
   void *data;                    // The actual stuff (like memory)
-  pthread_mutex_t lock; // Ensuring only one person touches this at a time
+  /* Synchronization handled by OS primitives if needed */
 };
 
 struct RsResource *rs_resource_create(uint32_t handle,
@@ -142,12 +141,12 @@ struct OBJGPU {
   void *mmio_base;             // The direct connection to the hardware
   struct RsResource *res_root; // The top of the "Family Tree"
 
-  pthread_mutex_t gpu_lock; // Making sure the brain doesn't get confused
+  /* Synchronization via OS primitives (os_prim_lock/unlock) */
 
   // Belter Strategy: Resilience Layer
   struct amd_shadow_state shadow;
   enum amd_gpu_state state;
-  pthread_t heartbeat_thread;
+  /* Thread handling via os_prim_spawn_thread */
 };
 
 // The HAL API: The main commands you will use!

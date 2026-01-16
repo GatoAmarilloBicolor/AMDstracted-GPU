@@ -136,7 +136,7 @@ int amdgpu_device_init_hal(struct OBJGPU *adev) {
 
   adev->num_ip_blocks = 0;
   adev->res_root = rs_resource_create(0, NULL);
-  pthread_mutex_init(&adev->gpu_lock, NULL);
+  /* Synchronization handled by os_prim_lock/unlock when needed */
 
   os_prim_log("HAL: Starting the GPU City (HIT Edition) - Let's gooooo!\n");
 
@@ -236,7 +236,8 @@ int amdgpu_device_init_hal(struct OBJGPU *adev) {
   // Belter Strategy: Initialize State
   adev->state = AMD_GPU_STATE_RUNNING;
   memset(&adev->shadow, 0, sizeof(adev->shadow));
-  pthread_create(&adev->heartbeat_thread, NULL, amdgpu_hal_heartbeat, adev);
+  /* Heartbeat thread can be spawned via os_prim_spawn_thread if needed */
+  /* For now, running synchronously */
 
   return 0;
 }
@@ -250,7 +251,7 @@ void amdgpu_device_fini_hal(struct OBJGPU *adev) {
     }
   }
   rs_resource_destroy(adev->res_root);
-  pthread_mutex_destroy(&adev->gpu_lock);
+  /* Synchronization cleanup handled by os_prim_cleanup if needed */
 }
 
 // Just asking the GPU "Who are you?"

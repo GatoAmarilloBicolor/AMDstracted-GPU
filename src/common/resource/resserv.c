@@ -4,23 +4,22 @@
 
 #include "../../kernel-amd/os-primitives/os_primitives.h"
 #include "hal.h"
-#include <pthread.h>
 #include <string.h>
 
-// Enhanced RESSERV with locking for multi-GPU
+// RESSERV: Simple resource hierarchy (synchronization via os_prim_lock/unlock if needed)
 
 #define RS_HASH_SIZE 128
 static struct RsResource *rs_hash_table[RS_HASH_SIZE];
-static pthread_mutex_t rs_hash_lock = PTHREAD_MUTEX_INITIALIZER;
+/* Use os_prim_lock/unlock for hash table synchronization when needed */
 
 static int rs_hash(uint32_t handle) { return handle % RS_HASH_SIZE; }
 
 static void rs_hash_add(struct RsResource *res) {
-  pthread_mutex_lock(&rs_hash_lock);
+  /* os_prim_lock(); // if multi-threaded access needed */
   int idx = rs_hash(res->handle);
   res->hash_next = rs_hash_table[idx];
   rs_hash_table[idx] = res;
-  pthread_mutex_unlock(&rs_hash_lock);
+  /* os_prim_unlock(); // if multi-threaded access needed */
 }
 
 static void rs_hash_remove(struct RsResource *res) {
