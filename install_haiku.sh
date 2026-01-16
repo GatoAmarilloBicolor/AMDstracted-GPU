@@ -15,29 +15,39 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 1b. Install Mesa with RADV and Zink for GL support (Relating to RADV like NVK in nvidia-haiku, without DRM)
-echo "🏗 Installing Mesa (RADV + Zink) for OpenGL..."
-# No libdrm build, use swrast for Vulkan to avoid DRM (like nvidia-haiku relation with NVK without DRM in driver)
-if [ ! -d "mesa" ]; then
-    git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa
+# 1b. Install Mesa with REAL RADV and Zink for GL support (Hardware acceleration, not swrast)
+echo "🏗 Installing Mesa (REAL RADV + Zink) for OpenGL..."
+# Build libdrm for REAL RADV hardware acceleration
+if [ ! -d "libdrm" ]; then
+    git clone --depth 1 https://gitlab.freedesktop.org/mesa/drm.git libdrm
 fi
-cd mesa
-# Patch Mesa bugs
-sed -i 's/"true" if expr\.value else "false"/'\''true'\'' if expr.value else '\''false'\''/g' src/compiler/nir/nir_algebraic.py
-sed -i "s/{\", \".join(srcs)}/{', '.join(srcs)}/g" src/compiler/nir/nir_algebraic.py
-sed -i "s/{\" | \".join(fp_math_ctrl)}/{' | '.join(fp_math_ctrl)}/g" src/compiler/nir/nir_algebraic.py
-rm -rf build
-meson setup build -Dvulkan-drivers=swrast -Dgallium-drivers=zink -Dplatforms=haiku -Dbuildtype=release --prefix="$PWD/install"
+cd libdrm
+meson setup build --prefix="$PWD/install"
 meson compile -C build
 meson install -C build
 cd ..
 
-# Install libs and configure RADV ICD (swrast as RADV, like NVK relation without DRM)
+# Build Mesa with REAL RADV hardware driver
+if [ ! -d "mesa" ]; then
+    git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa
+fi
+cd mesa
+# Patch Mesa bugs for build
+sed -i 's/"true" if expr\.value else "false"/'\''true'\'' if expr.value else '\''false'\''/g' src/compiler/nir/nir_algebraic.py
+sed -i "s/{\", \".join(srcs)}/{', '.join(srcs)}/g" src/compiler/nir/nir_algebraic.py
+sed -i "s/{\" | \".join(fp_math_ctrl)}/{' | '.join(fp_math_ctrl)}/g" src/compiler/nir/nir_algebraic.py
+rm -rf build
+meson setup build -Dvulkan-drivers=amd -Dgallium-drivers=zink -Dplatforms=haiku -Dpkg_config_path="../libdrm/install/lib/pkgconfig:$PKG_CONFIG_PATH" -Dbuildtype=release --prefix="$PWD/install"
+meson compile -C build
+meson install -C build
+cd ..
+
+# Install libs for REAL RADV hardware acceleration
 if [ -f "mesa/install/lib/libGL.so" ]; then
     cp mesa/install/lib/libGL.so "$LIB_DIR/libGL.so.amd" || echo "⚠️ Conflict detected, using suffix"
 fi
-if [ -f "mesa/install/lib/libvulkan_swrast.so" ]; then
-    cp mesa/install/lib/libvulkan_swrast.so "$LIB_DIR/libradv.so"  # Rename swrast to radv for relation
+if [ -f "mesa/install/lib/libradv.so" ]; then
+    cp mesa/install/lib/libradv.so "$LIB_DIR/libradv.so"
     mkdir -p /boot/home/config/settings/vulkan/icd.d
     cat > /boot/home/config/settings/vulkan/icd.d/radv_icd.json << EOF
 {
@@ -48,9 +58,9 @@ if [ -f "mesa/install/lib/libvulkan_swrast.so" ]; then
     }
 }
 EOF
-    echo "🔍 RADV (swrast) configured like NVK in nvidia-haiku, without DRM."
+    echo "🔍 REAL RADV hardware acceleration configured."
 fi
-echo "✅ Mesa with RADV installed for GL/Vulkan support, OS-agnostic."
+echo "✅ Mesa with REAL RADV installed for GL/Vulkan hardware support."
 
 # 2. Define NVIDIA-Style Paths (System-wide non-packaged)
 KERNEL_DRIVERS_BIN="/boot/home/config/non-packaged/add-ons/kernel/drivers/bin"
