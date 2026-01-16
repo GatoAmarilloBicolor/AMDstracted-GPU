@@ -40,8 +40,9 @@ EOF
         if [ ! -d "mesa" ]; then
             git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa
         fi
-        # Patch Mesa bug: fix f-string syntax error in nir_algebraic.py
-        sed -i 's/"true" if expr\.value else "false"/'\''true'\'' if expr.value else '\''false'\''/' mesa/src/compiler/nir/nir_algebraic.py
+        # Patch Mesa bug: fix f-string syntax errors in nir_algebraic.py
+        sed -i 's/"true" if expr\.value else "false"/'\''true'\'' if expr.value else '\''false'\''/g' mesa/src/compiler/nir/nir_algebraic.py
+        sed -i 's/{", ".join(srcs)}/{'\''', '\'''.join(srcs)}/g' mesa/src/compiler/nir/nir_algebraic.py
         cd mesa
         # Limpiar build corrupto para evitar errores legacy
         rm -rf build
