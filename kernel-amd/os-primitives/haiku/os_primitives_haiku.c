@@ -63,6 +63,26 @@ void os_prim_free(void *ptr) {
 #endif
 }
 
+/* --- THE TRACE LAYER: Good data for debugging --- */
+
+uint32_t os_prim_read32(uintptr_t addr) {
+  uint32_t val = *(volatile uint32_t *)addr;
+  uint32_t offset = (uint32_t)(addr - g_gpu_mmio_base);
+
+  // VERBOSE DEBUG OUTPUT
+  // printf("[HW_TRACE] READ  | Offset: 0x%08X | Val: 0x%08X\n", offset, val);
+  return val;
+}
+
+void os_prim_write32(uintptr_t addr, uint32_t val) {
+  uint32_t offset = (uint32_t)(addr - g_gpu_mmio_base);
+
+  // VERBOSE DEBUG OUTPUT
+  // printf("[HW_TRACE] WRITE | Offset: 0x%08X | Val: 0x%08X\n", offset, val);
+
+  *(volatile uint32_t *)addr = val;
+}
+
 void os_prim_lock(void) {
 #ifndef USERLAND_MODE
   if (!g_lock_initialized) {
