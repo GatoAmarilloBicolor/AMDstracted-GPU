@@ -15,17 +15,21 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 1b. Install Mesa with REAL RADV and Zink for GL support (Hardware acceleration, not swrast)
+# 1b. Install Mesa with REAL RADV and Zink for GL support (Hardware acceleration, abstracted like nvidia-haiku)
 echo "🏗 Installing Mesa (REAL RADV + Zink) for OpenGL..."
-# Build libdrm for REAL RADV hardware acceleration
-if [ ! -d "libdrm" ]; then
-    git clone --depth 1 https://gitlab.freedesktop.org/mesa/drm.git libdrm
-fi
-cd libdrm
-meson setup build --prefix="$PWD/install"
-meson compile -C build
-meson install -C build
-cd ..
+# Try pkgman first for libdrm (abstracted dependency, like NVIDIA deps in nvidia-haiku)
+pkgman install libdrm_devel 2>/dev/null || {
+    echo "⚠️ libdrm not available via pkgman, building from source..."
+    # Build libdrm if not available (abstracted fallback)
+    if [ ! -d "libdrm" ]; then
+        git clone --depth 1 https://gitlab.freedesktop.org/mesa/drm.git libdrm
+    fi
+    cd libdrm
+    meson setup build --prefix="$PWD/install"
+    meson compile -C build
+    meson install -C build
+    cd ..
+}
 
 # Build Mesa with REAL RADV hardware driver
 if [ ! -d "mesa" ]; then
@@ -37,7 +41,7 @@ sed -i 's/"true" if expr\.value else "false"/'\''true'\'' if expr.value else '\'
 sed -i "s/{\", \".join(srcs)}/{', '.join(srcs)}/g" src/compiler/nir/nir_algebraic.py
 sed -i "s/{\" | \".join(fp_math_ctrl)}/{' | '.join(fp_math_ctrl)}/g" src/compiler/nir/nir_algebraic.py
 rm -rf build
-meson setup build -Dvulkan-drivers=amd -Dgallium-drivers=zink -Dplatforms=haiku -Dpkg_config_path="../libdrm/install/lib/pkgconfig:$PKG_CONFIG_PATH" -Dbuildtype=release --prefix="$PWD/install"
+meson setup build -Dvulkan-drivers=auto -Dgallium-drivers=zink -Dplatforms=haiku -Dbuildtype=release --prefix="$PWD/install"
 meson compile -C build
 meson install -C build
 cd ..
