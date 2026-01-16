@@ -19,21 +19,13 @@
 #include <signal.h>
 #include <time.h>
 
-/* Haiku headers - only include if available */
+/* Haiku headers - only what's available in userland */
 #ifdef __HAIKU__
-#if __has_include(<OS.h>)
-    /* Real Haiku system */
+    /* Include basic Haiku OS header - should be available everywhere */
     #include <OS.h>
-    #include <device/device_manager.h>
-    #include <drivers/pci/pci.h>
-    #include <drivers/usb/USB.h>
-    #include <drivers/KernelExport.h>
-    #include <drivers/Drivers.h>
-    #define HAIKU_NATIVE 1
-#else
-    /* Haiku target but headers not available - use stubs */
-    #define HAIKU_NATIVE 0
-#endif
+    
+    /* Device manager may not be available in userland - that's OK, use stubs */
+    #define HAIKU_NATIVE 1  /* We're on Haiku, but device APIs may be stubbed */
 #else
     /* Not on Haiku - use stubs */
     #define HAIKU_NATIVE 0
