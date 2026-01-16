@@ -14,6 +14,39 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# 1b. Install Mesa with RADV and Zink for GL support (Linux has libdrm)
+echo "🏗 Installing Mesa (RADV + Zink) for OpenGL..."
+# Check if Mesa is installed via package manager
+if command -v apt &> /dev/null && dpkg -l | grep -q mesa; then
+    echo "✅ Mesa already installed via apt. Skipping build."
+else
+    # Build from source if not available
+    if [ ! -d "mesa" ]; then
+        git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa
+    fi
+    cd mesa
+    meson setup build -Dvulkan-drivers=amd -Dgallium-drivers=zink -Dplatforms=x11,wayland -Dbuildtype=release --prefix="$PWD/install"
+    meson compile -C build
+    meson install -C build
+    cd ..
+    # Install libs system-wide
+    sudo cp mesa/install/lib/libGL.so "$LIB_DIR/libGL.so.amd"
+    sudo cp mesa/install/lib/libradv.so "$LIB_DIR/libradv.so"
+    sudo ldconfig
+    # Configure RADV ICD
+    sudo mkdir -p /usr/share/vulkan/icd.d
+    sudo tee /usr/share/vulkan/icd.d/radv_icd.json > /dev/null <<EOF
+{
+    "file_format_version": "1.0.0",
+    "ICD": {
+        "library_path": "$LIB_DIR/libradv.so",
+        "api_version": "1.3.0"
+    }
+}
+EOF
+fi
+echo "✅ Mesa libs installed for GL/Vulkan support."
+
 # 2. Define Linux Paths
 INSTALL_DIR="/usr/local/bin"
 LIB_DIR="/usr/local/lib"
