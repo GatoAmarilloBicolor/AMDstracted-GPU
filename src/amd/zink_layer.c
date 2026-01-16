@@ -196,15 +196,75 @@ GLuint zink_create_framebuffer(GLint width, GLint height) {
 }
 
 /* ============================================================================
- * DRAWING
+ * DRAWING & STATE MANAGEMENT
  * ============================================================================ */
+
+typedef struct {
+    GLuint vao;              // Vertex Array Object
+    GLuint shader_program;
+    GLuint draw_mode;
+    GLint draw_count;
+    GLint first;
+} draw_command_t;
+
+#define DRAW_STATE_QUEUE_SIZE 256
+
+typedef struct {
+    draw_command_t commands[DRAW_STATE_QUEUE_SIZE];
+    uint32_t cmd_count;
+    GLuint current_vao;
+    GLuint current_program;
+} draw_state_t;
+
+static draw_state_t g_draw_state = {0};
+
+int zink_bind_vertex_array(GLuint vao) {
+    g_draw_state.current_vao = vao;
+    fprintf(stderr, "[ZINK] Bound vertex array: %u\n", vao);
+    return 0;
+}
+
+int zink_use_program(GLuint program) {
+    g_draw_state.current_program = program;
+    fprintf(stderr, "[ZINK] Activated shader program: %u\n", program);
+    return 0;
+}
 
 int zink_draw_arrays(GLenum mode, GLint count) {
     if (!g_zink_state.current_context) {
         return -1;
     }
     
-    fprintf(stderr, "[ZINK] Draw call: %d vertices (mode=%d)\n", count, mode);
+    const char *mode_name = "unknown";
+    switch (mode) {
+        case 0: mode_name = "GL_POINTS"; break;
+        case 1: mode_name = "GL_LINES"; break;
+        case 3: mode_name = "GL_LINE_STRIP"; break;
+        case 4: mode_name = "GL_TRIANGLES"; break;
+        case 5: mode_name = "GL_TRIANGLE_STRIP"; break;
+        case 6: mode_name = "GL_TRIANGLE_FAN"; break;
+    }
+    
+    // Add to draw queue
+    if (g_draw_state.cmd_count < DRAW_STATE_QUEUE_SIZE) {
+        draw_command_t *cmd = &g_draw_state.commands[g_draw_state.cmd_count++];
+        cmd->draw_mode = mode;
+        cmd->draw_count = count;
+        cmd->vao = g_draw_state.current_vao;
+        cmd->shader_program = g_draw_state.current_program;
+    }
+    
+    fprintf(stderr, "[ZINK] Draw call: %s, %d vertices, vao=%u, prog=%u\n",
+            mode_name, count, g_draw_state.current_vao, g_draw_state.current_program);
+    return 0;
+}
+
+int zink_draw_elements(GLenum mode, GLint count, GLenum type, const void *indices) {
+    if (!g_zink_state.current_context) {
+        return -1;
+    }
+    
+    fprintf(stderr, "[ZINK] Indexed draw call: %d indices, type=%d\n", count, type);
     return 0;
 }
 

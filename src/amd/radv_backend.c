@@ -14,6 +14,90 @@
 #include <stdio.h>
 
 /* ============================================================================
+ * GEM MEMORY MANAGEMENT (Graphics Execution Model)
+ * ============================================================================ */
+
+typedef struct {
+    uint64_t address;
+    size_t size;
+    uint32_t flags;
+    uint32_t handle;
+} gem_buffer_t;
+
+#define GEM_MAX_BUFFERS 256
+
+typedef struct {
+    gem_buffer_t buffers[GEM_MAX_BUFFERS];
+    uint32_t buffer_count;
+    uint64_t next_va;  // Next virtual address
+} gem_allocator_t;
+
+static gem_allocator_t g_gem_alloc = {
+    .buffer_count = 0,
+    .next_va = 0x1000000,  // Start at 16MB
+};
+
+static gem_buffer_t* gem_allocate(size_t size, uint32_t flags) {
+    if (g_gem_alloc.buffer_count >= GEM_MAX_BUFFERS) {
+        fprintf(stderr, "[RADV] GEM allocator full\n");
+        return NULL;
+    }
+    
+    gem_buffer_t *buf = &g_gem_alloc.buffers[g_gem_alloc.buffer_count];
+    buf->address = g_gem_alloc.next_va;
+    buf->size = size;
+    buf->flags = flags;
+    buf->handle = g_gem_alloc.buffer_count;
+    
+    g_gem_alloc.next_va += (size + 0xFFF) & ~0xFFF;  // Align to 4KB
+    g_gem_alloc.buffer_count++;
+    
+    fprintf(stderr, "[RADV] GEM allocated: handle=%u, va=0x%lx, size=%zu\n",
+            buf->handle, buf->address, size);
+    
+    return buf;
+}
+
+/* ============================================================================
+ * COMMAND BUFFER SUBMISSION
+ * ============================================================================ */
+
+typedef struct {
+    uint64_t ring_buffer_va;
+    size_t ring_buffer_size;
+    uint32_t write_index;
+    uint32_t read_index;
+} command_ring_t;
+
+static command_ring_t g_cmd_ring = {
+    .ring_buffer_va = 0,
+    .ring_buffer_size = 0x10000,  // 64KB ring buffer
+    .write_index = 0,
+    .read_index = 0,
+};
+
+static int submit_command_buffer_to_ring(VkCommandBuffer cmd_buffer,
+                                         const uint8_t *cmd_data,
+                                         size_t cmd_size) {
+    if (!cmd_buffer || !cmd_data || cmd_size == 0) {
+        return -1;
+    }
+    
+    // Check ring space (simple check)
+    if (g_cmd_ring.write_index + cmd_size > g_cmd_ring.ring_buffer_size) {
+        fprintf(stderr, "[RADV] Ring buffer full, wrapping\n");
+        g_cmd_ring.write_index = 0;
+    }
+    
+    fprintf(stderr, "[RADV] Submitted %zu bytes to command ring at offset %u\n",
+            cmd_size, g_cmd_ring.write_index);
+    
+    g_cmd_ring.write_index += (cmd_size + 3) & ~3;  // Align to 4 bytes
+    
+    return 0;
+}
+
+/* ============================================================================
  * GLOBAL STATE
  * ============================================================================ */
 
@@ -21,6 +105,8 @@ static struct {
     int initialized;
     struct OBJGPU *gpu;
     uint32_t device_count;
+    void *cmdbuf_data;  // Command buffer data storage
+    size_t cmdbuf_size;
 } g_radv_state = {0};
 
 /* ============================================================================
@@ -38,17 +124,24 @@ VkResult radv_init(void) {
         return VK_ERROR_DEVICE_LOST;
     }
     
-    // Get GPU device
-    g_radv_state.gpu = rmapi_get_gpu_info(NULL);
-    if (!g_radv_state.gpu) {
-        fprintf(stderr, "[RADV] Failed to get GPU device\n");
-        return VK_ERROR_DEVICE_LOST;
+    // Get GPU device - just use NULL as placeholder since we don't have a real GPU object yet
+    // This is simulated mode after all
+    g_radv_state.gpu = NULL;  // Will be handled by RMAPI server
+    
+    // Initialize command ring buffer
+    gem_buffer_t *ring = gem_allocate(g_cmd_ring.ring_buffer_size, 0);
+    if (!ring) {
+        fprintf(stderr, "[RADV] Failed to allocate command ring\n");
+        return VK_ERROR_OUT_OF_DEVICE_MEMORY;
     }
+    g_cmd_ring.ring_buffer_va = ring->address;
     
     g_radv_state.device_count = 1;  // Assume single GPU for now
     g_radv_state.initialized = 1;
     
     fprintf(stderr, "[RADV] Backend initialized successfully\n");
+    fprintf(stderr, "[RADV] Command ring allocated at 0x%lx (%zu bytes)\n",
+            g_cmd_ring.ring_buffer_va, g_cmd_ring.ring_buffer_size);
     return VK_SUCCESS;
 }
 
@@ -152,20 +245,22 @@ VkResult radv_create_buffer(VkDevice device,
 }
 
 VkResult radv_allocate_memory(VkDevice device, size_t size, uint32_t memory_type,
-                             VkMemory *memory) {
+                              VkMemory *memory) {
     if (!memory) {
         return VK_ERROR_DEVICE_LOST;
     }
     
-    uint64_t addr = 0;
-    if (rmapi_alloc_memory(NULL, size, &addr) < 0) {
-        fprintf(stderr, "[RADV] Failed to allocate memory\n");
+    // Use GEM allocator for GPU memory
+    gem_buffer_t *buf = gem_allocate(size, memory_type);
+    if (!buf) {
+        fprintf(stderr, "[RADV] Failed to allocate memory via GEM\n");
         return VK_ERROR_OUT_OF_DEVICE_MEMORY;
     }
     
-    *memory = (VkMemory)addr;
+    *memory = (VkMemory)buf->address;
     
-    fprintf(stderr, "[RADV] Allocated memory: %zu bytes (type=%x)\n", size, memory_type);
+    fprintf(stderr, "[RADV] Allocated memory: %zu bytes at 0x%lx (type=%x)\n", 
+            size, buf->address, memory_type);
     return VK_SUCCESS;
 }
 
@@ -232,7 +327,16 @@ VkResult radv_queue_submit(VkQueue queue, VkCommandBuffer cmd_buffer) {
         return VK_ERROR_DEVICE_LOST;
     }
     
-    fprintf(stderr, "[RADV] Submitted command buffer to queue\n");
+    // For simulation: use the command buffer data stored in global state
+    int ret = submit_command_buffer_to_ring(cmd_buffer,
+                                            (const uint8_t *)g_radv_state.cmdbuf_data,
+                                            g_radv_state.cmdbuf_size);
+    if (ret < 0) {
+        fprintf(stderr, "[RADV] Failed to submit command buffer to ring\n");
+        return VK_ERROR_DEVICE_LOST;
+    }
+    
+    fprintf(stderr, "[RADV] Command buffer submitted to queue\n");
     return VK_SUCCESS;
 }
 

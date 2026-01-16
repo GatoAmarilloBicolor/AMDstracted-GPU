@@ -21,6 +21,46 @@
 static ipc_connection_t g_drm_conn;
 static int g_drm_initialized = 0;
 
+// Device context tracking
+typedef struct {
+    uint32_t fd;
+    uint64_t gpu_va_offset;
+    uint32_t client_id;
+    int is_open;
+} drm_device_t;
+
+#define DRM_MAX_DEVICES 8
+static drm_device_t g_drm_devices[DRM_MAX_DEVICES];
+static uint32_t g_drm_device_count = 0;
+
+// Find or create device context
+static drm_device_t* drm_get_device(int fd) {
+    for (uint32_t i = 0; i < g_drm_device_count; i++) {
+        if (g_drm_devices[i].fd == fd && g_drm_devices[i].is_open) {
+            return &g_drm_devices[i];
+        }
+    }
+    return NULL;
+}
+
+static drm_device_t* drm_alloc_device(int fd) {
+    if (g_drm_device_count >= DRM_MAX_DEVICES) {
+        fprintf(stderr, "DRM Shim: Too many open devices\n");
+        return NULL;
+    }
+    
+    drm_device_t *dev = &g_drm_devices[g_drm_device_count++];
+    dev->fd = fd;
+    dev->client_id = g_drm_device_count;
+    dev->gpu_va_offset = 0x100000000;  // Start at 4GB
+    dev->is_open = 1;
+    
+    fprintf(stderr, "DRM Shim: Allocated device context fd=%d, client_id=%u\n",
+            fd, dev->client_id);
+    
+    return dev;
+}
+
 /*
  * DRM Version Query
  * RADV calls this first to verify the driver name is "amdgpu"
@@ -196,16 +236,54 @@ int drmCommandWrite(int fd, unsigned long drmCommandIndex, void *data,
  * We intercept this and return a fake FD
  */
 int drmOpen(const char *name, const char *busid) {
-  // Return a fake FD (we don't actually use it, IPC is socket-based)
-  // Just needs to be > 0 to signal success
-  return 42; // The answer to everything
+  fprintf(stderr, "DRM Shim: drmOpen(name=%s, busid=%s)\n", 
+          name ? name : "NULL", busid ? busid : "NULL");
+  
+  // Initialize IPC connection on first open
+  if (!g_drm_initialized) {
+    if (ipc_client_connect(HIT_SOCKET_PATH, &g_drm_conn) < 0) {
+      fprintf(stderr, "DRM Shim: Failed to connect to rmapi_server\n");
+      return -1;
+    }
+    g_drm_initialized = 1;
+    fprintf(stderr, "DRM Shim: Connected to rmapi_server\n");
+  }
+  
+  // Allocate device context
+  // Use a fake FD that increases with each open
+  static int next_fd = 100;
+  int fd = next_fd++;
+  
+  drm_device_t *dev = drm_alloc_device(fd);
+  if (!dev) {
+    return -1;
+  }
+  
+  return fd;
 }
 
 void drmClose(int fd) {
-  // Cleanup IPC connection
-  if (g_drm_initialized) {
+  fprintf(stderr, "DRM Shim: drmClose(fd=%d)\n", fd);
+  
+  // Mark device as closed
+  drm_device_t *dev = drm_get_device(fd);
+  if (dev) {
+    dev->is_open = 0;
+  }
+  
+  // Only cleanup IPC if all devices are closed
+  int any_open = 0;
+  for (uint32_t i = 0; i < g_drm_device_count; i++) {
+    if (g_drm_devices[i].is_open) {
+      any_open = 1;
+      break;
+    }
+  }
+  
+  if (!any_open && g_drm_initialized) {
     ipc_close(&g_drm_conn);
     g_drm_initialized = 0;
+    fprintf(stderr, "DRM Shim: Closed IPC connection\n");
   }
 }
 

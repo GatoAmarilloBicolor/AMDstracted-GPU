@@ -69,6 +69,7 @@ COMMON_DIR = src/common
 SRC_OBJS = $(SRC_DIR)/objgpu.o $(SRC_DIR)/hal.o $(SRC_DIR)/amdgpu_gem_userland.o \
            $(SRC_DIR)/amdgpu_kms_userland.o $(SRC_DIR)/resserv.o $(SRC_DIR)/rmapi.o \
            $(SRC_DIR)/rmapi_server.o $(SRC_DIR)/gmc_v10.o $(SRC_DIR)/gfx_v10.o \
+           $(SRC_DIR)/shader_compiler.o $(SRC_DIR)/radv_backend.o $(SRC_DIR)/zink_layer.o \
            $(COMMON_DIR)/ipc_lib.o
 
 OS_OBJS = $(OS_INTERFACE_DIR)/os_interface_$(OS_DIR_SUFFIX).o \

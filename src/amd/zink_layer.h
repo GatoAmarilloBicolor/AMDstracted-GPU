@@ -106,13 +106,40 @@ GLuint zink_create_texture(GLint width, GLint height, GLenum format,
 GLuint zink_create_framebuffer(GLint width, GLint height);
 
 /**
- * Draw call
+ * Bind vertex array object
+ * 
+ * @param vao             Vertex array object ID
+ * @return 0 on success
+ */
+int zink_bind_vertex_array(GLuint vao);
+
+/**
+ * Use shader program
+ * 
+ * @param program         Program ID to activate
+ * @return 0 on success
+ */
+int zink_use_program(GLuint program);
+
+/**
+ * Draw call with vertex arrays
  * 
  * @param mode            Draw mode (GL_TRIANGLES, etc)
  * @param count           Number of vertices
  * @return 0 on success, -1 on error
  */
 int zink_draw_arrays(GLenum mode, GLint count);
+
+/**
+ * Draw call with index buffer
+ * 
+ * @param mode            Draw mode
+ * @param count           Number of indices
+ * @param type            Index type (GL_UNSIGNED_INT, etc)
+ * @param indices         Index data
+ * @return 0 on success, -1 on error
+ */
+int zink_draw_elements(GLenum mode, GLint count, GLenum type, const void *indices);
 
 /**
  * Swap buffers (present)
