@@ -6,3 +6,4 @@ rmapi_client_demo
 real_compute
 vkinfo_amd
 config.h
+upload_to_git.sh
