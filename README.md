@@ -8,12 +8,17 @@
 AMDGPU_Abstracted/
 ├── docs/                    # Documentation and guides
 ├── src/                     # Source code (organized by subsystem)
-├── drm/                     # DRM compatibility shim
-├── tests/                   # Test suite (unit + integration)
+│   ├── amd/                 # AMD GPU components
+│   ├── common/              # Shared utilities
+│   ├── os/                  # OS abstractions (linux/haiku/freebsd)
+│   ├── drm/                 # DRM compatibility shim
+│   └── tests/               # Test suite (unit + integration)
 ├── examples/                # Example applications
-├── tools/                   # Build and utility scripts
+├── scripts/                 # Build and install scripts
 ├── config/                  # Build configuration
-└── build/                   # Build artifacts (generated)
+├── build/                   # Build artifacts (generated)
+├── libdrm/                  # libdrm submodule
+└── mesa/                    # Mesa submodule
 ```
 
 ## 🚀 Quick Start
@@ -34,6 +39,17 @@ make clean && make all
 ./rmapi_server &             # Start GPU server
 ./rmapi_client_demo          # Run test client
 ```
+
+## 🧪 Simulation Mode
+
+For testing without real AMD hardware:
+
+```bash
+export AMD_SIMULATE=1
+./rmapi_server  # Runs in simulation mode
+```
+
+This enables PCI device simulation and allows testing all GPU functions.
 
 ## 📚 Documentation
 

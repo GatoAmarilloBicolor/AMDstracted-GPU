@@ -1,0 +1,15 @@
+---
+Checks: >
+  clang-diagnostic-*,
+  clang-analyzer-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -modernize-use-trailing-return-type,
+  -readability-magic-numbers
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*'
+AnalyzeTemporaryDtors: false
+FormatStyle: file
+...

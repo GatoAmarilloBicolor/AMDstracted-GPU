@@ -100,12 +100,18 @@ void os_prim_log(const char *fmt, ...) {
  * ============================================================================ */
 
 int os_prim_pci_find_device(uint16_t vendor, uint16_t device, void **handle) {
+    if (getenv("AMD_SIMULATE")) {
+        // Simulation mode: fake AMD device
+        *handle = malloc(1); // dummy handle
+        return 0;
+    }
+
     DIR *dir;
     struct dirent *entry;
     FILE *fp;
     char path[512];
     uint16_t found_vendor, found_device;
-    
+
     if (!handle) return -1;
     
     // Only support AMD (0x1002)

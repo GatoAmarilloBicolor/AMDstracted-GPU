@@ -1,0 +1,1 @@
+option('userland_mode', type: 'integer', value: 1, description: 'Enable userland mode (0=kernel, 1=userland)')
