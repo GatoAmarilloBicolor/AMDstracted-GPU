@@ -60,11 +60,11 @@ else ifeq ($(OS),freebsd)
   CXXFLAGS += -D__FreeBSD__
 endif
 
-CFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c99 -include config.h -I. \
-          -I$(OS_INTERFACE_DIR) -I$(OS_PRIMITIVES_DIR) \
+CFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c99 -include config/config.h -I. \
+          -Iconfig -I$(OS_INTERFACE_DIR) -I$(OS_PRIMITIVES_DIR) \
           -Isrc -Isrc/common -Isrc/amd -Isrc/amd/hal -Isrc/amd/rmapi
-CXXFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c++11 -include config.h -I. \
-            -I$(OS_INTERFACE_DIR) -I$(OS_PRIMITIVES_DIR) \
+CXXFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c++11 -include config/config.h -I. \
+            -Iconfig -I$(OS_INTERFACE_DIR) -I$(OS_PRIMITIVES_DIR) \
             -Isrc -Isrc/common -Isrc/amd -Isrc/amd/hal -Isrc/amd/rmapi \
             $(HAIKU_INCLUDES)
 

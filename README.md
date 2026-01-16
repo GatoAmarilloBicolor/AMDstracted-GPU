@@ -10,13 +10,14 @@ AMDGPU_Abstracted/
 ├── src/                     # Source code (organized by subsystem)
 │   ├── amd/                 # AMD GPU components
 │   ├── common/              # Shared utilities
-│   ├── os/                  # OS abstractions (linux/haiku/freebsd)
-│   ├── drm/                 # DRM compatibility shim
-│   └── tests/               # Test suite (unit + integration)
-├── examples/                # Example applications
+│   ├── os/                  # OS abstractions (linux/haiku/freebsd/common)
+│   │   ├── drm/             # DRM compatibility shim
+│   │   └── tests/           # Test suite (unit + integration)
+│   └── examples/            # Example applications
 ├── scripts/                 # Build and install scripts
+├── build/                   # Build files and artifacts
 ├── config/                  # Build configuration
-├── build/                   # Build artifacts (generated)
+├── tools/                   # Utility scripts
 ├── libdrm/                  # libdrm submodule
 └── mesa/                    # Mesa submodule
 ```
