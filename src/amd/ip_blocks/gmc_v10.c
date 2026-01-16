@@ -49,6 +49,12 @@ struct gmc_v10_state {
  * Early Init: Quick check that GMC responds
  */
 static int gmc_v10_early_init(struct OBJGPU *adev) {
+    // Validate GPU object
+    if (!adev) {
+        os_prim_log("GMC v10: ERROR - Invalid GPU object\n");
+        return -1;
+    }
+    
     os_prim_log("GMC v10: [Early] Checking if memory controller is alive...\n");
     
     // In userland, we just allocate our state
