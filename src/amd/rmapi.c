@@ -28,15 +28,19 @@ int rmapi_init(void) {
 
   memset(global_gpu, 0, sizeof(struct OBJGPU));
 
-  // --- Hardware Discovery ---
-  // We check if there's an actual AMD card in the system!
+  // --- Hardware Discovery (True Abstraction) ---
+  // We scan the bus for ANY AMD device (Vendor 0x1002)
   void *pci_handle;
-  if (os_prim_pci_find_device(0x1002, 0x9806, &pci_handle) == 0) {
-    // Found a Wrestler APU! (Like the user's Radeon HD 7290)
-    global_gpu->asic_type = AMD_ASIC_WRESTLER;
+  if (os_prim_pci_find_device(0x1002, 0, &pci_handle) == 0) {
+    uint16_t vendor, device;
+    os_prim_pci_get_ids(pci_handle, &vendor, &device);
+
+    // We pass this info to the HAL so it can decide how to initialize!
+    // The HAL will use the device_id to find the right specialists.
+    global_gpu->pci_handle = pci_handle;
+    os_prim_log("RMAPI: Found AMD device on the bus. Identifying...\n");
   } else {
-    // Default to Navi10 for simulators
-    global_gpu->asic_type = AMD_ASIC_NAVI10;
+    os_prim_log("RMAPI: No AMD hardware found. Using simulation defaults.\n");
   }
 
   amdgpu_device_init_hal(

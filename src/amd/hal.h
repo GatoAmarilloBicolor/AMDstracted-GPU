@@ -69,17 +69,19 @@ struct amd_ip_block {
 
 // The "Tagging System" (RESSERV) to keep track of everything we created
 struct RsResource {
-  uint32_t handle;              // A unique ID (like a name tag)
-  struct RsResource *parent;    // Who created me?
-  struct RsResource **children; // What did I create?
-  int num_children;
-  void *data;           // The actual stuff (like memory)
+  uint32_t handle;               // A unique ID (like a name tag)
+  struct RsResource *parent;     // Who created me?
+  struct RsResource *child_list; // First child in my family tree
+  struct RsResource *sibling;    // My brother/sister in the family tree
+  struct RsResource *hash_next;  // Next resource in the global lookup table
+  void *data;                    // The actual stuff (like memory)
   pthread_mutex_t lock; // Ensuring only one person touches this at a time
 };
 
 struct RsResource *rs_resource_create(uint32_t handle,
                                       struct RsResource *parent);
 void rs_resource_add_child(struct RsResource *parent, struct RsResource *child);
+struct RsResource *rs_resource_lookup(uint32_t handle);
 void rs_resource_destroy(struct RsResource *res);
 
 // GPU Memory Buffers and Command Lists
@@ -105,13 +107,18 @@ typedef struct amdgpu_gpu_info amdgpu_gpu_info_t;
 
 // Different ASIC types
 enum amd_asic_type {
-  AMD_ASIC_NAVI10,
-  AMD_ASIC_WRESTLER, // Added for your Radeon HD 7290!
+  AMD_ASIC_WRESTLER,  // The APU specialist
+  AMD_ASIC_NAVI10,    // The modern powerhouse
+  AMD_ASIC_R600,      // Legacy HD 2000-4000
+  AMD_ASIC_EVERGREEN, // Legacy HD 5000-6000
+  AMD_ASIC_NI,        // Legacy Northern Islands
 };
 
 // The "Main Brain" (OBJGPU) that manages all our specialists
 struct OBJGPU {
   enum amd_asic_type asic_type; // What kind of GPU chip is this?
+  uint16_t device_id;           // The specific PCI ID
+  void *pci_handle;             // The connection to the OS PCI bus
   uint32_t family;              // Which GPU family does it belong to?
 
   struct amd_ip_block ip_blocks[AMDGPU_MAX_IP_BLOCKS]; // List of workers

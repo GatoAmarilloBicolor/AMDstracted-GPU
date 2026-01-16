@@ -7,7 +7,7 @@ DETECTED_OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 ifeq ($(DETECTED_OS),linux)
   MAPPED_OS := linux
 else ifeq ($(DETECTED_OS),freebsd)
-  MAPPED_OS := linux
+  MAPPED_OS := freebsd
 else ifeq ($(DETECTED_OS),haiku)
   MAPPED_OS := haiku
 else ifeq ($(DETECTED_OS),redox)
@@ -30,6 +30,7 @@ ifeq ($(OS),haiku)
   HAIKU_LDFLAGS = -lbe -ltranslation
 else
   PTHREAD_LIBS = -lpthread
+  LDFLAGS += -lrt
 endif
 
 $(info [HIT] Building for OS: $(OS) (Detected: $(DETECTED_OS)))

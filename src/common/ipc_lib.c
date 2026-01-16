@@ -1,25 +1,26 @@
+#define _DEFAULT_SOURCE
+#define _GNU_SOURCE
 #include "ipc_lib.h"
+#include <fcntl.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/un.h>
 #include <unistd.h>
 
 /*
  * Yo! This is the IPC Library (The Universal Subway System).
- *
- * We removed all the Linux-only "epoll" stuff to make sure this works on
- * ANY system that calls itself POSIX (Haiku, BSD, even exotic ones!).
- *
- * It uses standard Unix Domain Sockets which are the gold standard for
- * fast and safe local communication.
- *
- * Developed by: Haiku Imposible Team (HIT)
  */
 
 static pthread_mutex_t ipc_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+#define HIT_SHM_SIZE (1024 * 1024) // 1MB fast-track
+#define HIT_SHM_NAME "/hit_subway_shm"
 
 // Setting up the "Subway Station" (Server side)
 int ipc_server_init(const char *socket_path, ipc_connection_t *conn) {
@@ -33,29 +34,35 @@ int ipc_server_init(const char *socket_path, ipc_connection_t *conn) {
   if (conn->sock_fd < 0)
     return -1;
 
-  // 2. Set the address (A special file on your disk!)
+  // 2. Set the address
   struct sockaddr_un addr;
   memset(&addr, 0, sizeof(addr));
   addr.sun_family = AF_UNIX;
   strncpy(addr.sun_path, socket_path, sizeof(addr.sun_path) - 1);
-  unlink(socket_path); // Clear out any old station leftover
+  unlink(socket_path);
 
-  // 3. Bind the line to the address
   if (bind(conn->sock_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     close(conn->sock_fd);
     return -1;
   }
 
-  // 4. Start listening for apps trying to connect
   if (listen(conn->sock_fd, 5) < 0) {
     close(conn->sock_fd);
     return -1;
   }
 
-  // We set epoll_fd to -1 because we chose to keep it super
-  // simple and portable for all OSes!
-  conn->epoll_fd = -1;
+  // 3. Create the Fast-Path (Shared Memory)
+  int shm_fd = shm_open(HIT_SHM_NAME, O_CREAT | O_RDWR, 0666);
+  if (shm_fd >= 0) {
+    ftruncate(shm_fd, HIT_SHM_SIZE);
+    conn->shm_addr =
+        mmap(NULL, HIT_SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    conn->shm_size = HIT_SHM_SIZE;
+    close(shm_fd);
+    printf("[LOG] IPC: Fast-Path subway line (SHM) is open!\n");
+  }
 
+  conn->epoll_fd = -1;
   return 0;
 }
 
@@ -74,10 +81,18 @@ int ipc_client_connect(const char *socket_path, ipc_connection_t *conn) {
   addr.sun_family = AF_UNIX;
   strncpy(addr.sun_path, socket_path, sizeof(addr.sun_path) - 1);
 
-  // Trying to reach the Server!
   if (connect(conn->sock_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     close(conn->sock_fd);
     return -1;
+  }
+
+  // Map the Fast-Path
+  int shm_fd = shm_open(HIT_SHM_NAME, O_RDWR, 0666);
+  if (shm_fd >= 0) {
+    conn->shm_addr =
+        mmap(NULL, HIT_SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    conn->shm_size = HIT_SHM_SIZE;
+    close(shm_fd);
   }
 
   return 0;
@@ -90,15 +105,26 @@ int ipc_send_message(ipc_connection_t *conn, ipc_message_t *msg) {
 
   pthread_mutex_lock(&ipc_mutex);
 
-  // 1. Send the "envelope" (Metadata)
+  // If data is already in SHM (pointer in range), don't send it via socket!
+  void *original_data = msg->data;
+  if (conn->shm_addr && original_data >= conn->shm_addr &&
+      (uint8_t *)original_data < (uint8_t *)conn->shm_addr + conn->shm_size) {
+    msg->data = NULL; // Flag for remote: "Data is in SHM, check your map!"
+  }
+
   ssize_t sent = send(conn->sock_fd, msg, sizeof(ipc_message_t), 0);
+  msg->data = original_data; // Restore
+
   if (sent != sizeof(ipc_message_t)) {
     pthread_mutex_unlock(&ipc_mutex);
     return -1;
   }
 
-  // 2. Send the "letter" (The actual data) if any
-  if (msg->data && msg->data_size > 0) {
+  // Only copy if NOT using the SHM fast-path
+  if (msg->data && msg->data_size > 0 && msg->data != NULL &&
+      !(conn->shm_addr && original_data >= conn->shm_addr &&
+        (uint8_t *)original_data <
+            (uint8_t *)conn->shm_addr + conn->shm_size)) {
     sent = send(conn->sock_fd, msg->data, msg->data_size, 0);
     if (sent != (ssize_t)msg->data_size) {
       pthread_mutex_unlock(&ipc_mutex);
@@ -115,7 +141,6 @@ int ipc_recv_message(ipc_connection_t *conn, ipc_message_t *msg) {
   if (!conn || !msg)
     return -1;
 
-  // 1. Receive the "envelope"
   ssize_t recvd = recv(conn->sock_fd, msg, sizeof(ipc_message_t), 0);
   if (recvd <= 0)
     return recvd;
@@ -123,7 +148,12 @@ int ipc_recv_message(ipc_connection_t *conn, ipc_message_t *msg) {
   if (recvd != sizeof(ipc_message_t))
     return -1;
 
-  // 2. Read the "letter" inside
+  // Check if this is a Fast-Path message
+  if (msg->data_size > 0 && msg->data == NULL && conn->shm_addr) {
+    msg->data = conn->shm_addr; // Data is waiting in the SHM buffer!
+    return 1;
+  }
+
   if (msg->data_size > 0) {
     msg->data = malloc(msg->data_size);
     if (!msg->data)
@@ -134,8 +164,6 @@ int ipc_recv_message(ipc_connection_t *conn, ipc_message_t *msg) {
       free(msg->data);
       return -1;
     }
-  } else {
-    msg->data = NULL;
   }
 
   return 1;
@@ -145,6 +173,12 @@ int ipc_recv_message(ipc_connection_t *conn, ipc_message_t *msg) {
 void ipc_close(ipc_connection_t *conn) {
   if (!conn)
     return;
+
+  if (conn->shm_addr) {
+    munmap(conn->shm_addr, conn->shm_size);
+    shm_unlink(HIT_SHM_NAME);
+  }
+
   if (conn->sock_fd >= 0)
     close(conn->sock_fd);
   memset(conn, 0, sizeof(ipc_connection_t));

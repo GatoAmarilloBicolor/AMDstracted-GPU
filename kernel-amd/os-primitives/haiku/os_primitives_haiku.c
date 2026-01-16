@@ -12,6 +12,7 @@
 #include <kernel/OS.h>
 #include <kernel/bus.h>
 #endif
+#include <stdarg.h>
 
 /*
  * 🛠 HIT HARDWARE MODE: Real Acceleration & Trace
@@ -24,14 +25,29 @@
 // Global base address for the mapped GPU BAR (Simulated or Real)
 static uintptr_t g_gpu_mmio_base = 0;
 
+/* --- THE KERNEL LAYER: Trusted nvidia-haiku patterns --- */
+
+// Global lock for driver safety (simplified for now)
+#ifndef USERLAND_MODE
+static mutex g_prim_lock;
+static bool g_lock_initialized = false;
+#endif
+
 void *os_prim_alloc(size_t size) {
 #ifdef USERLAND_MODE
   return malloc(size);
 #else
-  void *ptr;
-  area_id area = create_area("amdgpu_real_mem", &ptr, B_ANY_ADDRESS, size,
-                             B_FULL_LOCK, B_READ_AREA | B_WRITE_AREA);
-  return area >= 0 ? ptr : NULL;
+  void *address = NULL;
+  // NVIDIA Pattern: Use create_area for kernel allocations
+  area_id area =
+      create_area("amdgpu_kernel_alloc", &address, B_ANY_KERNEL_ADDRESS,
+                  (size + B_PAGE_SIZE - 1) & ~(B_PAGE_SIZE - 1), B_FULL_LOCK,
+                  B_KERNEL_READ_AREA | B_KERNEL_WRITE_AREA);
+  if (area < 0) {
+    dprintf("AMDGPU: os_prim_alloc failed: %s\n", strerror(area));
+    return NULL;
+  }
+  return address;
 #endif
 }
 
@@ -47,43 +63,50 @@ void os_prim_free(void *ptr) {
 #endif
 }
 
-/* --- THE TRACE LAYER: Good data for debugging --- */
-
-uint32_t os_prim_read32(uintptr_t addr) {
-  uint32_t val = *(volatile uint32_t *)addr;
-  uint32_t offset = (uint32_t)(addr - g_gpu_mmio_base);
-
-  // VERBOSE DEBUG OUTPUT
-  printf("[HW_TRACE] READ  | Offset: 0x%08X | Val: 0x%08X\n", offset, val);
-  return val;
+void os_prim_lock(void) {
+#ifndef USERLAND_MODE
+  if (!g_lock_initialized) {
+    mutex_init(&g_prim_lock, "amdgpu_global_lock");
+    g_lock_initialized = true;
+  }
+  mutex_lock(&g_prim_lock);
+#endif
 }
 
-void os_prim_write32(uintptr_t addr, uint32_t val) {
-  uint32_t offset = (uint32_t)(addr - g_gpu_mmio_base);
-
-  // VERBOSE DEBUG OUTPUT
-  printf("[HW_TRACE] WRITE | Offset: 0x%08X | Val: 0x%08X\n", offset, val);
-
-  *(volatile uint32_t *)addr = val;
+void os_prim_unlock(void) {
+#ifndef USERLAND_MODE
+  if (g_lock_initialized)
+    mutex_unlock(&g_prim_lock);
+#endif
 }
 
-void os_prim_lock(void) { /* Spinlock or Mutex would go here */ }
-void os_prim_unlock(void) {}
+void os_prim_delay_us(uint32_t us) { snooze(us); }
 
-void os_prim_delay_us(uint32_t us) {
-  snooze(us); // Real Haiku micro-sleep
-}
-
-void os_prim_log(const char *msg) {
-  printf("[DRIVER] %s", msg);
+void os_prim_log(const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+#ifdef USERLAND_MODE
+  printf("[HIT_USER] ");
+  vprintf(fmt, args);
   fflush(stdout);
+#else
+  // NVIDIA Pattern: Use dprintf for kernel logging
+  char buffer[512];
+  vsnprintf(buffer, sizeof(buffer), fmt, args);
+  dprintf("[HIT_KERNEL] %s", buffer);
+#endif
+  va_end(args);
 }
 
 // PCI Discovery for your Radeon HD 7290
 int os_prim_pci_find_device(uint16_t vendor, uint16_t device, void **handle) {
-  if (vendor == 0x1002 && device == 0x9806) {
-    os_prim_log("HW: Found Wrestler APU (0x1002:0x9806)!\n");
-    *handle = (void *)0x9806;
+  // In simulation/bridge mode, we find the AMD device
+  if (vendor == 0x1002) {
+    if (device == 0) {
+      *handle = (void *)0x9806; // Default to user's Wrestler
+    } else {
+      *handle = (void *)(uintptr_t)device;
+    }
     return 0;
   }
   return -1;
@@ -95,6 +118,12 @@ int os_prim_pci_read_config(void *handle, int offset, uint32_t *val) {
 }
 
 int os_prim_pci_write_config(void *handle, int offset, uint32_t val) {
+  return 0;
+}
+
+int os_prim_pci_get_ids(void *handle, uint16_t *vendor, uint16_t *device) {
+  *vendor = 0x1002;
+  *device = (uint16_t)(uintptr_t)handle;
   return 0;
 }
 

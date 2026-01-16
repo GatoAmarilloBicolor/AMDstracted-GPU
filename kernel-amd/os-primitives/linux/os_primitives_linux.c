@@ -1,5 +1,6 @@
 #include "../os_primitives.h"
 #include <fcntl.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,14 +45,29 @@ void os_prim_delay_us(uint32_t us) {
 }
 
 // Printing out what's happening (Our "Storyteller")
-void os_prim_log(const char *msg) { fprintf(stderr, "[LOG] %s", msg); }
+void os_prim_log(const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  fprintf(stderr, "[LOG] ");
+  vfprintf(stderr, fmt, args);
+  va_end(args);
+}
 
 // Searching for the graphics card on the PCI bus
 int os_prim_pci_find_device(uint16_t vendor, uint16_t device, void **handle) {
   // Real Linux would scan /sys/bus/pci/devices.
-  // We're just pretending we found a cool Navi10 card!
-  *handle = (void *)0x7310; // Fake ID for our "Virtual Navi"
-  return 0;
+  // In simulation, we always find at least one "supported" device if the vendor
+  // is AMD.
+  if (vendor == 0x1002) {
+    if (device == 0) {
+      // Generic AMD requested, return a common one
+      *handle = (void *)0x9806; // Wrestler
+    } else {
+      *handle = (void *)(uintptr_t)device;
+    }
+    return 0;
+  }
+  return -1;
 }
 
 // Reading the "ID Card" of a PCI device
@@ -63,6 +79,12 @@ int os_prim_pci_read_config(void *handle, int offset, uint32_t *val) {
 
 int os_prim_pci_write_config(void *handle, int offset, uint32_t val) {
   // We're not actually writing to hardware today.
+  return 0;
+}
+
+int os_prim_pci_get_ids(void *handle, uint16_t *vendor, uint16_t *device) {
+  *vendor = 0x1002;
+  *device = (uint16_t)(uintptr_t)handle;
   return 0;
 }
 

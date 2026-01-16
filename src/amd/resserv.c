@@ -5,21 +5,70 @@
 #include "../../kernel-amd/os-primitives/os_primitives.h"
 #include "hal.h"
 #include <pthread.h>
+#include <string.h>
 
 // Enhanced RESSERV with locking for multi-GPU
+
+#define RS_HASH_SIZE 128
+static struct RsResource *rs_hash_table[RS_HASH_SIZE];
+static pthread_mutex_t rs_hash_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static int rs_hash(uint32_t handle) { return handle % RS_HASH_SIZE; }
+
+static void rs_hash_add(struct RsResource *res) {
+  pthread_mutex_lock(&rs_hash_lock);
+  int idx = rs_hash(res->handle);
+  res->hash_next = rs_hash_table[idx];
+  rs_hash_table[idx] = res;
+  pthread_mutex_unlock(&rs_hash_lock);
+}
+
+static void rs_hash_remove(struct RsResource *res) {
+  pthread_mutex_lock(&rs_hash_lock);
+  int idx = rs_hash(res->handle);
+  struct RsResource **curr = &rs_hash_table[idx];
+  while (*curr) {
+    if (*curr == res) {
+      *curr = res->hash_next;
+      break;
+    }
+    curr = &((*curr)->hash_next);
+  }
+  pthread_mutex_unlock(&rs_hash_lock);
+}
+
+struct RsResource *rs_resource_lookup(uint32_t handle) {
+  pthread_mutex_lock(&rs_hash_lock);
+  int idx = rs_hash(handle);
+  struct RsResource *curr = rs_hash_table[idx];
+  while (curr) {
+    if (curr->handle == handle) {
+      pthread_mutex_unlock(&rs_hash_lock);
+      return curr;
+    }
+    curr = curr->hash_next;
+  }
+  pthread_mutex_unlock(&rs_hash_lock);
+  return NULL;
+}
 
 struct RsResource *rs_resource_create(uint32_t handle,
                                       struct RsResource *parent) {
   struct RsResource *res = os_prim_alloc(sizeof(struct RsResource));
   if (!res)
     return NULL;
+
   res->handle = handle;
   res->parent = parent;
-  res->children = NULL;
-  res->num_children = 0;
+  res->child_list = NULL;
+  res->sibling = NULL;
+  res->hash_next = NULL;
   res->data = NULL;
-  pthread_mutex_init(&res->lock, NULL); // Init lock for sync
-  os_prim_log("RESSERV: Created resource with lock\n");
+  pthread_mutex_init(&res->lock, NULL);
+
+  rs_hash_add(res);
+
+  os_prim_log("RESSERV: Created resource [Handle: 0x%X]\n", handle);
   return res;
 }
 
@@ -29,22 +78,11 @@ void rs_resource_add_child(struct RsResource *parent,
     return;
   pthread_mutex_lock(&parent->lock);
 
-  // Consistency: Using os_prim_alloc for everything
-  struct RsResource **new_children =
-      os_prim_alloc(sizeof(struct RsResource *) * (parent->num_children + 1));
-
-  if (new_children) {
-    if (parent->children) {
-      memcpy(new_children, parent->children,
-             sizeof(struct RsResource *) * parent->num_children);
-      os_prim_free(parent->children);
-    }
-    parent->children = new_children;
-    parent->children[parent->num_children++] = child;
-    os_prim_log("RESSERV: Added child resource with sync\n");
-  } else {
-    os_prim_log("RESSERV: Failed to add child resource (OOM)\n");
-  }
+  // Link as the new first child (O(1) insertion)
+  child->sibling = parent->child_list;
+  parent->child_list = child;
+  os_prim_log("RESSERV: Linked child 0x%X to parent 0x%X\n", child->handle,
+              parent->handle);
 
   pthread_mutex_unlock(&parent->lock);
 }
@@ -52,13 +90,20 @@ void rs_resource_add_child(struct RsResource *parent,
 void rs_resource_destroy(struct RsResource *res) {
   if (!res)
     return;
-  for (int i = 0; i < res->num_children; i++) {
-    rs_resource_destroy(res->children[i]);
-  }
-  if (res->children)
-    os_prim_free(res->children);
 
-  pthread_mutex_destroy(&res->lock); // Clean up the lock!
+  // 1. Destroy all my children first (Recursion)
+  struct RsResource *curr = res->child_list;
+  while (curr) {
+    struct RsResource *next = curr->sibling;
+    rs_resource_destroy(curr);
+    curr = next;
+  }
+
+  // 2. Remove myself from the global lookup table
+  rs_hash_remove(res);
+
+  // 3. Cleanup hardware specialists / data if any
+  pthread_mutex_destroy(&res->lock);
   os_prim_free(res);
   os_prim_log("RESSERV: Destroyed resource\n");
 }

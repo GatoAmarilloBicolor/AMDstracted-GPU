@@ -1,5 +1,6 @@
 #include "hal.h"
 #include "../../kernel-amd/os-primitives/os_primitives.h"
+#include "amdgpu_pci_ids.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -143,31 +144,83 @@ static const struct amd_ip_block_version wrestler_common_ip_block = {
     .funcs = &wrestler_common_ip_funcs,
 };
 
+/* --- Legacy Radeon (R600/Evergreen/NI) SKills --- */
+
+static int legacy_radeon_common_hw_init(struct OBJGPU *adev) {
+  os_prim_log("HAL: [Radeon Manager] Waking up legacy hardware "
+              "(Evergreen/NI/R600)...\n");
+  os_prim_log(
+      "HAL: [Radeon Manager] Loading microcode bits for the old guard.\n");
+  return 0;
+}
+
+static const struct amd_ip_funcs legacy_radeon_common_ip_funcs = {
+    .name = "legacy_radeon_common",
+    .early_init = wrestler_common_early_init,
+    .hw_init = legacy_radeon_common_hw_init,
+    .hw_fini = wrestler_common_hw_fini,
+};
+
+static const struct amd_ip_block_version legacy_radeon_common_ip_block = {
+    .type = AMD_IP_BLOCK_TYPE_COMMON,
+    .major = 1,
+    .minor = 0,
+    .rev = 0,
+    .funcs = &legacy_radeon_common_ip_funcs,
+};
+
 /* --- The Main HAL Commands --- */
 
 // Turning on the whole GPU city!
 int amdgpu_device_init_hal(struct OBJGPU *adev) {
+  if (!adev)
+    return -1;
+
+  adev->num_ip_blocks = 0;
+  adev->res_root = rs_resource_create(0, NULL);
+  pthread_mutex_init(&adev->gpu_lock, NULL);
+
   os_prim_log("HAL: Starting the GPU City (HIT Edition) - Let's gooooo!\n");
 
-  pthread_mutex_init(&adev->gpu_lock, NULL);
-  adev->res_root = rs_resource_create(0, NULL);
+  // Discovery: Find who this GPU is!
+  uint16_t vendor, device;
+  if (adev->pci_handle) {
+    os_prim_pci_get_ids(adev->pci_handle, &vendor, &device);
+  } else {
+    // In some cases (simulation), we might not have a handle yet
+    vendor = 0x1002;
+    device = 0x7310; // Generic Navi10
+  }
+  adev->device_id = device;
 
-  // Discovering which GPU chip we have
+  const struct amd_pci_info *pci_info = NULL;
+  for (int i = 0; amd_pci_table[i].device_id != 0 || i == 0; i++) {
+    if (amd_pci_table[i].device_id == device ||
+        amd_pci_table[i].device_id == 0) {
+      pci_info = &amd_pci_table[i];
+      adev->asic_type = pci_info->asic_type;
+      break;
+    }
+  }
+
+  os_prim_log("HAL: Identified GPU: %s\n",
+              pci_info ? pci_info->name : "Unknown");
+
+  // Registering Specialists based on ASIC
   if (adev->asic_type == AMD_ASIC_NAVI10) {
     amdgpu_device_ip_block_add(adev, &navi10_common_ip_block);
     amdgpu_device_ip_block_add(adev, &navi10_gmc_ip_block);
     amdgpu_device_ip_block_add(adev, &navi10_gfx_ip_block);
   } else if (adev->asic_type == AMD_ASIC_WRESTLER) {
-    os_prim_log("HAL: Recognized your Radeon HD 7290 APU! 🌀\n");
     amdgpu_device_ip_block_add(adev, &wrestler_common_ip_block);
     amdgpu_device_ip_block_add(adev,
-                               &navi10_gmc_ip_block); // APU uses GTT memory
+                               &navi10_gmc_ip_block); // Recycled skilled worker
   } else {
-    os_prim_log(
-        "HAL: Unknown chip type? Just using Navi10 defaults for now.\n");
-    amdgpu_device_ip_block_add(adev, &navi10_common_ip_block);
+    // Legacy Radeon Path
+    amdgpu_device_ip_block_add(adev, &legacy_radeon_common_ip_block);
+    amdgpu_device_ip_block_add(
+        adev, &navi10_gmc_ip_block); // Even the old guard needs a GMC
   }
-
   // --- Hardware Link: Mapping the MMIO Registers ---
   os_prim_log("HAL: Connecting to hardware registers (MMIO Mapping)...\n");
   // We use our PCI handle (simulated or real) to map BAR 0 or 2
@@ -240,14 +293,23 @@ void amdgpu_device_fini_hal(struct OBJGPU *adev) {
 int amdgpu_gpu_get_info_hal(struct OBJGPU *adev, amdgpu_gpu_info_t *info) {
   os_prim_log("HAL: [Manager] Giving out the GPU ID card.\n");
 
-  if (adev->asic_type == AMD_ASIC_WRESTLER) {
-    info->vram_size_mb = 512; // Typical for this APU
-    info->gpu_clock_mhz = 400;
-    strncpy(info->gpu_name, "Radeon HD 7290 (Wrestler)", 31);
+  const struct amd_pci_info *pci_info = NULL;
+  for (int i = 0; amd_pci_table[i].device_id != 0; i++) {
+    if (amd_pci_table[i].device_id == adev->device_id) {
+      pci_info = &amd_pci_table[i];
+      break;
+    }
+  }
+
+  if (pci_info) {
+    info->vram_size_mb = pci_info->vram_mb_default;
+    info->gpu_clock_mhz = pci_info->clock_mhz;
+    strncpy(info->gpu_name, pci_info->name, 31);
   } else {
-    info->vram_size_mb = 8192;
-    info->gpu_clock_mhz = 1710;
-    strncpy(info->gpu_name, "Radeon RX 5700 XT (Abstracted)", 31);
+    // Ultimate fallback
+    info->vram_size_mb = 1024;
+    info->gpu_clock_mhz = 1000;
+    strncpy(info->gpu_name, "Generic AMD GPU", 31);
   }
   return 0;
 }
