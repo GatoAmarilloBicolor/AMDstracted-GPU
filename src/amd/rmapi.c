@@ -104,15 +104,28 @@ int rmapi_submit_command(struct OBJGPU *gpu, struct amdgpu_command_buffer *cb) {
   return amdgpu_command_submit_hal(gpu, cb);
 }
 
-// 4. "Wait, who ARE you exactly?" (Get GPU info)
+// 4. "Wait, who ARE you exactly?" (Get GPU info with caching for quality performance)
+static struct amdgpu_gpu_info cached_gpu_info;
+static int gpu_info_cached = 0;
+
 int rmapi_get_gpu_info(struct OBJGPU *gpu, struct amdgpu_gpu_info *info) {
   if (!gpu)
     gpu = global_gpu;
   if (!gpu)
     return -1;
 
-  os_prim_log("RMAPI: Fetching the GPU ID card for you.\n");
-  return amdgpu_gpu_get_info_hal(gpu, info);
+  // Cache GPU info to avoid repeated HAL calls (quality improvement)
+  if (!gpu_info_cached) {
+    os_prim_log("RMAPI: Fetching the GPU ID card for you.\n");
+    int ret = amdgpu_gpu_get_info_hal(gpu, &cached_gpu_info);
+    if (ret == 0) {
+      gpu_info_cached = 1;
+    } else {
+      return ret;
+    }
+  }
+  *info = cached_gpu_info;
+  return 0;
 }
 
 /* --- Vulkan RMAPI Functions for RADV/Zink Integration --- */
