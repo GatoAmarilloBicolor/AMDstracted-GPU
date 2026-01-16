@@ -1,5 +1,4 @@
 # Top-level Makefile for AMDGPU_Abstracted (HIT Edition)
-# Fixed version with correct paths
 
 # 1. Detect OS automatically (POSIX compliant)
 DETECTED_OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
@@ -60,32 +59,18 @@ else ifeq ($(OS),freebsd)
   CXXFLAGS += -D__FreeBSD__
 endif
 
-CFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c99 -include config.h -I. \
-          -Ikernel-amd/os-interface -Ikernel-amd/os-primitives \
-          -Isrc -Isrc/common -Isrc/amd -Isrc/amd/hal -Isrc/amd/rmapi
-CXXFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c++11 -include config.h -I. \
-            -Ikernel-amd/os-interface -Ikernel-amd/os-primitives \
-            -Isrc -Isrc/common -Isrc/amd -Isrc/amd/hal -Isrc/amd/rmapi \
-            $(HAIKU_INCLUDES)
+CFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c99 -include config.h -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives
+CXXFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c++11 -include config.h -I. -Ikernel-amd/os-interface -Ikernel-amd/os-primitives $(HAIKU_INCLUDES)
 
-# Directories
 SRC_DIR = src/amd
 COMMON_DIR = src/common
 
 # List of Objects to build
-SRC_OBJS = $(COMMON_DIR)/gpu/objgpu.o \
-           $(SRC_DIR)/hal/hal.o \
-           $(SRC_DIR)/amdgpu_gem_userland.o \
-           $(SRC_DIR)/amdgpu_kms_userland.o \
-           $(COMMON_DIR)/resource/resserv.o \
-           $(SRC_DIR)/rmapi/rmapi.o \
-           $(SRC_DIR)/rmapi/rmapi_server.o \
-           $(SRC_DIR)/ip_blocks/gmc_v10.o \
-           $(SRC_DIR)/ip_blocks/gfx_v10.o \
-           $(SRC_DIR)/shader_compiler/shader_compiler.o \
-           $(SRC_DIR)/radv_backend/radv_backend.o \
-           $(SRC_DIR)/zink_layer/zink_layer.o \
-           $(COMMON_DIR)/ipc/ipc_lib.o
+SRC_OBJS = $(SRC_DIR)/objgpu.o $(SRC_DIR)/hal.o $(SRC_DIR)/amdgpu_gem_userland.o \
+           $(SRC_DIR)/amdgpu_kms_userland.o $(SRC_DIR)/resserv.o $(SRC_DIR)/rmapi.o \
+           $(SRC_DIR)/rmapi_server.o $(SRC_DIR)/gmc_v10.o $(SRC_DIR)/gfx_v10.o \
+           $(SRC_DIR)/shader_compiler.o $(SRC_DIR)/radv_backend.o $(SRC_DIR)/zink_layer.o \
+           $(COMMON_DIR)/ipc_lib.o
 
 OS_OBJS = $(OS_INTERFACE_DIR)/os_interface_$(OS_DIR_SUFFIX).o \
           $(OS_PRIMITIVES_DIR)/os_primitives_$(OS_DIR_SUFFIX).o
@@ -108,49 +93,30 @@ all: $(TARGETS)
 libamdgpu.so: $(SRC_OBJS) $(OS_OBJS)
 	$(CC) -shared -o $@ $^ $(LDFLAGS)
 
-rmapi_server: $(SRC_DIR)/rmapi/rmapi_server.o \
-              $(SRC_DIR)/hal/hal.o \
-              $(COMMON_DIR)/gpu/objgpu.o \
-              $(SRC_DIR)/rmapi/rmapi.o \
-              $(COMMON_DIR)/resource/resserv.o \
-              $(SRC_DIR)/ip_blocks/gmc_v10.o \
-              $(SRC_DIR)/ip_blocks/gfx_v10.o \
-              $(COMMON_DIR)/ipc/ipc_lib.o \
-              $(OS_OBJS)
+rmapi_server: $(SRC_DIR)/rmapi_server.o $(SRC_DIR)/hal.o $(SRC_DIR)/objgpu.o \
+               $(SRC_DIR)/rmapi.o $(SRC_DIR)/resserv.o $(SRC_DIR)/gmc_v10.o \
+               $(SRC_DIR)/gfx_v10.o $(COMMON_DIR)/ipc_lib.o $(OS_OBJS)
 	$(CC) $(CFLAGS) -Wall $^ $(PTHREAD_LIBS) $(LDFLAGS) -o $@
 
-rmapi_client_demo: rmapi_client_demo.c \
-                   $(COMMON_DIR)/gpu/objgpu.o \
-                   $(SRC_DIR)/hal/hal.o \
-                   $(SRC_DIR)/amdgpu_gem_userland.o \
-                   $(SRC_DIR)/amdgpu_kms_userland.o \
-                   $(COMMON_DIR)/resource/resserv.o \
-                   $(SRC_DIR)/rmapi/rmapi.o \
-                   $(SRC_DIR)/ip_blocks/gmc_v10.o \
-                   $(SRC_DIR)/ip_blocks/gfx_v10.o \
-                   $(SRC_DIR)/shader_compiler/shader_compiler.o \
-                   $(SRC_DIR)/radv_backend/radv_backend.o \
-                   $(SRC_DIR)/zink_layer/zink_layer.o \
-                   $(COMMON_DIR)/ipc/ipc_lib.o \
-                   $(OS_OBJS)
+rmapi_client_demo: rmapi_client_demo.c $(filter-out $(SRC_DIR)/rmapi_server.o, $(SRC_OBJS)) $(OS_OBJS)
 	$(CC) $(CFLAGS) -Wall $^ $(PTHREAD_LIBS) $(LDFLAGS) -o $@
 
+# --- Haiku Specific Specialist Binaries ---
 # --- Haiku Specific Specialist Binaries ---
 amdgpu_hit: haiku-amd/addon/AmdAddon.o $(OS_OBJS)
 	$(CXX) -shared -o $@ $^ $(LDFLAGS) $(HAIKU_LDFLAGS)
 
-amdgpu_hit.accelerant: haiku-amd/accelerant/AmdAccelerant.o $(COMMON_DIR)/ipc/ipc_lib.o $(OS_OBJS)
+amdgpu_hit.accelerant: haiku-amd/accelerant/AmdAccelerant.o $(COMMON_DIR)/ipc_lib.o $(OS_OBJS)
 	$(CXX) -shared -o $@ $^ $(LDFLAGS) $(HAIKU_LDFLAGS)
 
 # --- DRM Compatibility Shim for RADV/Zink ---
-drm-shim/libdrm_amdgpu.so: drm-shim/drm_shim.c $(COMMON_DIR)/ipc/ipc_lib.o $(OS_OBJS)
+drm-shim/libdrm_amdgpu.so: drm-shim/drm_shim.c $(COMMON_DIR)/ipc_lib.o $(OS_OBJS)
 	$(CC) -shared -fPIC -o $@ $^ $(LDFLAGS) -I./src/common
 
 drm-shim: drm-shim/libdrm_amdgpu.so
 
 clean:
-	rm -f *.o *.so *.ko 
-	find . -name "*.o" -type f -delete
-	rm -f rmapi_server rmapi_client_demo amdgpu_hit amdgpu_hit.accelerant
-
-.PHONY: all clean drm-shim
+	rm -f *.o *.so *.ko $(SRC_DIR)/*.o $(COMMON_DIR)/*.o \
+	kernel-amd/os-interface/*/*.o kernel-amd/os-primitives/*/*.o \
+	haiku-amd/addon/*.o haiku-amd/accelerant/*.o \
+	rmapi_server rmapi_client_demo amdgpu_hit amdgpu_hit.accelerant

@@ -1,6 +1,6 @@
 #include "hal.h"
 #include "../../kernel-amd/os-primitives/os_primitives.h"
-#include "amdgpu_pci_ids.h"
+#include "../amdgpu_pci_ids.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

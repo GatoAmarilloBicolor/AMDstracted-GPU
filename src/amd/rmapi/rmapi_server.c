@@ -1,7 +1,7 @@
 #include "../../kernel-amd/os-primitives/os_primitives.h"
-#include "../common/ipc_lib.h"
-#include "../common/ipc_protocol.h"
-#include "hal.h"
+#include "../../src/common/ipc/ipc_lib.h"
+#include "../../src/common/ipc/ipc_protocol.h"
+#include "../hal/hal.h"
 #include "rmapi.h"
 #include <pthread.h>
 #include <signal.h>

@@ -8,8 +8,8 @@
  */
 
 #include "zink_layer.h"
-#include "radv_backend.h"
-#include "shader_compiler.h"
+#include "../radv_backend/radv_backend.h"
+#include "../shader_compiler/shader_compiler.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
