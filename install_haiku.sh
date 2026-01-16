@@ -43,7 +43,7 @@ EOF
         cd mesa
         # Limpiar build corrupto para evitar errores legacy
         rm -rf build
-        meson setup build -Dvulkan-drivers=amd -Dgallium-drivers=zink -Dplatforms=haiku -Dbuildtype=release --prefix="$PWD/install"
+        meson setup build -Dvulkan-drivers=auto -Dgallium-drivers=zink -Dplatforms=haiku -Dbuildtype=release --prefix="$PWD/install"
         meson compile -C build
         meson install -C build
         cd ..
