@@ -3,7 +3,17 @@
 
 CC = gcc
 CFLAGS = -std=c99 -Wall -Wextra -I.. -I../src/amd -I../kernel-amd/os-interface -I../kernel-amd/os-primitives
-LDFLAGS = -lm -pthread
+
+# Detect OS and add appropriate libraries
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Haiku)
+    LDFLAGS = -lm -pthread -lnetwork
+else
+    LDFLAGS = -lm -pthread
+endif
+
+# Allow multiple definitions (for test compilation)
+LDFLAGS += -Wl,--allow-multiple-definition
 
 # Test sources
 TEST_SOURCES = test_runner.c test_gmc_v10.c
