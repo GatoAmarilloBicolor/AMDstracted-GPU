@@ -41,7 +41,7 @@ EOF
             git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa
         fi
         cd mesa
-        meson setup build -Dvulkan-drivers=radv -Dgallium-drivers=zink -Dplatforms=haiku -Dgallium-vdpau=no -Dgallium-xvmc=no -Dbuildtype=release --prefix="$PWD/install"
+        meson setup build -Dvulkan-drivers=amd -Dgallium-drivers=zink -Dplatforms=haiku -Dgallium-vdpau=no -Dgallium-xvmc=no -Dbuildtype=release --prefix="$PWD/install"
         meson compile -C build
         meson install -C build
         cd ..
