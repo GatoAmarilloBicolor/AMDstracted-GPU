@@ -1,4 +1,5 @@
 #include <Drivers.h>
+#include <KernelExport.h>
 #include <PCI.h>
 #include <string.h>
 
@@ -12,11 +13,15 @@
 extern "C" {
 
 status_t device_open(const char *name, uint32 flags, void **cookie) {
+  dprintf("AMD: [Addon] device_open(%s)\n", name);
   *cookie = NULL;
   return B_OK;
 }
 
-status_t device_close(void *cookie) { return B_OK; }
+status_t device_close(void *cookie) {
+  dprintf("AMD: [Addon] device_close\n");
+  return B_OK;
+}
 
 status_t device_free(void *cookie) { return B_OK; }
 
@@ -32,6 +37,7 @@ status_t device_write(void *cookie, off_t pos, const void *buffer,
 }
 
 status_t device_control(void *cookie, uint32 op, void *arg, size_t length) {
+  dprintf("AMD: [Addon] device_control op=0x%08X\n", op);
   return B_DEV_INVALID_IOCTL;
 }
 

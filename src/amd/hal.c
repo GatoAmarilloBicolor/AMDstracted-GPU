@@ -310,11 +310,15 @@ int amdgpu_gpu_get_info_hal(struct OBJGPU *adev, amdgpu_gpu_info_t *info) {
     info->vram_size_mb = pci_info->vram_mb_default;
     info->gpu_clock_mhz = pci_info->clock_mhz;
     strncpy(info->gpu_name, pci_info->name, 31);
+    // In a real kernel driver, this would be adev->resource[BAR0].start
+    // For our userland abstraction, we provide a consistent base.
+    info->vram_base = 0xE0000000;
   } else {
     // Ultimate fallback
     info->vram_size_mb = 1024;
     info->gpu_clock_mhz = 1000;
     strncpy(info->gpu_name, "Generic AMD GPU", 31);
+    info->vram_base = 0xE0000000;
   }
   return 0;
 }

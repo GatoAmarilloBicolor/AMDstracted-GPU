@@ -101,6 +101,7 @@ struct amdgpu_gpu_info {
   uint32_t vram_size_mb;
   uint32_t gpu_clock_mhz;
   char gpu_name[32];
+  uint64_t vram_base; // Physical address of VRAM (for Accelerant)
 };
 
 typedef struct amdgpu_gpu_info amdgpu_gpu_info_t;
