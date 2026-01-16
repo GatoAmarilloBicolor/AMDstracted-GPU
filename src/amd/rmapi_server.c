@@ -1,4 +1,5 @@
 #include "../common/ipc_lib.h"
+#include "../common/ipc_protocol.h"
 #include "hal.h"
 #include "rmapi.h"
 #include <pthread.h>
@@ -17,15 +18,13 @@
  * Developed with pride by: Haiku Imposible Team (HIT)
  */
 
-#define SOCKET_PATH "/tmp/amdgpu_hit.sock"
-
 // Safe Shutdown: If the server crashes or someone stops it, we clean up!
 void safe_shutdown(int sig) {
   printf(
       "\n[ALERT] Signal %d received! Cleaning up GPU city before leaving...\n",
       sig);
   rmapi_fini();
-  unlink(SOCKET_PATH);
+  unlink(HIT_SOCKET_PATH);
   exit(sig == SIGINT ? 0 : 1);
 }
 
@@ -45,53 +44,52 @@ void *handle_client(void *arg) {
   // Keep listening as long as the app is talking
   while (ipc_recv_message(&server->conn, &msg) > 0) {
     switch (msg.type) {
-    case 1: { // REQUEST: I need GPU memory! (IPC_ALLOC_MEMORY)
+    case IPC_REQ_ALLOC_MEMORY: { // REQUEST: I need GPU memory!
       size_t size = *(size_t *)msg.data;
       uint64_t addr;
       int ret =
           rmapi_alloc_memory(NULL, size, &addr); // Asking the HAL for space
 
       // Sending the address back to the app
-      ipc_send_message(&server->conn,
-                       &(ipc_message_t){2, msg.id, sizeof(addr), &addr});
-      if (msg.data)
-        free(msg.data);
+      ipc_send_message(
+          &server->conn,
+          &(ipc_message_t){IPC_REP_ALLOC_MEMORY, msg.id, sizeof(addr), &addr});
       break;
     }
-    case 3: { // REQUEST: Who is the GPU? (IPC_GET_GPU_INFO)
+    case IPC_REQ_GET_GPU_INFO: { // REQUEST: Who is the GPU?
       struct amdgpu_gpu_info info;
       rmapi_get_gpu_info(NULL, &info);
 
       // Sending the GPU name and specs back!
-      ipc_send_message(&server->conn,
-                       &(ipc_message_t){4, msg.id, sizeof(info), &info});
-      if (msg.data)
-        free(msg.data);
+      ipc_send_message(
+          &server->conn,
+          &(ipc_message_t){IPC_REP_GET_GPU_INFO, msg.id, sizeof(info), &info});
       break;
     }
-    case 5: { // REQUEST: I'm done with this memory (IPC_FREE_MEMORY)
+    case IPC_REQ_FREE_MEMORY: { // REQUEST: I'm done with this memory
       uint64_t addr = *(uint64_t *)msg.data;
-      // In a real driver, we'd search and destroy.
-      // For now, we just give a thumbs up!
       int success = 0;
       ipc_send_message(&server->conn,
-                       &(ipc_message_t){6, msg.id, sizeof(success), &success});
-      if (msg.data)
-        free(msg.data);
+                       &(ipc_message_t){IPC_REP_FREE_MEMORY, msg.id,
+                                        sizeof(success), &success});
       break;
     }
-    case 7: { // REQUEST: Draw this! (IPC_SUBMIT_COMMAND)
-      // We wrap the list of commands and send them to the "Artist" (GFX Block)
+    case IPC_REQ_SUBMIT_COMMAND: { // REQUEST: Draw this!
       struct amdgpu_command_buffer cb = {msg.data, msg.data_size};
       int ret = rmapi_submit_command(NULL, &cb);
 
       // Tell the app if it worked
-      ipc_send_message(&server->conn,
-                       &(ipc_message_t){8, msg.id, sizeof(ret), &ret});
-      if (msg.data)
-        free(msg.data);
+      ipc_send_message(
+          &server->conn,
+          &(ipc_message_t){IPC_REP_SUBMIT_COMMAND, msg.id, sizeof(ret), &ret});
       break;
     }
+    }
+
+    // --- Critical Fix: Free the message data after handling it ---
+    if (msg.data) {
+      free(msg.data);
+      msg.data = NULL;
     }
   }
 
@@ -116,12 +114,12 @@ int main() {
   rmapi_init();
 
   // Building the "subway station" where apps can connect
-  if (ipc_server_init(SOCKET_PATH, &server.conn) < 0) {
+  if (ipc_server_init(HIT_SOCKET_PATH, &server.conn) < 0) {
     perror("Aw man, IPC init failed! Maybe the socket is already in use?");
     return 1;
   }
 
-  printf("Yo! RMAPI Server is live on %s. Ready to work!\n", SOCKET_PATH);
+  printf("Yo! RMAPI Server is live on %s. Ready to work!\n", HIT_SOCKET_PATH);
   fflush(stdout);
 
   // Loop forever, waiting for new apps to connect

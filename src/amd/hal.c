@@ -123,10 +123,16 @@ static int wrestler_common_early_init(struct OBJGPU *adev) {
   return 0;
 }
 
+static int wrestler_common_hw_fini(struct OBJGPU *adev) {
+  os_prim_log("HAL: [Wrestler Manager] APU system shut down successfully.\n");
+  return 0;
+}
+
 static const struct amd_ip_funcs wrestler_common_ip_funcs = {
     .name = "wrestler_common",
     .early_init = wrestler_common_early_init,
     .hw_init = navi10_common_hw_init, // Reusing high-level warm-up
+    .hw_fini = wrestler_common_hw_fini,
 };
 
 static const struct amd_ip_block_version wrestler_common_ip_block = {

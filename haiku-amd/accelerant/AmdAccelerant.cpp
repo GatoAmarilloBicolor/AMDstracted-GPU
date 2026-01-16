@@ -1,5 +1,6 @@
 #include "../../src/amd/rmapi.h"
 #include "../../src/common/ipc_lib.h"
+#include "../../src/common/ipc_protocol.h"
 #include <Accelerant.h>
 #include <GraphicsDefs.h>
 #include <OS.h>
@@ -43,7 +44,7 @@ static status_t get_modes(display_mode *modes) {
 }
 
 status_t AmdAccelerant::Init(int fd) {
-  if (ipc_client_connect("/tmp/amdgpu_hit.sock", &m_conn) < 0)
+  if (ipc_client_connect(HIT_SOCKET_PATH, &m_conn) < 0)
     return B_ERROR;
   m_connected = true;
   return B_OK;
@@ -60,17 +61,22 @@ status_t AmdAccelerant::GetDeviceInfo(accelerant_device_info *info) {
   if (!m_connected)
     return B_ERROR;
   struct amdgpu_gpu_info gpu_info;
-  ipc_message_t msg = {3, 101, 0, NULL};
+  ipc_message_t msg = {IPC_REQ_GET_GPU_INFO, 1, 0, NULL};
   if (ipc_send_message(&m_conn, &msg) == 0) {
     ipc_message_t reply;
     if (ipc_recv_message(&m_conn, &reply) > 0) {
-      memcpy(&gpu_info, reply.data, sizeof(gpu_info));
-      free(reply.data);
-      info->version = B_ACCELERANT_VERSION;
-      strncpy(info->name, gpu_info.gpu_name, sizeof(info->name));
-      strncpy(info->chipset, "AMDGPU Abstracted (HIT)", sizeof(info->chipset));
-      info->memory = (uint64_t)gpu_info.vram_size_mb * 1024 * 1024;
-      return B_OK;
+      if (reply.type == IPC_REP_GET_GPU_INFO) {
+        memcpy(&gpu_info, reply.data, sizeof(gpu_info));
+        free(reply.data);
+        info->version = B_ACCELERANT_VERSION;
+        strncpy(info->name, gpu_info.gpu_name, sizeof(info->name));
+        strncpy(info->chipset, "AMDGPU Abstracted (HIT)",
+                sizeof(info->chipset));
+        info->memory = (uint64_t)gpu_info.vram_size_mb * 1024 * 1024;
+        return B_OK;
+      }
+      if (reply.data)
+        free(reply.data);
     }
   }
   return B_ERROR;

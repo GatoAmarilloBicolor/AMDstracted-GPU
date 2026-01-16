@@ -27,12 +27,18 @@ void rs_resource_add_child(struct RsResource *parent,
                            struct RsResource *child) {
   if (!parent || !child)
     return;
-  pthread_mutex_lock(&parent->lock); // Sync for multi-GPU
+  pthread_mutex_lock(&parent->lock);
 
+  // Consistency: Using os_prim_alloc for everything
   struct RsResource **new_children =
-      realloc(parent->children,
-              sizeof(struct RsResource *) * (parent->num_children + 1));
+      os_prim_alloc(sizeof(struct RsResource *) * (parent->num_children + 1));
+
   if (new_children) {
+    if (parent->children) {
+      memcpy(new_children, parent->children,
+             sizeof(struct RsResource *) * parent->num_children);
+      os_prim_free(parent->children);
+    }
     parent->children = new_children;
     parent->children[parent->num_children++] = child;
     os_prim_log("RESSERV: Added child resource with sync\n");
@@ -49,7 +55,10 @@ void rs_resource_destroy(struct RsResource *res) {
   for (int i = 0; i < res->num_children; i++) {
     rs_resource_destroy(res->children[i]);
   }
-  os_prim_free(res->children);
+  if (res->children)
+    os_prim_free(res->children);
+
+  pthread_mutex_destroy(&res->lock); // Clean up the lock!
   os_prim_free(res);
   os_prim_log("RESSERV: Destroyed resource\n");
 }
