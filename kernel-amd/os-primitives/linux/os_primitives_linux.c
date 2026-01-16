@@ -128,7 +128,9 @@ int os_prim_display_init(void) {
     return 0;
 }
 
-void os_prim_display_put_pixel(int x, int y, uint32_t color) {
+void os_prim_display_put_pixel(int x __attribute__((unused)), 
+                               int y __attribute__((unused)), 
+                               uint32_t color __attribute__((unused))) {
     /* Placeholder */
 }
 
@@ -136,8 +138,9 @@ void os_prim_display_put_pixel(int x, int y, uint32_t color) {
  * INTERRUPTS
  * ============================================================================ */
 
-int os_prim_register_interrupt(int irq, os_prim_interrupt_handler handler,
-                               void *data) {
+int os_prim_register_interrupt(int irq, 
+                               os_prim_interrupt_handler handler __attribute__((unused)),
+                               void *data __attribute__((unused))) {
     os_prim_log("IRQ: Request IRQ %d\n", irq);
     return 0;
 }
@@ -150,7 +153,8 @@ void os_prim_unregister_interrupt(int irq) {
  * THREADING
  * ============================================================================ */
 
-os_prim_thread_id_t os_prim_spawn_thread(const char *name, int priority,
+os_prim_thread_id_t os_prim_spawn_thread(const char *name __attribute__((unused)), 
+                                         int priority __attribute__((unused)),
                                          os_prim_thread_func func, void *arg) {
     pthread_t *thread = malloc(sizeof(pthread_t));
     if (!thread) return -1;

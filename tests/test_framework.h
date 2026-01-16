@@ -235,7 +235,7 @@ typedef struct {
 static alloc_tracker_t g_allocations[MAX_TRACKED_ALLOCATIONS];
 static int g_alloc_count = 0;
 
-static inline void *tracked_malloc(size_t size, const char *file, int line)
+static inline void *tracked_malloc(size_t size, const char *file, int line __attribute__((unused)))
 {
     void *ptr = malloc(size);
     if (ptr && g_alloc_count < MAX_TRACKED_ALLOCATIONS) {
