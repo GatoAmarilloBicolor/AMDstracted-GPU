@@ -1,9 +1,11 @@
 #include "../../src/amd/rmapi.h"
 #include "../../src/common/ipc_lib.h"
 #include "../../src/common/ipc_protocol.h"
-#include <Accelerant.h>
+#include <add-ons/accelerant/Accelerant.h>
 #include <GraphicsDefs.h>
 #include <OS.h>
+#include <SupportDefs.h>
+#include <Errors.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -200,35 +202,59 @@ status_t AmdAccelerant::GetFrameBufferConfig(frame_buffer_config *fbc) {
   return B_OK;
 }
 
+// BGL Hooks for OpenGL support via Zink
+static status_t amd_get_gl_renderer(void *data) {
+  // Return Zink-based GL renderer
+  // Initialize Zink with RADV RMAPI
+  // For now, stub
+  return B_OK;
+}
+
+static status_t amd_create_gl_context(void *data) {
+  // Create GL context using Zink
+  return B_OK;
+}
+
+static status_t amd_destroy_gl_context(void *data) {
+  return B_OK;
+}
+
 extern "C" {
 _EXPORT void *get_accelerant_hook(uint32 feature, void *data) {
-  switch (feature) {
-  case B_INIT_ACCELERANT:
-    return (void *)amd_init_acc;
-  case B_UNINIT_ACCELERANT:
-    return (void *)amd_uninit_acc;
-  case B_GET_ACCELERANT_DEVICE_INFO:
-    return (void *)amd_get_device_info;
-  case B_ACCELERANT_MODE_COUNT:
-    return (void *)amd_get_mode_count;
-  case B_GET_MODE_LIST:
-    return (void *)amd_get_modes;
-  case B_SET_DISPLAY_MODE:
-    return (void *)amd_set_display_mode;
-  case B_GET_FRAME_BUFFER_CONFIG:
-    return (void *)amd_get_frame_buffer_config;
-  case B_ACQUIRE_ENGINE:
-    return (void *)amd_acquire_engine;
-  case B_RELEASE_ENGINE:
-    return (void *)amd_release_engine;
-  case B_ACCELERANT_CLONE_INFO_SIZE:
-    return (void *)amd_clone_info_size;
-  case B_GET_ACCELERANT_CLONE_INFO:
-    return (void *)amd_get_clone_info;
-  case B_CLONE_ACCELERANT:
-    return (void *)amd_clone_accelerant;
-  default:
-    return NULL;
-  }
-}
+   switch (feature) {
+   case B_INIT_ACCELERANT:
+     return (void *)amd_init_acc;
+   case B_UNINIT_ACCELERANT:
+     return (void *)amd_uninit_acc;
+   case B_GET_ACCELERANT_DEVICE_INFO:
+     return (void *)amd_get_device_info;
+   case B_ACCELERANT_MODE_COUNT:
+     return (void *)amd_get_mode_count;
+   case B_GET_MODE_LIST:
+     return (void *)amd_get_modes;
+   case B_SET_DISPLAY_MODE:
+     return (void *)amd_set_display_mode;
+   case B_GET_FRAME_BUFFER_CONFIG:
+     return (void *)amd_get_frame_buffer_config;
+   case B_ACQUIRE_ENGINE:
+     return (void *)amd_acquire_engine;
+   case B_RELEASE_ENGINE:
+     return (void *)amd_release_engine;
+   case B_ACCELERANT_CLONE_INFO_SIZE:
+     return (void *)amd_clone_info_size;
+   case B_GET_ACCELERANT_CLONE_INFO:
+     return (void *)amd_get_clone_info;
+   case B_CLONE_ACCELERANT:
+     return (void *)amd_clone_accelerant;
+   // BGL Hooks
+   case BGL_GET_RENDERER:
+     return (void *)amd_get_gl_renderer;
+   case BGL_CREATE_CONTEXT:
+     return (void *)amd_create_gl_context;
+   case BGL_DESTROY_CONTEXT:
+     return (void *)amd_destroy_gl_context;
+   default:
+     return NULL;
+   }
+ }
 }

@@ -85,48 +85,104 @@ int drmCommandWriteRead(int fd, unsigned long drmCommandIndex, void *data,
     g_drm_initialized = 1;
   }
 
-  // Map DRM command to IPC message type
+  // Map DRM command to IPC message type and marshal data
   ipc_message_t msg;
   msg.id = 1; // TODO: proper client tracking
-  msg.data_size = size;
-  msg.data = data;
 
   switch (drmCommandIndex) {
-  case DRM_AMDGPU_GEM_CREATE:
+  case DRM_AMDGPU_GEM_CREATE: {
+    // Buffer allocation request
+    union drm_amdgpu_gem_create *args = (union drm_amdgpu_gem_create *)data;
+
     msg.type = IPC_REQ_ALLOC_MEMORY;
-    break;
-  case DRM_AMDGPU_GEM_MMAP:
-    msg.type = IPC_REQ_GET_GPU_INFO; // Placeholder
-    break;
-  case DRM_AMDGPU_CS:
+    msg.data = &args->in.bo_size;
+    msg.data_size = sizeof(args->in.bo_size);
+
+    if (ipc_send_message(&g_drm_conn, &msg) < 0) {
+      return -1;
+    }
+
+    ipc_message_t reply;
+    if (ipc_recv_message(&g_drm_conn, &reply) <= 0) {
+      return -1;
+    }
+
+    // Reply contains the GPU address, use it as handle
+    if (reply.data && reply.data_size >= sizeof(uint64_t)) {
+      uint64_t gpu_addr = *(uint64_t *)reply.data;
+      args->out.handle = (uint32_t)(gpu_addr & 0xFFFFFFFF);
+      free(reply.data);
+    }
+    return 0;
+  }
+
+  case DRM_AMDGPU_GEM_MMAP: {
+    // Memory mapping request
+    union drm_amdgpu_gem_mmap *args = (union drm_amdgpu_gem_mmap *)data;
+
+    // For now, return the handle as a fake address
+    // Real implementation would map GPU memory to userspace
+    args->out.addr_ptr = (uint64_t)args->in.handle;
+    return 0;
+  }
+
+  case DRM_AMDGPU_CS: {
+    // Command submission
+    union drm_amdgpu_cs *args = (union drm_amdgpu_cs *)data;
+
     msg.type = IPC_REQ_SUBMIT_COMMAND;
-    break;
-  case DRM_AMDGPU_INFO:
+    msg.data = data;
+    msg.data_size = size;
+
+    if (ipc_send_message(&g_drm_conn, &msg) < 0) {
+      return -1;
+    }
+
+    ipc_message_t reply;
+    if (ipc_recv_message(&g_drm_conn, &reply) <= 0) {
+      return -1;
+    }
+
+    // Reply contains submission handle
+    if (reply.data && reply.data_size >= sizeof(uint64_t)) {
+      args->out.handle = *(uint64_t *)reply.data;
+      free(reply.data);
+    }
+    return 0;
+  }
+
+  case DRM_AMDGPU_INFO: {
+    // GPU info query
+    struct drm_amdgpu_info *args = (struct drm_amdgpu_info *)data;
+
     msg.type = IPC_REQ_GET_GPU_INFO;
-    break;
+    msg.data = NULL;
+    msg.data_size = 0;
+
+    if (ipc_send_message(&g_drm_conn, &msg) < 0) {
+      return -1;
+    }
+
+    ipc_message_t reply;
+    if (ipc_recv_message(&g_drm_conn, &reply) <= 0) {
+      return -1;
+    }
+
+    // Copy GPU info to user's return pointer
+    if (reply.data && args->return_pointer && args->return_size > 0) {
+      size_t copy_size = reply.data_size < args->return_size
+                             ? reply.data_size
+                             : args->return_size;
+      memcpy((void *)args->return_pointer, reply.data, copy_size);
+      free(reply.data);
+    }
+    return 0;
+  }
+
   default:
     fprintf(stderr, "DRM Shim: Unsupported command 0x%lx\n", drmCommandIndex);
     return -1;
   }
-
-  // Send to rmapi_server
-  if (ipc_send_message(&g_drm_conn, &msg) < 0) {
-    return -1;
-  }
-
-  // Receive reply
-  ipc_message_t reply;
-  if (ipc_recv_message(&g_drm_conn, &reply) <= 0) {
-    return -1;
-  }
-
-  // Copy reply data back
-  if (reply.data && reply.data_size > 0) {
-    memcpy(data, reply.data, reply.data_size < size ? reply.data_size : size);
-    free(reply.data);
-  }
-
-  return 0;
 }
 
 int drmCommandWrite(int fd, unsigned long drmCommandIndex, void *data,
