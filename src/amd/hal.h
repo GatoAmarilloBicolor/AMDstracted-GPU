@@ -114,6 +114,20 @@ enum amd_asic_type {
   AMD_ASIC_NI,        // Legacy Northern Islands
 };
 
+// --- The Belter "Shadow State" ---
+// Mirrors critical registers in RAM for "Self-Healing"
+struct amd_shadow_state {
+  uint32_t regs[1024]; // Simple shadow of first 1K MMIO registers
+  bool valid[1024];    // Did we write to this register?
+};
+
+// GPU State Flags for "Heartbeat"
+enum amd_gpu_state {
+  AMD_GPU_STATE_RUNNING = 0,
+  AMD_GPU_STATE_HUNG,
+  AMD_GPU_STATE_RESETTING,
+};
+
 // The "Main Brain" (OBJGPU) that manages all our specialists
 struct OBJGPU {
   enum amd_asic_type asic_type; // What kind of GPU chip is this?
@@ -128,6 +142,11 @@ struct OBJGPU {
   struct RsResource *res_root; // The top of the "Family Tree"
 
   pthread_mutex_t gpu_lock; // Making sure the brain doesn't get confused
+
+  // Belter Strategy: Resilience Layer
+  struct amd_shadow_state shadow;
+  enum amd_gpu_state state;
+  pthread_t heartbeat_thread;
 };
 
 // The HAL API: The main commands you will use!
@@ -143,5 +162,11 @@ int amdgpu_command_submit_hal(struct OBJGPU *adev,
 // Helping the brain find new specialists
 int amdgpu_device_ip_block_add(
     struct OBJGPU *adev, const struct amd_ip_block_version *ip_block_version);
+
+// Belter "Self-Healing" API
+void amdgpu_hal_shadow_write(struct OBJGPU *adev, uint32_t offset,
+                             uint32_t value);
+int amdgpu_hal_reset(struct OBJGPU *adev);
+void *amdgpu_hal_heartbeat(void *arg);
 
 #endif // AMD_HAL_H

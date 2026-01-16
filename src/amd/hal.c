@@ -274,6 +274,11 @@ int amdgpu_device_init_hal(struct OBJGPU *adev) {
       adev->ip_blocks[i].version->funcs->late_init(adev);
   }
 
+  // Belter Strategy: Initialize State
+  adev->state = AMD_GPU_STATE_RUNNING;
+  memset(&adev->shadow, 0, sizeof(adev->shadow));
+  pthread_create(&adev->heartbeat_thread, NULL, amdgpu_hal_heartbeat, adev);
+
   return 0;
 }
 
@@ -334,6 +339,63 @@ void amdgpu_buffer_free_hal(struct OBJGPU *adev, struct amdgpu_buffer *buf) {
 int amdgpu_command_submit_hal(struct OBJGPU *adev,
                               struct amdgpu_command_buffer *cb) {
   os_prim_log("HAL: [Artist] Got your draw calls! Processing now...\n");
-  // Imagine cool 3D graphics happening here!
+  // Belter Strategy: Might want to shadow command submissions too!
   return 0;
+}
+
+/* --- Belter "Self-Healing" Implementation --- */
+
+// 1. Shadow Write: Mirror writes to RAM
+void amdgpu_hal_shadow_write(struct OBJGPU *adev, uint32_t offset,
+                             uint32_t value) {
+  if (offset < 1024) {
+    adev->shadow.regs[offset] = value;
+    adev->shadow.valid[offset] = true;
+  }
+  // Write to real hardware
+  uintptr_t poke_addr = (uintptr_t)adev->mmio_base + offset * 4;
+  os_prim_write32(poke_addr, value);
+}
+
+// 2. Transparent Reset: The Lazarus Protocol
+int amdgpu_hal_reset(struct OBJGPU *adev) {
+  os_prim_log(
+      "HAL: [Belter] CRITICAL! GPU hang detected. Initiating reset...\n");
+
+  adev->state = AMD_GPU_STATE_RESETTING;
+
+  // A. Stop the Engines
+  amdgpu_device_fini_hal(adev);
+
+  // B. Restart the Hardware
+  os_prim_log("HAL: [Belter] Kickstarting the ASIC...\n");
+  amdgpu_device_init_hal(adev);
+
+  // C. Replay the Shadow State
+  os_prim_log("HAL: [Belter] Replaying Shadow State to restore context...\n");
+  for (int i = 0; i < 1024; i++) {
+    if (adev->shadow.valid[i]) {
+      uintptr_t poke_addr = (uintptr_t)adev->mmio_base + i * 4;
+      os_prim_write32(poke_addr, adev->shadow.regs[i]);
+    }
+  }
+
+  adev->state = AMD_GPU_STATE_RUNNING;
+  os_prim_log("HAL: [Belter] GPU resurrection complete. We are back online.\n");
+  return 0;
+}
+
+// 3. Heartbeat Monitor: Staying Alive
+void *amdgpu_hal_heartbeat(void *arg) {
+  struct OBJGPU *adev = (struct OBJGPU *)arg;
+  while (1) {
+    os_prim_delay_us(1000000); // Check every second
+
+    // In a real driver, we would check fence values.
+    // Here, we simulate a check.
+    if (adev->state == AMD_GPU_STATE_HUNG) {
+      amdgpu_hal_reset(adev);
+    }
+  }
+  return NULL;
 }
