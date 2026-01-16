@@ -34,8 +34,6 @@ meson setup build \
     --prefix=/boot/home/config/non-packaged \
     -Dvulkan-drivers=amd \
     -Dgallium-drivers=zink \
-    -Dplatforms=haiku \
-    -Ddri-drivers= \
     -Dglx=disabled \
     -Degl=enabled \
     -Dgles1=disabled \
