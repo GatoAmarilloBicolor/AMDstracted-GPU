@@ -7,7 +7,7 @@
  * Developed by: Haiku Imposible Team (HIT)
  */
 
-#include "../os_primitives.h"
+#include "kernel-amd/os-primitives/os_primitives.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,13 +16,33 @@
 #include <pthread.h>
 #include <signal.h>
 
-/* Haiku headers */
+/* Haiku headers - only include if on Haiku */
+#ifdef __HAIKU__
 #include <OS.h>
 #include <device/device_manager.h>
 #include <drivers/pci/pci.h>
 #include <drivers/usb/USB.h>
 #include <drivers/KernelExport.h>
 #include <drivers/Drivers.h>
+#else
+/* Stubs for non-Haiku systems */
+#define dprintf(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
+typedef int32_t sem_id;
+typedef int32_t thread_id;
+#define B_OK 0
+#define B_ERROR -1
+#define B_READ_ONLY 0
+#define B_URGENT_PRIORITY 10
+#define create_sem(init, name) (-1)
+#define delete_sem(sem) do {} while(0)
+#define acquire_sem(sem) do {} while(0)
+#define release_sem(sem) do {} while(0)
+#define spawn_thread(func, name, pri, arg) (-1)
+#define resume_thread(tid) do {} while(0)
+#define kill_thread(tid) do {} while(0)
+#define wait_for_thread(tid, exit) do {} while(0)
+#define snooze(us) usleep(us)
+#endif
 
 /* ============================================================================
  * GLOBAL STATE

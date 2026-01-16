@@ -20,10 +20,12 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 
-/* FreeBSD-specific headers */
+/* FreeBSD-specific headers - only on FreeBSD */
+#ifdef __FreeBSD__
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <sys/bus.h>
+#endif
 
 /* ============================================================================
  * GLOBAL STATE
