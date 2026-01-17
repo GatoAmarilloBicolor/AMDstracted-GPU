@@ -119,7 +119,7 @@ rmapi_server: $(SRC_DIR)/rmapi/rmapi_server.o \
               $(OS_OBJS)
 	$(CC) $(CFLAGS) -Wall $^ $(PTHREAD_LIBS) $(LDFLAGS) -o $@
 
-rmapi_client_demo: rmapi_client_demo.c \
+rmapi_client_demo: examples/rmapi_client_demo.c \
                    $(COMMON_DIR)/gpu/objgpu.o \
                    $(SRC_DIR)/hal/hal.o \
                    $(SRC_DIR)/amdgpu_gem_userland.o \
