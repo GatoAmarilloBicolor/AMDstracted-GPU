@@ -129,6 +129,11 @@ export AMD_LOG_LEVEL=1  # 0=silent, 1=errors, 2=info, 3=debug
 export RADV_PERFTEST=aco  # Use optimized compiler
 # export VBLANK_MODE=1    # Enable VSync if needed
 
+# Vulkan support with RADV (real hardware acceleration)
+export VK_ICD_FILENAMES=/boot/home/config/non-packaged/lib/vulkan/icd.d/radeon_icd.x86_64.json
+export VK_LOADER_DEBUG=all
+export RADV_DEBUG=all
+
 # Add to PATH for easy access to tools
 export PATH=$AMD_GPU_BIN:$PATH
 EOF
@@ -167,6 +172,7 @@ echo "🛠️  Quick Start:"
 echo "  1. Start server:     $INSTALL_DIR/amd_rmapi_server &"
 echo "  2. Run client:       $INSTALL_DIR/amd_rmapi_client_demo"
 echo "  3. Run tests:        $INSTALL_DIR/amd_test_suite"
+echo "  4. Test Vulkan:      vulkaninfo | grep AMD"
 echo ""
 echo "════════════════════════════════════════════════════════════════"
 echo "🎉 SUCCESS - Haiku Ready - HIT Edition"
