@@ -62,7 +62,8 @@ endif
 
 CFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c99 -include config/config.h -I. \
           -Iconfig -I$(OS_INTERFACE_DIR) -I$(OS_PRIMITIVES_DIR) \
-          -Isrc -Isrc/common -Isrc/amd -Isrc/amd/hal -Isrc/amd/rmapi
+          -Isrc -Isrc/common -Isrc/amd -Isrc/amd/hal -Isrc/amd/rmapi \
+          $(HAIKU_INCLUDES)
 CXXFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c++11 -include config/config.h -I. \
             -Iconfig -I$(OS_INTERFACE_DIR) -I$(OS_PRIMITIVES_DIR) \
             -Isrc -Isrc/common -Isrc/amd -Isrc/amd/hal -Isrc/amd/rmapi \
