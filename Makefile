@@ -29,7 +29,7 @@ ifeq ($(OS),haiku)
    PTHREAD_LIBS = # Already in libroot
    # Special for Haiku Kernel/Accelerant
    HAIKU_LDFLAGS = -lbe -ltranslation
-    HAIKU_INCLUDES = -I/boot/system/develop/headers -I/boot/system/develop/headers/posix
+    HAIKU_INCLUDES = -I/boot/system/develop/headers -I/boot/system/develop/headers/posix -I/boot/system/lib/clang/20/include
 endif
 
 $(info [HIT] Building for OS: $(OS) (Detected: $(DETECTED_OS)))
