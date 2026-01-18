@@ -26,6 +26,9 @@ core_sources = files(
 # Driver sources
 driver_sources = files(
   'drivers/driver_loader.c',
+  'drivers/interface/mmio_access.c',
+  'drivers/interface/drm_access.c',
+  'drivers/interface/ring_mgmt.c',
   'drivers/amdgpu/driver_amd.c',
   'drivers/amdgpu/amdgpu_gem_userland.c',
   'drivers/amdgpu/amdgpu_kms_userland.c',

@@ -62,21 +62,6 @@ static gem_buffer_t* gem_allocate(size_t size, uint32_t flags) {
             buf->handle, buf->address, buf->size);
     return buf;
 }
-    
-    gem_buffer_t *buf = &g_gem_alloc.buffers[g_gem_alloc.buffer_count];
-    buf->address = g_gem_alloc.next_va;
-    buf->size = size;
-    buf->flags = flags;
-    buf->handle = g_gem_alloc.buffer_count;
-    
-    g_gem_alloc.next_va += (size + 0xFFF) & ~0xFFF;  // Align to 4KB
-    g_gem_alloc.buffer_count++;
-    
-    fprintf(stderr, "[RADV] GEM allocated: handle=%u, va=0x%lx, size=%zu\n",
-            buf->handle, buf->address, size);
-    
-    return buf;
-}
 
 /* ============================================================================
  * COMMAND BUFFER SUBMISSION

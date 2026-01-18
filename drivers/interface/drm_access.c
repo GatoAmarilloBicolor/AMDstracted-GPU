@@ -89,7 +89,7 @@ int drm_init(drm_device_t *dev, const char *card_path) {
         return -1;
     }
 
-    dev->fd = open(card_path, O_RDWR | O_CLOEXEC);
+    dev->fd = open(card_path, O_RDWR);
     if (dev->fd < 0) {
         return -1;
     }

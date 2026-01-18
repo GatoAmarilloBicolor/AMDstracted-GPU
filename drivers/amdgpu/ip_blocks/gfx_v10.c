@@ -380,22 +380,3 @@ int gfx_v10_set_crtc_timing(struct OBJGPU *adev, const struct display_mode *mode
     * GFX v10 IP Block Definition
     * ============================================================================ */
 
-static const struct amd_ip_funcs gfx_v10_ip_funcs = {
-    .name = "gfx_v10",
-    .early_init = gfx_v10_early_init,
-    .sw_init = gfx_v10_sw_init,
-    .hw_init = gfx_v10_hw_init,
-    .late_init = gfx_v10_late_init,
-    .hw_fini = gfx_v10_hw_fini,
-    .is_idle = gfx_v10_is_idle,
-    .wait_for_idle = gfx_v10_wait_for_idle,
-    .soft_reset = gfx_v10_soft_reset,
-};
-
-const struct amd_ip_block_version gfx_v10_ip_block = {
-    .type = AMD_IP_BLOCK_TYPE_GFX,
-    .major = 10,
-    .minor = 1,
-    .rev = 0,
-    .funcs = &gfx_v10_ip_funcs,
-};

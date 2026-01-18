@@ -1,4 +1,5 @@
-#include "../interface/ip_block_interface.h"
+#include "../../interface/ip_block_interface.h"
+#include <stddef.h>
 
 // DCE v10.0 IP block operations (Display Core Engine)
 static int dce_v10_early_init(struct OBJGPU *adev);

@@ -226,7 +226,7 @@ struct OBJGPU {
   // MMIO access
   size_t mmio_size;
 
-  void *mmio_base;             // The direct connection to the hardware
+  uintptr_t mmio_base;         // The direct connection to the hardware
   struct RsResource *res_root; // The top of the "Family Tree"
 
   // GPU capabilities and memory info

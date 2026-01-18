@@ -1,4 +1,5 @@
-#include "../interface/ip_block_interface.h"
+#include "../../interface/ip_block_interface.h"
+#include <stddef.h>
 
 // DCN v1.0 IP block operations (Display Core Next)
 static int dcn_v1_early_init(struct OBJGPU *adev);

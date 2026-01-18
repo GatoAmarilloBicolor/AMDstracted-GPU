@@ -84,7 +84,7 @@ void *handle_client(void *arg) {
       break;
     }
     case IPC_REQ_SUBMIT_COMMAND: { // REQUEST: Draw this!
-      struct amdgpu_command_buffer cb = {msg.data, msg.data_size};
+      struct amdgpu_command_buffer cb = {NULL, msg.data, msg.data_size};
       int ret = rmapi_submit_command(NULL, &cb);
 
       // Tell the app if it worked
