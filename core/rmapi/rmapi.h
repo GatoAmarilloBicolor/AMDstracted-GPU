@@ -1,7 +1,7 @@
 #ifndef AMD_RMAPI_H
 #define AMD_RMAPI_H
 
-#include "../hal/hal/hal.h"
+#include "../hal/hal.h"
 
 // RMAPI-style userspace interface, inspired by NVIDIA
 // Allows direct calls from apps to RM, reducing kernel overhead

@@ -7,8 +7,8 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "../hal/hal.h"
-#include "../../os/os_primitives.h"
+#include "../../../core/hal/hal.h"
+#include "../../../os/interface/os_primitives.h"
 #include <string.h>
 
 /* ============================================================================

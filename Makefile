@@ -64,7 +64,7 @@ endif
 
 CFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c99 -include config/config.h -I. \
           -Iconfig -I$(OS_INTERFACE_DIR) -I$(OS_PRIMITIVES_DIR) \
-          -Icore -Icore/gpu -Icore/hal -Icore/rmapi -Icore/ipc -Ios \
+          -Icore -Icore/gpu -Icore/hal -Icore/rmapi -Icore/ipc -Ios -Ios/interface -Idrivers/amdgpu \
           $(HAIKU_INCLUDES)
 CXXFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c++11 -include config/config.h -I. \
             -Iconfig -I$(OS_INTERFACE_DIR) -I$(OS_PRIMITIVES_DIR) \
@@ -74,12 +74,15 @@ CXXFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c++11 -include config/config.h
 # Directories
 CORE_DIR = core
 DRIVERS_DIR = drivers/amdgpu
+SRC_DIR = core
+COMMON_DIR = core
 
 # List of Objects to build
 SRC_OBJS = $(CORE_DIR)/gpu/objgpu.o \
-           $(CORE_DIR)/hal/hal/hal.o \
-           $(CORE_DIR)/rmapi/rmapi/rmapi.o \
-           $(CORE_DIR)/rmapi/rmapi/rmapi_server.o \
+           $(CORE_DIR)/hal/hal.o \
+           $(CORE_DIR)/resource/resserv.o \
+           $(CORE_DIR)/rmapi/rmapi.o \
+           $(CORE_DIR)/rmapi/rmapi_server.o \
            $(CORE_DIR)/ipc/ipc_lib.o \
            $(DRIVERS_DIR)/amdgpu_gem_userland.o \
            $(DRIVERS_DIR)/amdgpu_kms_userland.o \
@@ -114,8 +117,8 @@ rmapi_server: $(SRC_DIR)/rmapi/rmapi_server.o \
               $(COMMON_DIR)/gpu/objgpu.o \
               $(SRC_DIR)/rmapi/rmapi.o \
               $(COMMON_DIR)/resource/resserv.o \
-              $(SRC_DIR)/ip_blocks/gmc_v10.o \
-              $(SRC_DIR)/ip_blocks/gfx_v10.o \
+              $(DRIVERS_DIR)/ip_blocks/gmc_v10.o \
+              $(DRIVERS_DIR)/ip_blocks/gfx_v10.o \
               $(COMMON_DIR)/ipc/ipc_lib.o \
               $(OS_OBJS)
 	$(CC) $(CFLAGS) -Wall $^ $(PTHREAD_LIBS) $(LDFLAGS) -o $@
@@ -123,15 +126,15 @@ rmapi_server: $(SRC_DIR)/rmapi/rmapi_server.o \
 rmapi_client_demo: examples/rmapi_client_demo.c \
                    $(COMMON_DIR)/gpu/objgpu.o \
                    $(SRC_DIR)/hal/hal.o \
-                   $(SRC_DIR)/amdgpu_gem_userland.o \
-                   $(SRC_DIR)/amdgpu_kms_userland.o \
+                   $(DRIVERS_DIR)/amdgpu_gem_userland.o \
+                   $(DRIVERS_DIR)/amdgpu_kms_userland.o \
                    $(COMMON_DIR)/resource/resserv.o \
                    $(SRC_DIR)/rmapi/rmapi.o \
-                   $(SRC_DIR)/ip_blocks/gmc_v10.o \
-                   $(SRC_DIR)/ip_blocks/gfx_v10.o \
-                   $(SRC_DIR)/shader_compiler/shader_compiler.o \
-                   $(SRC_DIR)/radv_backend/radv_backend.o \
-                   $(SRC_DIR)/zink_layer/zink_layer.o \
+                   $(DRIVERS_DIR)/ip_blocks/gmc_v10.o \
+                   $(DRIVERS_DIR)/ip_blocks/gfx_v10.o \
+                   $(DRIVERS_DIR)/shader_compiler/shader_compiler.o \
+                   $(DRIVERS_DIR)/radv_backend/radv_backend.o \
+                   $(DRIVERS_DIR)/zink_layer/zink_layer.o \
                    $(COMMON_DIR)/ipc/ipc_lib.o \
                    $(OS_OBJS)
 	$(CC) $(CFLAGS) -Wall $^ $(PTHREAD_LIBS) $(LDFLAGS) -o $@

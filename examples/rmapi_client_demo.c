@@ -1,6 +1,6 @@
-#include "src/amd/rmapi/rmapi.h"
-#include "src/common/ipc/ipc_lib.h"
-#include "src/common/ipc/ipc_protocol.h"
+#include "../core/rmapi/rmapi.h"
+#include "../core/ipc/ipc_lib.h"
+#include "../core/ipc/ipc_protocol.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

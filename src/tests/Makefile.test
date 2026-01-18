@@ -2,7 +2,7 @@
 # Builds and runs unit tests for AMDGPU_Abstracted
 
 CC = gcc
-CFLAGS = -std=c99 -Wall -Wextra -I.. -I../src -I../src/amd -I../src/amd/hal -I../src/amd/rmapi -I../src/common -I../src/os/haiku -I../../src/os
+CFLAGS = -std=c99 -Wall -Wextra -I.. -I../core -I../core/hal -I../core/rmapi -I../core/ipc -I../os -I../os/linux -I../drivers/amdgpu
 
 # Detect OS and add appropriate libraries
 UNAME_S := $(shell uname -s)
@@ -27,7 +27,7 @@ TEST_OBJS = $(TEST_SOURCES:.c=.o)
 
 # Core driver objects needed for testing (built by main Makefile)
 # These should be pre-built by the main Makefile - we just list them here
-DRIVER_OBJS = ../../core/hal/hal/hal.o ../../drivers/amdgpu/ip_blocks/gmc_v10.o ../../drivers/amdgpu/ip_blocks/gfx_v10.o \
+DRIVER_OBJS = ../../core/hal/hal.o ../../core/resource/resserv.o ../../drivers/amdgpu/ip_blocks/gmc_v10.o ../../drivers/amdgpu/ip_blocks/gfx_v10.o \
               ../../core/ipc/ipc_lib.o \
               $(OS_PRIMS) $(OS_IFACE)
 

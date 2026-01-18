@@ -11,8 +11,8 @@
  */
 
 #include "test_framework.h"
-#include "../src/amd/hal/hal.h"
-#include "../src/amd/ip_blocks/gmc_v10.c"  // Include implementation for testing
+#include "../../core/hal/hal.h"
+#include "../../drivers/amdgpu/ip_blocks/gmc_v10.c"  // Include implementation for testing
 
 /* ============================================================================
  * Test Case: GMC Early Init
