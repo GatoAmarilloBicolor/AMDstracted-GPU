@@ -64,13 +64,20 @@ struct ip_block_ops {
     int (*resume)(struct OBJGPU *adev);
 };
 
-// AMD GPU Handler structure - centralizes IP block management
+// AMD IP Block structure (similar to hal)
+struct amd_ip_block {
+    uint32_t version;
+    bool status; // true if initialized
+    struct ip_block_ops *funcs; // operations
+};
+
+// AMD GPU Handler structure - centralizes IP block management with members
 struct amd_gpu_handler {
     struct OBJGPU *gpu;
-    struct ip_block_ops *ip_blocks[AMDGPU_MAX_IP_BLOCKS];
+    struct amd_ip_block ip_blocks[AMDGPU_MAX_IP_BLOCKS]; // Members like hal
     int num_ip_blocks;
 
-    // Hardware initialization handlers
+    // Hardware initialization handlers - delegate to IP blocks
     int (*init_hardware)(struct amd_gpu_handler *handler);
     int (*fini_hardware)(struct amd_gpu_handler *handler);
     bool (*is_hardware_idle)(struct amd_gpu_handler *handler);

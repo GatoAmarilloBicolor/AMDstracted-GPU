@@ -23,24 +23,55 @@ int ip_block_register(struct OBJGPU *adev, struct ip_block_ops *block) {
     }
     adev->ip_blocks[adev->num_ip_blocks++] = block;
 
-    // Also register in handler if exists
+    // Also register in handler if exists - set funcs and status
     if (adev->handler) {
-        adev->handler->register_ip_block(adev->handler, block);
+        struct amd_ip_block *ip_block = &adev->handler->ip_blocks[adev->handler->num_ip_blocks++];
+        ip_block->funcs = block;
+        ip_block->version = block->version;
+        ip_block->status = false; // Not started yet
     }
     return 0;
 }
 
 // AMD GPU Handler implementation
 static int amd_gpu_handler_init_hardware(struct amd_gpu_handler *handler) {
-    // Call IP block initialization sequence
+    // Call IP block initialization sequence - delegate to real IP blocks
     for (int i = 0; i < handler->num_ip_blocks; i++) {
-        struct ip_block_ops *block = handler->ip_blocks[i];
-        if (block->early_init) {
-            int ret = block->early_init(handler->gpu);
-            if (ret != 0) {
-                os_prim_log("Handler: Early init failed for %s\n", block->name);
-                return ret;
-            }
+        struct amd_ip_block *ip_block = &handler->ip_blocks[i];
+        if (ip_block->funcs->early_init && ip_block->funcs->early_init(handler->gpu) != 0) {
+            os_prim_log("Handler: Early init failed for IP block %d\n", i);
+            return -1;
+        }
+        ip_block->status = true;
+    }
+
+    for (int i = 0; i < handler->num_ip_blocks; i++) {
+        struct amd_ip_block *ip_block = &handler->ip_blocks[i];
+        if (ip_block->funcs->sw_init && ip_block->funcs->sw_init(handler->gpu) != 0) {
+            os_prim_log("Handler: SW init failed for IP block %d\n", i);
+            return -1;
+        }
+    }
+
+    for (int i = 0; i < handler->num_ip_blocks; i++) {
+        struct amd_ip_block *ip_block = &handler->ip_blocks[i];
+        if (ip_block->funcs->hw_init && ip_block->funcs->hw_init(handler->gpu) != 0) {
+            os_prim_log("Handler: HW init failed for IP block %d\n", i);
+            return -1;
+        }
+    }
+
+    for (int i = 0; i < handler->num_ip_blocks; i++) {
+        struct amd_ip_block *ip_block = &handler->ip_blocks[i];
+        if (ip_block->funcs->late_init && ip_block->funcs->late_init(handler->gpu) != 0) {
+            os_prim_log("Handler: Late init failed for IP block %d\n", i);
+            return -1;
+        }
+    }
+
+    os_prim_log("Handler: Hardware initialization complete - all IP blocks initialized\n");
+    return 0;
+}
         }
     }
 
