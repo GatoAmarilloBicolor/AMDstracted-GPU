@@ -8,7 +8,8 @@
  */
 
 #include "radv_backend.h"
-#include "rmapi.h"
+#include "../../core/rmapi/rmapi.h"
+#include "../../core/hal/hal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -42,6 +43,26 @@ static gem_buffer_t* gem_allocate(size_t size, uint32_t flags) {
         fprintf(stderr, "[RADV] GEM allocator full\n");
         return NULL;
     }
+
+    // Use REAL HAL buffer allocation instead of simulation
+    struct OBJGPU *gpu = rmapi_get_gpu(); // Get current GPU
+    struct amdgpu_buffer hal_buf;
+    if (amdgpu_buffer_alloc_hal(gpu, size, &hal_buf) != 0) {
+        fprintf(stderr, "[RADV] Failed to allocate buffer via HAL\n");
+        return NULL;
+    }
+
+    gem_buffer_t *buf = &g_gem_alloc.buffers[g_gem_alloc.buffer_count];
+    buf->address = hal_buf.gpu_addr; // REAL GPU address from HAL
+    buf->size = size;
+    buf->flags = flags;
+    buf->handle = hal_buf.cpu_addr; // Use CPU address as handle
+    g_gem_alloc.buffer_count++;
+
+    fprintf(stderr, "[RADV] GEM allocated via HAL: handle=%p, va=0x%lx, size=%zu\n",
+            buf->handle, buf->address, buf->size);
+    return buf;
+}
     
     gem_buffer_t *buf = &g_gem_alloc.buffers[g_gem_alloc.buffer_count];
     buf->address = g_gem_alloc.next_va;

@@ -32,4 +32,7 @@ int rmapi_vk_free_memory(void* device, void* memory);
 int rmapi_vk_create_command_pool(void* device, void* create_info, void** pool);
 int rmapi_vk_submit_queue(void* queue, uint32_t submit_count, void* submits, void* fence);
 
+// Get current GPU instance
+struct OBJGPU *rmapi_get_gpu(void);
+
 #endif

@@ -240,3 +240,8 @@ int rmapi_vk_submit_queue(void* queue, uint32_t submit_count, void* submits, voi
   // Stub
   return -1;
 }
+
+// Get current GPU instance
+struct OBJGPU *rmapi_get_gpu(void) {
+  return global_gpu;
+}
