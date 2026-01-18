@@ -139,10 +139,10 @@ rmapi_client_demo: examples/rmapi_client_demo.c \
 	$(CC) $(CFLAGS) -Wall $^ $(PTHREAD_LIBS) $(LDFLAGS) -o $@
 
 # --- Haiku Specific Specialist Binaries ---
-amdgpu_hit: haiku-amd/addon/AmdAddon.o $(OS_OBJS)
+amdgpu_hit: src/os/haiku/addon/AmdAddon.o $(OS_OBJS)
 	$(CXX) -shared -o $@ $^ $(LDFLAGS) $(HAIKU_LDFLAGS)
 
-amdgpu_hit.accelerant: haiku-amd/accelerant/AmdAccelerant.o $(COMMON_DIR)/ipc/ipc_lib.o $(OS_OBJS)
+amdgpu_hit.accelerant: src/os/haiku/accelerant/AmdAccelerant.o $(COMMON_DIR)/ipc/ipc_lib.o $(OS_OBJS)
 	$(CXX) -shared -o $@ $^ $(LDFLAGS) $(HAIKU_LDFLAGS)
 
 # --- DRM Compatibility Shim for RADV/Zink ---

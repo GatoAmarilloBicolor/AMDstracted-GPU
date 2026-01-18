@@ -148,6 +148,21 @@ echo ""
 echo "✅ Haiku installation complete"
 echo ""
 
+# 4. Build Mesa RADV for Vulkan (optional, may take time)
+if [ -d "mesa" ]; then
+    echo ""
+    echo "🔥 Building Mesa RADV for Vulkan support..."
+    echo "This may take several minutes..."
+    cd mesa
+    if [ -f "build/build.ninja" ]; then
+        ninja -C build install || echo "⚠️  Mesa build failed - Vulkan may not work"
+    else
+        echo "⚠️  Mesa not configured - run scripts/setup_mesa.sh first"
+    fi
+    cd ..
+    echo "✅ Mesa build attempt complete"
+fi
+
 # 5. Summary
 echo "════════════════════════════════════════════════════════════════"
 echo "✅ BUILD COMPLETE - HAIKU"
@@ -158,6 +173,11 @@ echo "  • Driver binary:      rmapi_server ✅"
 echo "  • Shared library:     libamdgpu.so ✅"
 echo "  • Test suite:         tests/test_suite ✅"
 echo "  • Client demo:        rmapi_client_demo ✅"
+if [ -f "/boot/home/config/non-packaged/lib/libvulkan_radeon.so" ]; then
+    echo "  • Vulkan RADV:        libvulkan_radeon.so ✅"
+else
+    echo "  • Vulkan RADV:        Not built (run setup_mesa.sh)"
+fi
 echo ""
 echo "📍 Installation Paths:"
 echo "  • Brain:             $INSTALL_DIR/amd_rmapi_server"
