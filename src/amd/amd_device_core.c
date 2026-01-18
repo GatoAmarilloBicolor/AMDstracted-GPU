@@ -1,4 +1,5 @@
 #include "amd_device.h"
+#include "amd_backend_detection.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -85,14 +86,30 @@ int amd_device_probe(uint16_t device_id, amd_device_t **dev_out)
     return 0;
 }
 
-/* Device Initialization */
+/* Device Initialization with Backend Detection */
 int amd_device_init(amd_device_t *dev)
 {
     int ret = 0;
+    amd_backend_support_t backend_support;
     
     if (!dev || !dev->handler) return -1;
     
     printf("Initializing %s...\n", dev->gpu_info.codename);
+    
+    /* Detect backend support on this system */
+    printf("\nDetecting backend support on this system:\n");
+    if (amd_detect_backend_support(&backend_support) == 0) {
+        amd_setup_backend_env(&backend_support);
+        amd_print_backend_support(&backend_support);
+        
+        /* Override hardware preference if system doesn't support it */
+        if (!backend_support.system_has_radv && 
+            dev->gpu_info.preferred_backend == AMD_BACKEND_RADV) {
+            printf("NOTE: RADV not available, falling back to Mesa\n");
+            dev->gpu_info.preferred_backend = AMD_BACKEND_MESA;
+        }
+    }
+    printf("\n");
     
     /* Hardware initialization */
     if (dev->handler->hw_init) {

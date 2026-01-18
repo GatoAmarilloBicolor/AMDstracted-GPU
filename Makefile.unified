@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -O2 -fPIC -std=c99
 LDFLAGS = -shared
-TESTFLAGS = -Wall -Wextra -O2 -std=c99
+TESTFLAGS = -Wall -Wextra -O2 -std=c99 -ldl
 
 SRCDIR = src/amd
 HANDLERDIR = src/amd/handlers
@@ -12,6 +12,7 @@ BUILDDIR = build_unified
 SOURCES = \
 	$(SRCDIR)/amd_devices.c \
 	$(SRCDIR)/amd_device_core.c \
+	$(SRCDIR)/amd_backend_detection.c \
 	$(HANDLERDIR)/vliw_handler.c \
 	$(HANDLERDIR)/gcn_handler.c \
 	$(HANDLERDIR)/rdna_handler.c
@@ -36,7 +37,7 @@ library: $(LIBPATH)
 
 $(LIBPATH): $(OBJECTS)
 	@mkdir -p $(BUILDDIR)
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(CC) $(LDFLAGS) -ldl -o $@ $^
 	@echo "✓ Built library: $@"
 
 $(BUILDDIR)/%.o: %.c
