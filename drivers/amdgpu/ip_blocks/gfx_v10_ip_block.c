@@ -58,6 +58,36 @@ static int gfx_v10_wait_for_idle(struct OBJGPU *adev) {
 }
 
 static int gfx_v10_sw_init(struct OBJGPU *adev) {
+    (void)adev;
+    return 0;
+}
+
+static int gfx_v10_hw_init(struct OBJGPU *adev) {
+    (void)adev;
+    return 0;
+}
+
+static int gfx_v10_late_init(struct OBJGPU *adev) {
+    (void)adev;
+    return 0;
+}
+
+static int gfx_v10_hw_fini(struct OBJGPU *adev) {
+    (void)adev;
+    return 0;
+}
+
+static bool gfx_v10_is_idle(struct OBJGPU *adev) {
+    (void)adev;
+    return true;
+}
+
+static int gfx_v10_wait_for_idle(struct OBJGPU *adev) {
+    (void)adev;
+    return 0;
+}
+
+static int gfx_v10_sw_init(struct OBJGPU *adev) {
     return 0; // Placeholder
 }
 
