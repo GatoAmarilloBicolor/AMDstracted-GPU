@@ -1,6 +1,7 @@
 #include "../os/os_primitives.h"
-#include "../../src/common/ipc/ipc_lib.h"
-#include "../../src/common/ipc/ipc_protocol.h"
+#include "../../os/os_primitives.h"
+#include "../../common/ipc/ipc_lib.h"
+#include "../../common/ipc/ipc_protocol.h"
 #include "../hal/hal.h"
 #include "rmapi.h"
 #include <pthread.h>
@@ -92,22 +93,22 @@ void *handle_client(void *arg) {
           &(ipc_message_t){IPC_REP_SUBMIT_COMMAND, msg.id, sizeof(ret), &ret});
       break;
     }
-    case IPC_REQ_SET_DISPLAY_MODE: { // REQUEST: Set video mode!
-#ifdef __HAIKU__
-      display_mode *mode = (display_mode *)msg.data;
-      os_prim_log("RMAPI Server: IPC_REQ_SET_DISPLAY_MODE received\n");
-      int ret = rmapi_set_display_mode(NULL, mode);
-#else
-      os_prim_log("RMAPI Server: Display mode setting not supported on this platform\n");
-      int ret = 0;  // Pretend success
-#endif
-
-      // Tell the app if the mode was set
-      ipc_send_message(
-          &server->conn,
-          &(ipc_message_t){IPC_REP_SET_DISPLAY_MODE, msg.id, sizeof(ret), &ret});
-      break;
-    }
+    // case IPC_REQ_SET_DISPLAY_MODE: { // REQUEST: Set video mode! - disabled
+    // #ifdef __HAIKU__
+    //   display_mode *mode = (display_mode *)msg.data;
+    //   os_prim_log("RMAPI Server: IPC_REQ_SET_DISPLAY_MODE received\n");
+    //   int ret = rmapi_set_display_mode(NULL, mode);
+    // #else
+    //   os_prim_log("RMAPI Server: Display mode setting not supported on this platform\n");
+    //   int ret = 0;  // Pretend success
+    // #endif
+    //
+    //   // Tell the app if the mode was set
+    //   ipc_send_message(
+    //       &server->conn,
+    //       &(ipc_message_t){IPC_REP_SET_DISPLAY_MODE, msg.id, sizeof(ret), &ret});
+    //   break;
+    // }
     case IPC_REQ_VK_CREATE_INSTANCE: {
       os_prim_log("RMAPI Server: VK_CREATE_INSTANCE received\n");
       void *instance = (void *)0xCAFEBABE; // Dummy handle
