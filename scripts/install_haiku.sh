@@ -18,8 +18,12 @@ if ! command -v gcc &> /dev/null; then
     echo "❌ GCC not found. Install Haiku development tools."
     exit 1
 fi
-if ! command -v make &> /dev/null; then
-    echo "❌ Make not found."
+if ! command -v meson &> /dev/null; then
+    echo "❌ Meson not found. Install with: pkgman install meson"
+    exit 1
+fi
+if ! command -v ninja &> /dev/null; then
+    echo "❌ Ninja not found. Install with: pkgman install ninja"
     exit 1
 fi
 echo "✅ Prerequisites OK"
@@ -29,7 +33,12 @@ echo ""
 echo "────────────────────────────────────────────────────────────────"
 echo "📦 Step 1: Building Main Driver for Haiku"
 echo "────────────────────────────────────────────────────────────────"
-OS=haiku USERLAND_MODE=1 make clean all
+meson setup --cross-file haiku-cross.ini builddir
+if [ $? -ne 0 ]; then
+    echo "❌ Meson setup failed!"
+    exit 1
+fi
+meson compile -C builddir
 if [ $? -ne 0 ]; then
     echo "❌ Driver build failed!"
     exit 1
@@ -41,24 +50,19 @@ echo ""
 echo "────────────────────────────────────────────────────────────────"
 echo "🧪 Step 2: Building Test Suite"
 echo "────────────────────────────────────────────────────────────────"
-cd src/tests
-make -f Makefile.test clean
-make -f Makefile.test
+meson test -C builddir
 if [ $? -ne 0 ]; then
-    echo "❌ Test build failed!"
+    echo "❌ Test build/run failed!"
     exit 1
 fi
-echo "✅ Tests built successfully"
+echo "✅ Tests built and run successfully"
 echo ""
 
-# 3. Run tests
+# 3. Tests already run in Step 2
 echo "────────────────────────────────────────────────────────────────"
-echo "🧪 Step 3: Running Test Suite"
+echo "🧪 Step 3: Tests Completed"
 echo "────────────────────────────────────────────────────────────────"
-./test_suite
-TEST_RESULT=$?
-cd ../..
-echo ""
+echo "Tests executed via Meson in Step 2"
 
 # 4. Install to Haiku system paths
 echo "────────────────────────────────────────────────────────────────"

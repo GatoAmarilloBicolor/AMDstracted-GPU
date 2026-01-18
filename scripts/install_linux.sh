@@ -18,8 +18,12 @@ if ! command -v gcc &> /dev/null; then
     echo "❌ GCC not found. Install with: sudo apt install gcc build-essential"
     exit 1
 fi
-if ! command -v make &> /dev/null; then
-    echo "❌ Make not found. Install with: sudo apt install make"
+if ! command -v meson &> /dev/null; then
+    echo "❌ Meson not found. Install with: pip install meson"
+    exit 1
+fi
+if ! command -v ninja &> /dev/null; then
+    echo "❌ Ninja not found. Install with: sudo apt install ninja-build"
     exit 1
 fi
 echo "✅ Prerequisites OK"
@@ -29,7 +33,12 @@ echo ""
 echo "────────────────────────────────────────────────────────────────"
 echo "📦 Step 1: Building Main Driver"
 echo "────────────────────────────────────────────────────────────────"
-USERLAND_MODE=1 make clean all
+meson setup builddir
+if [ $? -ne 0 ]; then
+    echo "❌ Meson setup failed!"
+    exit 1
+fi
+meson compile -C builddir
 if [ $? -ne 0 ]; then
     echo "❌ Driver build failed!"
     exit 1
@@ -37,32 +46,16 @@ fi
 echo "✅ Driver built successfully"
 echo ""
 
-# 2. Build tests
+# 2. Build and run tests
 echo "────────────────────────────────────────────────────────────────"
-echo "🧪 Step 2: Building Test Suite"
+echo "🧪 Step 2: Building and Running Test Suite"
 echo "────────────────────────────────────────────────────────────────"
-cd tests
-make -f Makefile.test clean
-make -f Makefile.test
+meson test -C builddir
 if [ $? -ne 0 ]; then
-    echo "❌ Test build failed!"
+    echo "❌ Test build/run failed!"
     exit 1
 fi
-echo "✅ Tests built successfully"
-cd ..
-echo ""
-
-# 3. Run tests
-echo "────────────────────────────────────────────────────────────────"
-echo "🧪 Step 3: Running Test Suite"
-echo "────────────────────────────────────────────────────────────────"
-cd tests
-./test_suite
-TEST_RESULT=$?
-cd ..
-if [ $TEST_RESULT -ne 0 ]; then
-    echo "⚠️  Some tests failed (this is normal for early stages)"
-fi
+echo "✅ Tests built and run successfully"
 echo ""
 
 # 4. Install system-wide (optional, requires sudo)
@@ -86,17 +79,17 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     fi
     
     # Install main artifacts
-    sudo cp -f rmapi_server "$INSTALL_DIR/amd_rmapi_server"
+    sudo cp -f builddir/rmapi_server "$INSTALL_DIR/amd_rmapi_server"
     sudo chmod +x "$INSTALL_DIR/amd_rmapi_server"
-    
-    sudo cp -f libamdgpu.so "$LIB_DIR/"
+
+    sudo cp -f builddir/libamdgpu.so "$LIB_DIR/"
     sudo ldconfig
-    
-    cp -f rmapi_client_demo "$HOME/amd_rmapi_client_demo"
+
+    cp -f builddir/rmapi_client_demo "$HOME/amd_rmapi_client_demo"
     chmod +x "$HOME/amd_rmapi_client_demo"
-    
+
     # Install test suite
-    sudo cp -f tests/test_suite "$INSTALL_DIR/amd_test_suite"
+    sudo cp -f builddir/test_runner "$INSTALL_DIR/amd_test_suite"
     sudo chmod +x "$INSTALL_DIR/amd_test_suite"
     
     echo "✅ System installation complete"
@@ -115,7 +108,7 @@ echo ""
 echo "📊 Build Summary:"
 echo "  • Driver binary:      rmapi_server ✅"
 echo "  • Shared library:     libamdgpu.so ✅"
-echo "  • Test suite:         tests/test_suite ✅"
+echo "  • Test suite:         test_runner ✅"
 echo "  • Client demo:        rmapi_client_demo ✅"
 echo ""
 
@@ -132,15 +125,15 @@ if [ $INSTALLED -eq 1 ]; then
     echo "  3. Run tests:        amd_test_suite"
 else
     echo "📍 Local Paths (Not Installed):"
-    echo "  • Brain:             ./rmapi_server"
-    echo "  • Library:           ./libamdgpu.so"
-    echo "  • Test Suite:        ./tests/test_suite"
-    echo "  • Client Demo:       ./rmapi_client_demo"
+    echo "  • Brain:             ./builddir/rmapi_server"
+    echo "  • Library:           ./builddir/libamdgpu.so"
+    echo "  • Test Suite:        ./builddir/test_runner"
+    echo "  • Client Demo:       ./builddir/rmapi_client_demo"
     echo ""
     echo "🛠️  Quick Start (Local):"
-    echo "  1. Start server:     ./rmapi_server &"
-    echo "  2. Run client:       ./rmapi_client_demo"
-    echo "  3. Run tests:        ./tests/test_suite"
+    echo "  1. Start server:     ./builddir/rmapi_server &"
+    echo "  2. Run client:       ./builddir/rmapi_client_demo"
+    echo "  3. Run tests:        ./builddir/test_runner"
 fi
 
 echo ""
