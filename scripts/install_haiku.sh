@@ -150,10 +150,18 @@ echo ""
 if [ -d "mesa" ]; then
     echo ""
     echo "🔥 Building Mesa RADV for Vulkan support..."
-    echo "This may take several minutes..."
+    echo "This may take several minutes (only rebuilds changed files)..."
     cd mesa
     if [ -f "build/build.ninja" ]; then
-        ninja -C build install || echo "⚠️  Mesa build failed - Vulkan may not work"
+        # Incremental build: only rebuilds what changed
+        echo "Running incremental build..."
+        ninja -C build > /tmp/mesa_build.log 2>&1
+        if [ $? -eq 0 ]; then
+            echo "✅ Mesa built successfully"
+            ninja -C build install || echo "⚠️  Mesa install failed"
+        else
+            echo "⚠️  Mesa build failed - check /tmp/mesa_build.log"
+        fi
     else
         echo "⚠️  Mesa not configured - run scripts/setup_mesa.sh first"
     fi
