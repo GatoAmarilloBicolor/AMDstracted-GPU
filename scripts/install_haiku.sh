@@ -106,8 +106,8 @@ fi
 # Use manual copy instead of meson install to avoid binary corruption
 echo "Copying binaries manually to prevent ELF header corruption..."
 
-# Create directories if they don't exist (avoid permission errors)
-mkdir -p "$INSTALL_DIR" 2>/dev/null || {
+# Create directories if they don't exist
+if ! mkdir -p "$INSTALL_DIR" 2>/dev/null; then
     echo "Warning: Could not create $INSTALL_DIR, trying user directory..."
     INSTALL_DIR="$HOME/.local/bin"
     LIB_DIR="$HOME/.local/lib"
@@ -115,6 +115,41 @@ mkdir -p "$INSTALL_DIR" 2>/dev/null || {
         echo "Error: Cannot create installation directories"
         exit 1
     }
+fi
+mkdir -p "$LIB_DIR" 2>/dev/null || true
+
+# Function to copy with sudo if needed
+copy_file() {
+    local src="$1"
+    local dst="$2"
+    local filename="$3"
+
+    if cp -f "$src" "$dst/" 2>/dev/null; then
+        echo "✅ Copied $filename"
+    elif [ "$(uname -s)" = "Linux" ] && command -v sudo >/dev/null 2>&1; then
+        echo "Requesting sudo permissions to install $filename..."
+        if sudo cp -f "$src" "$dst/"; then
+            echo "✅ Copied $filename with sudo"
+        else
+            echo "❌ Failed to copy $filename even with sudo"
+            return 1
+        fi
+    else
+        echo "❌ Failed to copy $filename"
+        return 1
+    fi
+    return 0
+}
+
+# Copy binaries manually with verification
+copy_file "builddir/amd_rmapi_server" "$INSTALL_DIR" "amd_rmapi_server" || exit 1
+
+if [ "$LIB_COPY" = true ]; then
+    copy_file "builddir/libamdgpu.so" "$LIB_DIR" "libamdgpu.so" || exit 1
+fi
+
+copy_file "builddir/amd_rmapi_client_demo" "$INSTALL_DIR" "amd_rmapi_client_demo" || exit 1
+copy_file "builddir/amd_test_suite" "$INSTALL_DIR" "amd_test_suite" || exit 1
 }
 mkdir -p "$LIB_DIR" 2>/dev/null || true
 
