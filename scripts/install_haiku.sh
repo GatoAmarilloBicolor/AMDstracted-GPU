@@ -92,30 +92,38 @@ fi
 
 # Haiku non-packaged directory (user-writable)
 HAIKU_COMMON=/boot/home/config/non-packaged
+
+echo "Installing to Haiku user paths..."
+
+# Use meson install with custom prefix for user directory
+meson install -C builddir --destdir "$HAIKU_COMMON" --prefix ""
+
+# The meson install will put files in:
+# - bin/amd_rmapi_server
+# - bin/amd_rmapi_client_demo
+# - bin/amd_test_suite
+# - lib/libamdgpu.so
+
 INSTALL_DIR="$HAIKU_COMMON/bin"
 LIB_DIR="$HAIKU_COMMON/lib"
-ADDONS_DIR="$HAIKU_COMMON/add-ons/accelerants"
 
-# Userland only - no system directories
+# Verify installation
+echo "Verifying installation..."
+if [ ! -x "$INSTALL_DIR/amd_rmapi_server" ]; then
+    echo "❌ amd_rmapi_server not found or not executable"
+    exit 1
+fi
+if [ ! -f "$LIB_DIR/libamdgpu.so" ]; then
+    echo "❌ libamdgpu.so not found"
+    exit 1
+fi
 
-mkdir -p "$INSTALL_DIR"
-mkdir -p "$LIB_DIR"
-mkdir -p "$ADDONS_DIR"
-
-echo "Installing to Haiku paths..."
-
-# Install main artifacts
-cp -f rmapi_server "$INSTALL_DIR/amd_rmapi_server"
+# Make sure binaries are executable
 chmod +x "$INSTALL_DIR/amd_rmapi_server"
-
-cp -f libamdgpu.so "$LIB_DIR/"
-
-cp -f rmapi_client_demo "$INSTALL_DIR/amd_rmapi_client_demo"
 chmod +x "$INSTALL_DIR/amd_rmapi_client_demo"
-
-# Install test suite
-cp -f src/tests/test_suite "$INSTALL_DIR/amd_test_suite"
 chmod +x "$INSTALL_DIR/amd_test_suite"
+
+echo "✅ Binaries installed and verified"
 
 # Install Accelerant
 if [ -f "amdgpu_hit.accelerant" ]; then
@@ -132,6 +140,7 @@ cat > /boot/home/.amd_gpu_env.sh << 'EOF'
 # Driver and library paths
 export AMD_GPU_BIN=/boot/home/config/non-packaged/bin
 export AMD_GPU_LIB=/boot/home/config/non-packaged/lib
+export LIBRARY_PATH=$AMD_GPU_LIB:$LIBRARY_PATH
 export LD_LIBRARY_PATH=$AMD_GPU_LIB:$LD_LIBRARY_PATH
 
 # Graphics settings (userland)
@@ -212,10 +221,10 @@ echo "✅ BUILD COMPLETE - HAIKU"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
 echo "📊 Build Summary:"
-echo "  • Driver binary:      rmapi_server ✅"
+echo "  • Driver binary:      amd_rmapi_server ✅"
 echo "  • Shared library:     libamdgpu.so ✅"
-echo "  • Test suite:         tests/test_suite ✅"
-echo "  • Client demo:        rmapi_client_demo ✅"
+echo "  • Test suite:         amd_test_suite ✅"
+echo "  • Client demo:        amd_rmapi_client_demo ✅"
 if [ -f "/boot/home/config/non-packaged/lib/libvulkan_radeon.so" ]; then
     echo "  • Vulkan RADV:        libvulkan_radeon.so ✅"
 else
@@ -223,7 +232,7 @@ else
 fi
 echo ""
 echo "📍 Installation Paths:"
-echo "  • Brain:             $INSTALL_DIR/amd_rmapi_server"
+echo "  • Server:            $INSTALL_DIR/amd_rmapi_server"
 echo "  • Library:           $LIB_DIR/libamdgpu.so"
 echo "  • Test Suite:        $INSTALL_DIR/amd_test_suite"
 echo "  • Client Demo:       $INSTALL_DIR/amd_rmapi_client_demo"
@@ -232,10 +241,11 @@ if [ -f "amdgpu_hit.accelerant" ]; then
 fi
 echo ""
 echo "🛠️  Quick Start:"
-echo "  1. Start server:     $INSTALL_DIR/amd_rmapi_server &"
-echo "  2. Run client:       $INSTALL_DIR/amd_rmapi_client_demo"
-echo "  3. Run tests:        $INSTALL_DIR/amd_test_suite"
-echo "  4. Test Vulkan:      vulkaninfo | grep AMD"
+echo "  1. Source environment: source ~/.amd_gpu_env.sh"
+echo "  2. Start server:      amd_rmapi_server &"
+echo "  3. Run client:        amd_rmapi_client_demo"
+echo "  4. Run tests:         amd_test_suite"
+echo "  5. Test Vulkan:       vulkaninfo | grep AMD"
 echo ""
 echo "════════════════════════════════════════════════════════════════"
 echo "🎉 SUCCESS - Haiku Ready - HIT Edition"
