@@ -147,7 +147,10 @@ echo "✅ Haiku installation complete"
 echo ""
 
 # 4. Build Mesa RADV for Vulkan (optional, may take time)
-if [ -d "mesa" ]; then
+RADV_LIB="/boot/home/config/non-packaged/lib/libvulkan_radeon.so"
+if [ -f "$RADV_LIB" ]; then
+    echo "✅ RADV already installed at $RADV_LIB, skipping Mesa build"
+elif [ -d "mesa" ]; then
     echo ""
     echo "🔥 Building Mesa RADV for Vulkan support..."
     echo "This may take several minutes (only rebuilds changed files)..."
@@ -167,6 +170,8 @@ if [ -d "mesa" ]; then
     fi
     cd ..
     echo "✅ Mesa build attempt complete"
+else
+    echo "⚠️  Mesa not available - RADV not built"
 fi
 
 # 5. Summary
