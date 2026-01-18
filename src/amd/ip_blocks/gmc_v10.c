@@ -5,8 +5,10 @@
  * Developed by: Haiku Imposible Team (HIT)
  */
 
-#include "hal.h"
-#include "../os/os_primitives.h"
+#include <stdint.h>
+#include <stdbool.h>
+#include "../hal/hal.h"
+#include "../../os/os_primitives.h"
 #include <string.h>
 
 /* ============================================================================

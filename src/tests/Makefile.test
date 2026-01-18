@@ -2,13 +2,14 @@
 # Builds and runs unit tests for AMDGPU_Abstracted
 
 CC = gcc
-CFLAGS = -std=c99 -Wall -Wextra -I.. -I../src -I../src/amd -I../src/amd/hal -I../src/amd/rmapi -I../src/common -I../src/os/haiku
+CFLAGS = -std=c99 -Wall -Wextra -I.. -I../src -I../src/amd -I../src/amd/hal -I../src/amd/rmapi -I../src/common -I../src/os/haiku -I../../src/os
 
 # Detect OS and add appropriate libraries
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Haiku)
     CC = clang
     LDFLAGS = -lm -lroot -lnetwork
+    CFLAGS += -I/boot/system/develop/headers -I/boot/system/develop/headers/posix
 else
     LDFLAGS = -lm -pthread
 endif
