@@ -5,9 +5,83 @@
 #include <string.h>
 #include <errno.h>
 
-// Include DRM headers (would need libdrm_amdgpu-dev installed)
-#include <libdrm/amdgpu_drm.h>
-#include <libdrm/amdgpu.h>
+// Simplified DRM implementation - in real driver would use libdrm
+#include <stdint.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+
+// Basic DRM ioctl definitions (simplified)
+#define DRM_IOCTL_AMDGPU_INFO 0xC0206440
+#define DRM_IOCTL_AMDGPU_GEM_CREATE 0xC0206441
+#define DRM_IOCTL_GEM_CLOSE 0x40046402
+#define DRM_IOCTL_AMDGPU_GEM_VA 0xC0206450
+#define DRM_IOCTL_AMDGPU_CS 0xC0206460
+#define DRM_IOCTL_AMDGPU_WAIT_CS 0xC0206470
+
+// AMDGPU constants
+#define AMDGPU_VA_OP_MAP 1
+#define AMDGPU_VM_PAGE_READABLE 0x1
+#define AMDGPU_VM_PAGE_WRITEABLE 0x2
+#define AMDGPU_VM_PAGE_EXECUTABLE 0x4
+#define AMDGPU_CHUNK_ID_IB 0x1
+#define AMDGPU_INFO_DEV_INFO 0x2
+#define AMDGPU_INFO_VRAM_GTT 0x3
+
+// Simplified structs
+struct drm_amdgpu_info {
+    uint32_t query;
+    union {
+        uint32_t chip_id;
+        struct {
+            uint32_t device_id;
+            uint32_t family;
+            uint32_t num_cu;
+            uint32_t num_wave64_per_cu;
+        } dev_info;
+        struct {
+            uint64_t vram_size;
+            uint64_t gart_size;
+        } vram_gtt;
+    };
+};
+
+struct drm_amdgpu_gem_create {
+    uint64_t size;
+    uint32_t flags;
+    uint32_t handle;
+};
+
+struct drm_gem_close {
+    uint32_t handle;
+};
+
+struct drm_amdgpu_gem_va {
+    uint32_t handle;
+    uint32_t operation;
+    uint32_t flags;
+    uint64_t va_address;
+    uint64_t offset_in_bo;
+    uint64_t map_size;
+};
+
+struct drm_amdgpu_cs_chunk {
+    uint32_t chunk_id;
+    uint32_t length_dw;
+    uint64_t chunk_data;
+};
+
+struct drm_amdgpu_cs {
+    uint32_t ip_type;
+    uint32_t ring;
+    uint32_t num_chunks;
+    uint64_t chunks;
+};
+
+struct drm_amdgpu_wait_cs {
+    uint32_t handle;
+    uint64_t timeout;
+};
 
 // Initialize DRM access
 int drm_init(drm_device_t *dev, const char *card_path) {
@@ -21,14 +95,13 @@ int drm_init(drm_device_t *dev, const char *card_path) {
     }
 
     // Get chip ID
-    struct drm_amdgpu_info info = {0};
-    info.query = AMDGPU_INFO_CHIP_ID;
+    struct drm_amdgpu_info info = {.query = 0}; // AMDGPU_INFO_CHIP_ID
     if (ioctl(dev->fd, DRM_IOCTL_AMDGPU_INFO, &info) != 0) {
         close(dev->fd);
         return -1;
     }
 
-    dev->chip_id = info.chip_id.device_id;
+    dev->chip_id = info.chip_id;
     return 0;
 }
 
