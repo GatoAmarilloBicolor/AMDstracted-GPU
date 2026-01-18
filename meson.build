@@ -90,9 +90,15 @@ deps = [
   meson.get_compiler('c').find_library('m', required: false)
 ]
 
-# OS-specific dependencies
+# OS-specific dependencies and flags
 if host_os == 'haiku'
   deps += meson.get_compiler('c').find_library('network', required: true)
+  # Add Haiku-specific linker flags for proper ELF headers
+  add_project_link_arguments([
+    '-Wl,--no-undefined',
+    '-Wl,-z,defs',
+    '-no-pie'  # Disable PIE which can cause loader issues on Haiku
+  ], language: 'c')
 endif
 
 # Library
@@ -100,24 +106,27 @@ libamdgpu = shared_library('amdgpu',
   all_sources,
   include_directories: inc_dirs,
   dependencies: deps,
-  install: true
+  install: true,
+  install_dir: 'lib'
 )
 
 # Executables
-rmapi_server = executable('rmapi_server',
+rmapi_server = executable('amd_rmapi_server',
   'core/rmapi/rmapi_server.c',
   include_directories: inc_dirs,
   dependencies: deps,
   link_with: libamdgpu,
-  install: true
+  install: true,
+  install_dir: 'bin'
 )
 
-rmapi_client_demo = executable('rmapi_client_demo',
+rmapi_client_demo = executable('amd_rmapi_client_demo',
   'examples/rmapi_client_demo.c',
   include_directories: inc_dirs,
   dependencies: deps,
   link_with: libamdgpu,
-  install: true
+  install: true,
+  install_dir: 'bin'
 )
 
 # Test framework
@@ -127,7 +136,7 @@ test_framework = static_library('test_framework',
 )
 
 # Test runner with coverage
-test_runner = executable('test_runner',
+test_runner = executable('amd_test_suite',
   'src/tests/test_runner.c',
   'src/tests/test_gmc_v10.c',
   'tests/mocks/test_mocks.c',
@@ -135,7 +144,9 @@ test_runner = executable('test_runner',
   dependencies: deps,
   link_with: [libamdgpu, test_framework],
   c_args: ['-fprofile-arcs', '-ftest-coverage'] + get_option('c_args'),
-  link_args: ['-fprofile-arcs', '-ftest-coverage'] + get_option('c_link_args')
+  link_args: ['-fprofile-arcs', '-ftest-coverage'] + get_option('c_link_args'),
+  install: true,
+  install_dir: 'bin'
 )
 
 # Tests
