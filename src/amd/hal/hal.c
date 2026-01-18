@@ -233,6 +233,12 @@ int amdgpu_device_init_hal(struct OBJGPU *adev) {
       adev->ip_blocks[i].version->funcs->late_init(adev);
   }
 
+  // Initialize GPU Info (Phase 2.2 - for framebuffer management)
+  amdgpu_gpu_get_info_hal(adev, &adev->gpu_info);
+  os_prim_log("HAL: GPU info cached - VRAM: %uMB @ 0x%llx, Clock: %uMHz\n",
+              adev->gpu_info.vram_size_mb, adev->gpu_info.vram_base,
+              adev->gpu_info.gpu_clock_mhz);
+
   // Belter Strategy: Initialize State
   adev->state = AMD_GPU_STATE_RUNNING;
   memset(&adev->shadow, 0, sizeof(adev->shadow));
@@ -307,7 +313,7 @@ int amdgpu_command_submit_hal(struct OBJGPU *adev,
   return 0;
 }
 
-// Setting the display mode (CRTC timing)
+// Setting the display mode (CRTC timing + scanout)
 int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const display_mode *mode) {
   os_prim_log("HAL: [Display Manager] Setting mode %ux%u\n", 
               mode->virtual_width, mode->virtual_height);
@@ -332,18 +338,31 @@ int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const display_mode *mode) {
     return -1;
   }
 
-  // Call GFX block to program CRTC timing
-  // NOTE: This function pointer doesn't exist yet - we need to add it to amd_ip_funcs
-  // For now, call the specific implementation
+  // Step 1: Program CRTC timing via GFX block
   int ret = gfx_v10_set_crtc_timing(adev, mode);
   
-  if (ret == 0) {
-    os_prim_log("HAL: [Display Manager] CRTC timing set successfully\n");
-  } else {
+  if (ret != 0) {
     os_prim_log("HAL: [Display Manager] Failed to set CRTC timing (error %d)\n", ret);
+    return ret;
   }
   
-  return ret;
+  os_prim_log("HAL: [Display Manager] CRTC timing set successfully\n");
+
+  // Step 2: Program scanout address via GMC (Phase 2.2)
+  // Use VRAM base from adev or from pre-allocated framebuffer
+  // For now, use simple scanout address from GPU memory
+  uint64_t scanout_addr = adev->gpu_info.vram_base;
+  
+  ret = gmc_v10_set_scanout_address(adev, scanout_addr);
+  if (ret != 0) {
+    os_prim_log("HAL: [Display Manager] Failed to set scanout address (error %d)\n", ret);
+    return ret;
+  }
+  
+  os_prim_log("HAL: [Display Manager] Scanout address set to 0x%llx\n", scanout_addr);
+  os_prim_log("HAL: [Display Manager] Display mode set successfully!\n");
+  
+  return 0;
 }
 
 /* --- Belter "Self-Healing" Implementation --- */

@@ -141,6 +141,9 @@ struct OBJGPU {
   void *mmio_base;             // The direct connection to the hardware
   struct RsResource *res_root; // The top of the "Family Tree"
 
+  // GPU capabilities and memory info
+  struct amdgpu_gpu_info gpu_info;  // Cached GPU info (VRAM base, size, clock)
+
   /* Synchronization via OS primitives (os_prim_lock/unlock) */
 
   // Belter Strategy: Resilience Layer
@@ -162,6 +165,9 @@ int amdgpu_command_submit_hal(struct OBJGPU *adev,
 // Display Mode Setting (requires GraphicsDefs.h)
 #include <GraphicsDefs.h>
 int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const display_mode *mode);
+
+// Memory Controller Scanout Address (Phase 2.2)
+int gmc_v10_set_scanout_address(struct OBJGPU *adev, uint64_t gpu_address);
 
 // Helping the brain find new specialists
 int amdgpu_device_ip_block_add(

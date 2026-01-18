@@ -310,6 +310,61 @@ static int gmc_v10_soft_reset(struct OBJGPU *adev) {
     return 0;
 }
 
+/*
+ * Set Scanout Address for Display Framebuffer (Phase 2.2)
+ * Programs GPU to read framebuffer from specified memory address
+ */
+
+// Additional register offsets for scanout/display
+#define mmDCEXT_CRTC0_CRTC_SURFACE_ADDRESS_HIGH   0x3C02  // Surface address high
+#define mmDCExt_CRTC0_CRTC_SURFACE_ADDRESS        0x3C01  // Surface address low
+#define mmDCExt_CRTC0_GRPH_PRIMARY_SURFACE_ADDRESS 0x3C20 // Primary surface
+
+int gmc_v10_set_scanout_address(struct OBJGPU *adev, uint64_t gpu_address) {
+    if (!adev || !adev->mmio_base) {
+        os_prim_log("GMC v10: [Scanout] ERROR - Invalid GPU object\n");
+        return -1;
+    }
+
+    if (gpu_address == 0) {
+        os_prim_log("GMC v10: [Scanout] ERROR - Invalid GPU address\n");
+        return -1;
+    }
+
+    os_prim_log("GMC v10: [Scanout] Setting scanout address to 0x%llx\n", gpu_address);
+
+    // Map display controller registers (CRTC0)
+    uintptr_t surf_addr_base = (uintptr_t)adev->mmio_base + 0x3C00;  // DCExt CRTC0 base
+    
+    // Safety check
+    if (surf_addr_base < (uintptr_t)adev->mmio_base ||
+        surf_addr_base >= (uintptr_t)adev->mmio_base + 0x1000000) {
+        os_prim_log("GMC v10: [Scanout] ERROR - Surface base address out of bounds\n");
+        return -1;
+    }
+
+    // Program primary surface address (low 32 bits)
+    uintptr_t surf_addr_lo = surf_addr_base + (mmDCExt_CRTC0_GRPH_PRIMARY_SURFACE_ADDRESS & 0xFF);
+    uint32_t addr_lo = (uint32_t)(gpu_address & 0xFFFFFFFF);
+    os_prim_write32(surf_addr_lo, addr_lo);
+    os_prim_delay_us(10);
+
+    os_prim_log("GMC v10: [Scanout] Primary surface address set to 0x%x (low)\n", addr_lo);
+    
+    // For 64-bit addresses, might need high address (if address > 32-bit)
+    if (gpu_address > 0xFFFFFFFFULL) {
+        uintptr_t surf_addr_hi = surf_addr_base + (mmDCEXT_CRTC0_CRTC_SURFACE_ADDRESS_HIGH & 0xFF);
+        uint32_t addr_hi = (uint32_t)((gpu_address >> 32) & 0xFFFFFFFF);
+        os_prim_write32(surf_addr_hi, addr_hi);
+        os_prim_delay_us(10);
+        os_prim_log("GMC v10: [Scanout] Surface address high set to 0x%x\n", addr_hi);
+    }
+
+    os_prim_log("GMC v10: [Scanout] Scanout address programmed successfully\n");
+    
+    return 0;
+}
+
 /* ============================================================================
  * GMC v10 IP Block Definition
  * ============================================================================ */
