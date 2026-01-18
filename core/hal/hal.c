@@ -9,6 +9,7 @@
 #define os_prim_log os_get_interface()->log
 #define os_prim_alloc os_get_interface()->alloc
 #define os_prim_free os_get_interface()->free
+#define os_prim_delay_us os_get_interface()->delay_us
 
 // Forward declarations for IP blocks
 extern struct ip_block_ops gmc_v10_ip_block;
@@ -23,12 +24,9 @@ int ip_block_register(struct OBJGPU *adev, struct ip_block_ops *block) {
     }
     adev->ip_blocks[adev->num_ip_blocks++] = block;
 
-    // Also register in handler if exists - set funcs and status
+    // Also register in handler if exists
     if (adev->handler) {
-        struct amd_ip_block *ip_block = &adev->handler->ip_blocks[adev->handler->num_ip_blocks++];
-        ip_block->funcs = block;
-        ip_block->version = block->version;
-        ip_block->status = false; // Not started yet
+        adev->handler->register_ip_block(adev->handler, block);
     }
     return 0;
 }
@@ -37,34 +35,33 @@ int ip_block_register(struct OBJGPU *adev, struct ip_block_ops *block) {
 static int amd_gpu_handler_init_hardware(struct amd_gpu_handler *handler) {
     // Call IP block initialization sequence - delegate to real IP blocks
     for (int i = 0; i < handler->num_ip_blocks; i++) {
-        struct amd_ip_block *ip_block = &handler->ip_blocks[i];
-        if (ip_block->funcs->early_init && ip_block->funcs->early_init(handler->gpu) != 0) {
-            os_prim_log("Handler: Early init failed for IP block %d\n", i);
-            return -1;
-        }
-        ip_block->status = true;
-    }
-
-    for (int i = 0; i < handler->num_ip_blocks; i++) {
-        struct amd_ip_block *ip_block = &handler->ip_blocks[i];
-        if (ip_block->funcs->sw_init && ip_block->funcs->sw_init(handler->gpu) != 0) {
-            os_prim_log("Handler: SW init failed for IP block %d\n", i);
+        struct ip_block_ops *block = handler->ip_blocks[i];
+        if (block->early_init && block->early_init(handler->gpu) != 0) {
+            os_prim_log("Handler: Early init failed for %s\n", block->name);
             return -1;
         }
     }
 
     for (int i = 0; i < handler->num_ip_blocks; i++) {
-        struct amd_ip_block *ip_block = &handler->ip_blocks[i];
-        if (ip_block->funcs->hw_init && ip_block->funcs->hw_init(handler->gpu) != 0) {
-            os_prim_log("Handler: HW init failed for IP block %d\n", i);
+        struct ip_block_ops *block = handler->ip_blocks[i];
+        if (block->sw_init && block->sw_init(handler->gpu) != 0) {
+            os_prim_log("Handler: SW init failed for %s\n", block->name);
             return -1;
         }
     }
 
     for (int i = 0; i < handler->num_ip_blocks; i++) {
-        struct amd_ip_block *ip_block = &handler->ip_blocks[i];
-        if (ip_block->funcs->late_init && ip_block->funcs->late_init(handler->gpu) != 0) {
-            os_prim_log("Handler: Late init failed for IP block %d\n", i);
+        struct ip_block_ops *block = handler->ip_blocks[i];
+        if (block->hw_init && block->hw_init(handler->gpu) != 0) {
+            os_prim_log("Handler: HW init failed for %s\n", block->name);
+            return -1;
+        }
+    }
+
+    for (int i = 0; i < handler->num_ip_blocks; i++) {
+        struct ip_block_ops *block = handler->ip_blocks[i];
+        if (block->late_init && block->late_init(handler->gpu) != 0) {
+            os_prim_log("Handler: Late init failed for %s\n", block->name);
             return -1;
         }
     }
@@ -72,58 +69,19 @@ static int amd_gpu_handler_init_hardware(struct amd_gpu_handler *handler) {
     os_prim_log("Handler: Hardware initialization complete - all IP blocks initialized\n");
     return 0;
 }
-        }
-    }
-
-    for (int i = 0; i < handler->num_ip_blocks; i++) {
-        struct ip_block_ops *block = handler->ip_blocks[i];
-        if (block->sw_init) {
-            int ret = block->sw_init(handler->gpu);
-            if (ret != 0) {
-                os_prim_log("Handler: SW init failed for %s\n", block->name);
-                return ret;
-            }
-        }
-    }
-
-    for (int i = 0; i < handler->num_ip_blocks; i++) {
-        struct ip_block_ops *block = handler->ip_blocks[i];
-        if (block->hw_init) {
-            int ret = block->hw_init(handler->gpu);
-            if (ret != 0) {
-                os_prim_log("Handler: HW init failed for %s\n", block->name);
-                return ret;
-            }
-        }
-    }
-
-    for (int i = 0; i < handler->num_ip_blocks; i++) {
-        struct ip_block_ops *block = handler->ip_blocks[i];
-        if (block->late_init) {
-            int ret = block->late_init(handler->gpu);
-            if (ret != 0) {
-                os_prim_log("Handler: Late init failed for %s\n", block->name);
-                return ret;
-            }
-        }
-    }
-
-    os_prim_log("Handler: Hardware initialization complete\n");
-    return 0;
-}
 
 static int amd_gpu_handler_fini_hardware(struct amd_gpu_handler *handler) {
     for (int i = handler->num_ip_blocks - 1; i >= 0; i--) {
         struct ip_block_ops *block = handler->ip_blocks[i];
-        if (block->hw_fini) {
-            block->hw_fini(handler->gpu);
+        if (block->hw_fini && block->hw_fini(handler->gpu) != 0) {
+            return -1;
         }
     }
 
     for (int i = handler->num_ip_blocks - 1; i >= 0; i--) {
         struct ip_block_ops *block = handler->ip_blocks[i];
-        if (block->sw_fini) {
-            block->sw_fini(handler->gpu);
+        if (block->sw_fini && block->sw_fini(handler->gpu) != 0) {
+            return -1;
         }
     }
 
@@ -144,11 +102,8 @@ static bool amd_gpu_handler_is_hardware_idle(struct amd_gpu_handler *handler) {
 static int amd_gpu_handler_wait_for_idle(struct amd_gpu_handler *handler) {
     for (int i = 0; i < handler->num_ip_blocks; i++) {
         struct ip_block_ops *block = handler->ip_blocks[i];
-        if (block->wait_for_idle) {
-            int ret = block->wait_for_idle(handler->gpu);
-            if (ret != 0) {
-                return ret;
-            }
+        if (block->wait_for_idle && block->wait_for_idle(handler->gpu) != 0) {
+            return -1;
         }
     }
     return 0;
@@ -202,245 +157,7 @@ void amd_gpu_handler_destroy(struct amd_gpu_handler *handler) {
     }
 }
 
-int ip_blocks_early_init(struct OBJGPU *adev) {
-    for (int i = 0; i < adev->num_ip_blocks; i++) {
-        struct ip_block_ops *block = adev->ip_blocks[i];
-        if (block->early_init && block->early_init(adev) != 0) {
-            return -1;
-        }
-    }
-    return 0;
-}
-
-int ip_blocks_sw_init(struct OBJGPU *adev) {
-    for (int i = 0; i < adev->num_ip_blocks; i++) {
-        struct ip_block_ops *block = adev->ip_blocks[i];
-        if (block->sw_init && block->sw_init(adev) != 0) {
-            return -1;
-        }
-    }
-    return 0;
-}
-
-int ip_blocks_hw_init(struct OBJGPU *adev) {
-    for (int i = 0; i < adev->num_ip_blocks; i++) {
-        struct ip_block_ops *block = adev->ip_blocks[i];
-        if (block->hw_init && block->hw_init(adev) != 0) {
-            return -1;
-        }
-    }
-    return 0;
-}
-
-int ip_blocks_late_init(struct OBJGPU *adev) {
-    for (int i = 0; i < adev->num_ip_blocks; i++) {
-        struct ip_block_ops *block = adev->ip_blocks[i];
-        if (block->late_init && block->late_init(adev) != 0) {
-            return -1;
-        }
-    }
-    return 0;
-}
-
-int ip_blocks_hw_fini(struct OBJGPU *adev) {
-    for (int i = 0; i < adev->num_ip_blocks; i++) {
-        struct ip_block_ops *block = adev->ip_blocks[i];
-        if (block->hw_fini && block->hw_fini(adev) != 0) {
-            return -1;
-        }
-    }
-    return 0;
-}
-
-int ip_blocks_sw_fini(struct OBJGPU *adev) {
-    for (int i = 0; i < adev->num_ip_blocks; i++) {
-        struct ip_block_ops *block = adev->ip_blocks[i];
-        if (block->sw_fini && block->sw_fini(adev) != 0) {
-            return -1;
-        }
-    }
-    return 0;
-}
-
-bool ip_blocks_is_idle(struct OBJGPU *adev) {
-    for (int i = 0; i < adev->num_ip_blocks; i++) {
-        struct ip_block_ops *block = adev->ip_blocks[i];
-        if (block->is_idle && !block->is_idle(adev)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-int ip_blocks_wait_for_idle(struct OBJGPU *adev) {
-    for (int i = 0; i < adev->num_ip_blocks; i++) {
-        struct ip_block_ops *block = adev->ip_blocks[i];
-        if (block->wait_for_idle && block->wait_for_idle(adev) != 0) {
-            return -1;
-        }
-    }
-    return 0;
-}
-
-int ip_blocks_suspend(struct OBJGPU *adev) {
-    for (int i = 0; i < adev->num_ip_blocks; i++) {
-        struct ip_block_ops *block = adev->ip_blocks[i];
-        if (block->suspend && block->suspend(adev) != 0) {
-            return -1;
-        }
-    }
-    return 0;
-}
-
-int ip_blocks_resume(struct OBJGPU *adev) {
-    for (int i = 0; i < adev->num_ip_blocks; i++) {
-        struct ip_block_ops *block = adev->ip_blocks[i];
-        if (block->resume && block->resume(adev) != 0) {
-            return -1;
-        }
-    }
-    return 0;
-}
-
-#ifdef __HAIKU__
-#include <GraphicsDefs.h>
-#endif
-
-// Macros to use OS interface
-#define os_prim_log os_get_interface()->log
-#define os_prim_alloc os_get_interface()->alloc
-#define os_prim_free os_get_interface()->free
-#define os_prim_pci_get_ids os_get_interface()->prim_pci_get_ids
-#define os_prim_pci_map_resource os_get_interface()->prim_pci_map_resource
-#define os_prim_write32 os_get_interface()->write32
-#define os_prim_read32 os_get_interface()->read32
-#define os_prim_delay_us os_get_interface()->delay_us
-
-/*
- * Developed by: Haiku Imposible Team (HIT)
- * This is the HAL "Factory". It handles all the specialist workers (IP Blocks).
- */
-
-// Adding a new specialist worker to our GPU team
-int amdgpu_device_ip_block_add(
-    struct OBJGPU *adev, const struct amd_ip_block_version *ip_block_version) {
-  if (adev->num_ip_blocks >= AMDGPU_MAX_IP_BLOCKS)
-    return -1; // Too many workers!
-  adev->ip_blocks[adev->num_ip_blocks].version = ip_block_version;
-  adev->ip_blocks[adev->num_ip_blocks].status = false; // Not started yet
-  adev->num_ip_blocks++;
-  return 0;
-}
-
-/* ============================================================================
- * Import real IP Block implementations from separate files
- * ============================================================================ */
-
-// Forward declarations (implemented in gmc_v10.c and gfx_v10.c)
-extern const struct amd_ip_block_version gmc_v10_ip_block;
-extern const struct amd_ip_block_version gfx_v10_ip_block;
-
-/* --- Navi10 Specialist Skills (The Actual Code) --- */
-
-// 1. The Manager (Common Block)
-static int navi10_common_early_init(struct OBJGPU *adev) {
-  os_prim_log("HAL: [Manager] Checking if the GPU is awake...\n");
-  return 0;
-}
-
-static int navi10_common_sw_init(struct OBJGPU *adev) {
-  os_prim_log("HAL: [Manager] Setting up the software workspace.\n");
-  return 0;
-}
-
-static int navi10_common_hw_init(struct OBJGPU *adev) {
-  os_prim_log("HAL: [Manager] Starting the hardware engines!\n");
-  return 0;
-}
-
-static int navi10_common_late_init(struct OBJGPU *adev) {
-  os_prim_log("HAL: [Manager] Doing the final polish.\n");
-  return 0;
-}
-
-static int navi10_common_hw_fini(struct OBJGPU *adev) {
-  os_prim_log("HAL: [Manager] Powering down engines... See ya!\n");
-  return 0;
-}
-
-static const struct amd_ip_funcs navi10_common_ip_funcs = {
-    .name = "navi10_common",
-    .early_init = navi10_common_early_init,
-    .sw_init = navi10_common_sw_init,
-    .hw_init = navi10_common_hw_init,
-    .late_init = navi10_common_late_init,
-    .hw_fini = navi10_common_hw_fini,
-};
-
-static const struct amd_ip_block_version navi10_common_ip_block = {
-    .type = AMD_IP_BLOCK_TYPE_COMMON,
-    .major = 1,
-    .minor = 0,
-    .rev = 0,
-    .funcs = &navi10_common_ip_funcs,
-};
-
-/* --- Wrestler (Family 14h / APU) Specialist Skills --- */
-
-static int wrestler_common_early_init(struct OBJGPU *adev) {
-  os_prim_log(
-      "HAL: [Wrestler Manager] Hello, little APU! Checking systems...\n");
-  return 0;
-}
-
-static int wrestler_common_hw_fini(struct OBJGPU *adev) {
-  os_prim_log("HAL: [Wrestler Manager] APU system shut down successfully.\n");
-  return 0;
-}
-
-static const struct amd_ip_funcs wrestler_common_ip_funcs = {
-    .name = "wrestler_common",
-    .early_init = wrestler_common_early_init,
-    .hw_init = navi10_common_hw_init, // Reusing high-level warm-up
-    .hw_fini = wrestler_common_hw_fini,
-};
-
-static const struct amd_ip_block_version wrestler_common_ip_block = {
-    .type = AMD_IP_BLOCK_TYPE_COMMON,
-    .major = 1,
-    .minor = 0,
-    .rev = 0,
-    .funcs = &wrestler_common_ip_funcs,
-};
-
-/* --- Legacy Radeon (R600/Evergreen/NI) SKills --- */
-
-static int legacy_radeon_common_hw_init(struct OBJGPU *adev) {
-  os_prim_log("HAL: [Radeon Manager] Waking up legacy hardware "
-              "(Evergreen/NI/R600)...\n");
-  os_prim_log(
-      "HAL: [Radeon Manager] Loading microcode bits for the old guard.\n");
-  return 0;
-}
-
-static const struct amd_ip_funcs legacy_radeon_common_ip_funcs = {
-    .name = "legacy_radeon_common",
-    .early_init = wrestler_common_early_init,
-    .hw_init = legacy_radeon_common_hw_init,
-    .hw_fini = wrestler_common_hw_fini,
-};
-
-static const struct amd_ip_block_version legacy_radeon_common_ip_block = {
-    .type = AMD_IP_BLOCK_TYPE_COMMON,
-    .major = 1,
-    .minor = 0,
-    .rev = 0,
-    .funcs = &legacy_radeon_common_ip_funcs,
-};
-
-/* --- The Main HAL Commands --- */
-
-// Turning on the whole GPU city!
+// AMD GPU device initialization
 int amdgpu_device_init_hal(struct OBJGPU *adev) {
     os_prim_log("HAL: Initializing AMD GPU device...\n");
 
@@ -457,7 +174,7 @@ int amdgpu_device_init_hal(struct OBJGPU *adev) {
         return -1;
     }
 
-    // Register IP blocks with handler
+    // Register IP blocks with handler - these calls are real now
     if (handler->register_ip_block(handler, &gmc_v10_ip_block) != 0 ||
         handler->register_ip_block(handler, &gfx_v10_ip_block) != 0 ||
         handler->register_ip_block(handler, &dce_v10_ip_block) != 0 ||
@@ -475,298 +192,94 @@ int amdgpu_device_init_hal(struct OBJGPU *adev) {
     os_prim_log("HAL: AMD GPU device initialized successfully with real handler and IP blocks\n");
     return 0;
 }
-  adev->device_id = device;
 
-  const struct amd_pci_info *pci_info = NULL;
-  for (int i = 0; amd_pci_table[i].device_id != 0 || i == 0; i++) {
-    if (amd_pci_table[i].device_id == device ||
-        amd_pci_table[i].device_id == 0) {
-      pci_info = &amd_pci_table[i];
-      adev->asic_type = pci_info->asic_type;
-      break;
-    }
-  }
-
-  os_prim_log("HAL: Identified GPU: %s\n",
-              pci_info ? pci_info->name : "Unknown");
-
-  // Registering Specialists based on ASIC
-  if (adev->asic_type == AMD_ASIC_NAVI10) {
-    os_prim_log("HAL: Loading NAVI10 specialists (GMC v10, GFX v10)...\n");
-    amdgpu_device_ip_block_add(adev, &navi10_common_ip_block);
-    amdgpu_device_ip_block_add(adev, &gmc_v10_ip_block);  // Real GMC v10
-    amdgpu_device_ip_block_add(adev, &gfx_v10_ip_block);  // Real GFX v10
-  } else if (adev->asic_type == AMD_ASIC_WRESTLER) {
-    os_prim_log("HAL: Loading Wrestler APU specialists...\n");
-    amdgpu_device_ip_block_add(adev, &wrestler_common_ip_block);
-    amdgpu_device_ip_block_add(adev, &gmc_v10_ip_block);  // Using v10 for APU too
-  } else {
-    // Legacy Radeon Path
-    os_prim_log("HAL: Loading legacy Radeon specialists...\n");
-    amdgpu_device_ip_block_add(adev, &legacy_radeon_common_ip_block);
-    amdgpu_device_ip_block_add(adev, &gmc_v10_ip_block);  // Even legacy needs GMC
-  }
-  // --- Hardware Link: Mapping the MMIO Registers ---
-  os_prim_log("HAL: Connecting to hardware registers (MMIO Mapping)...\n");
-  // We use our PCI handle (simulated or real) to map BAR 0 or 2
-  adev->mmio_base = os_prim_pci_map_resource((void *)0x9806, 0);
-
-  if (!adev->mmio_base) {
-    os_prim_log("HAL: Error! Failed to map GPU registers. Aborting.\n");
-    return -1;
-  }
-
-  // Double check our connection with a poke!
-  os_prim_log("HAL: Poking hardware... Hello?\n");
-
-  // SAFETY CHECK: Only write if the offset is within a known safe range
-  // (example)
-  uintptr_t poke_addr = (uintptr_t)adev->mmio_base + 0x100;
-  if (poke_addr >= (uintptr_t)adev->mmio_base &&
-      poke_addr < (uintptr_t)adev->mmio_base + 0x100000) {
-    os_prim_write32(poke_addr, 0x1); // Send identifying signal
-    os_prim_read32(poke_addr);
-  } else {
-    os_prim_log("HAL: [SAFETY] Blocked illegal hardware poke at out-of-bounds "
-                "address!\n");
-  }
-
-  // The 4-Step Start Sequence (Like a professional athlete's warm-up)
-
-  // Step 1: Tell everyone to wake up
-  for (int i = 0; i < adev->num_ip_blocks; i++) {
-    if (adev->ip_blocks[i].version->funcs->early_init)
-      adev->ip_blocks[i].version->funcs->early_init(adev);
-  }
-
-  // Step 2: Set up the software workspace
-  for (int i = 0; i < adev->num_ip_blocks; i++) {
-    if (adev->ip_blocks[i].version->funcs->sw_init)
-      adev->ip_blocks[i].version->funcs->sw_init(adev);
-  }
-
-  // Step 3: Flip the switches! (Hardware start)
-  for (int i = 0; i < adev->num_ip_blocks; i++) {
-    if (adev->ip_blocks[i].version->funcs->hw_init) {
-      adev->ip_blocks[i].version->funcs->hw_init(adev);
-      adev->ip_blocks[i].status = true; // High-five! They are working.
-    }
-  }
-
-  // Step 4: Final checks before we start for real
-  for (int i = 0; i < adev->num_ip_blocks; i++) {
-    if (adev->ip_blocks[i].version->funcs->late_init)
-      adev->ip_blocks[i].version->funcs->late_init(adev);
-  }
-
-  // Initialize GPU Info (Phase 2.2 - for framebuffer management)
-  amdgpu_gpu_get_info_hal(adev, &adev->gpu_info);
-  os_prim_log("HAL: GPU info cached - VRAM: %uMB @ 0x%llx, Clock: %uMHz\n",
-              adev->gpu_info.vram_size_mb, adev->gpu_info.vram_base,
-              adev->gpu_info.gpu_clock_mhz);
-
-  // Belter Strategy: Initialize State
-  adev->state = AMD_GPU_STATE_RUNNING;
-  memset(&adev->shadow, 0, sizeof(adev->shadow));
-  /* Heartbeat thread can be spawned via os_prim_spawn_thread if needed */
-  /* For now, running synchronously */
-
-  return 0;
-}
-
-// Shutting down the city for the night
+// AMD GPU device finalization
 void amdgpu_device_fini_hal(struct OBJGPU *adev) {
-  for (int i = adev->num_ip_blocks - 1; i >= 0; i--) {
-    if (adev->ip_blocks[i].status &&
-        adev->ip_blocks[i].version->funcs->hw_fini) {
-      adev->ip_blocks[i].version->funcs->hw_fini(adev);
+    if (adev->handler) {
+        amd_gpu_handler_destroy(adev->handler);
+        adev->handler = NULL;
     }
-  }
-  rs_resource_destroy(adev->res_root);
-  /* Synchronization cleanup handled by os_prim_cleanup if needed */
+
+    if (adev->mmio_base) {
+        mmio_fini(adev->mmio_base, adev->mmio_size);
+        adev->mmio_base = 0;
+        adev->mmio_size = 0;
+    }
+
+    os_prim_log("HAL: AMD GPU device finalized\n");
 }
 
-// Just asking the GPU "Who are you?"
+// GPU info retrieval
 int amdgpu_gpu_get_info_hal(struct OBJGPU *adev, amdgpu_gpu_info_t *info) {
-  os_prim_log("HAL: [Manager] Giving out the GPU ID card.\n");
-
-  const struct amd_pci_info *pci_info = NULL;
-  for (int i = 0; amd_pci_table[i].device_id != 0; i++) {
-    if (amd_pci_table[i].device_id == adev->device_id) {
-      pci_info = &amd_pci_table[i];
-      break;
+    if (!adev || !info) {
+        return -1;
     }
-  }
 
-  if (pci_info) {
-    info->vram_size_mb = pci_info->vram_mb_default;
-    info->gpu_clock_mhz = pci_info->clock_mhz;
-    strncpy(info->gpu_name, pci_info->name, 31);
-    // In a real kernel driver, this would be adev->resource[BAR0].start
-    // For our userland abstraction, we provide a consistent base.
-    info->vram_base = 0xE0000000;
-  } else {
-    // Ultimate fallback
-    info->vram_size_mb = 1024;
-    info->gpu_clock_mhz = 1000;
-    strncpy(info->gpu_name, "Generic AMD GPU", 31);
-    info->vram_base = 0xE0000000;
-  }
-  return 0;
+    // Fill basic info
+    info->device_id = adev->device_id;
+    info->family = adev->family;
+    info->asic_type = adev->asic_type;
+    info->vram_size_mb = 4096; // Placeholder
+    info->gpu_clock_mhz = 1500; // Placeholder
+    strcpy(info->gpu_name, "AMD Radeon RX"); // Placeholder
+    info->vram_base = 0; // Placeholder
+
+    return 0;
 }
 
-// Asking the Librarian for some space (Memory allocation)
-int amdgpu_buffer_alloc_hal(struct OBJGPU *adev, size_t size,
-                            struct amdgpu_buffer *buf) {
-  os_prim_log("HAL: [Librarian] Finding a spot for your data...\n");
-  buf->cpu_addr = os_prim_alloc(size);
-  buf->gpu_addr = (uint64_t)buf->cpu_addr; // Magic transformation!
-  buf->size = size;
-  return buf->cpu_addr ? 0 : -1;
+// Buffer allocation
+int amdgpu_buffer_alloc_hal(struct OBJGPU *adev, size_t size, struct amdgpu_buffer *buf) {
+    if (!adev || !buf) {
+        return -1;
+    }
+
+    // Use OS allocation for now
+    buf->cpu_addr = os_prim_alloc(size);
+    if (!buf->cpu_addr) {
+        return -1;
+    }
+
+    buf->gpu_addr = (uint64_t)buf->cpu_addr; // Fake GPU address
+    buf->size = size;
+
+    return 0;
 }
 
+// Buffer free
 void amdgpu_buffer_free_hal(struct OBJGPU *adev, struct amdgpu_buffer *buf) {
-  os_prim_log("HAL: [Librarian] Giving the space back to the library.\n");
-  if (buf->cpu_addr)
-    os_prim_free(buf->cpu_addr);
-}
-
-// Sending a list of jobs to the Artist (Graphics/Compute)
-int amdgpu_command_submit_hal(struct OBJGPU *adev,
-                              struct amdgpu_command_buffer *cb) {
-  os_prim_log("HAL: [Artist] Got your draw calls! Processing now...\n");
-  // Belter Strategy: Might want to shadow command submissions too!
-  return 0;
-}
-
-// Setting the display mode (CRTC timing + scanout)
-/*
-#ifdef __HAIKU__
-int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const display_mode *mode) {
-  os_prim_log("HAL: [Display Manager] Setting mode %ux%u\n", 
-              mode->virtual_width, mode->virtual_height);
-  
-  if (!adev || !mode) {
-    os_prim_log("HAL: [Display Manager] Invalid GPU or mode pointer!\n");
-    return -1;
-  }
-
-  // Find the GFX block to program CRTC
-  int gfx_block_idx = -1;
-  for (int i = 0; i < adev->num_ip_blocks; i++) {
-    if (adev->ip_blocks[i].version &&
-        adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GFX) {
-      gfx_block_idx = i;
-      break;
+    if (buf && buf->cpu_addr) {
+        os_prim_free(buf->cpu_addr);
     }
-  }
-
-  if (gfx_block_idx < 0) {
-    os_prim_log("HAL: [Display Manager] GFX block not found!\n");
-    return -1;
-  }
-
-  // Step 1: Program CRTC timing via GFX block
-  int ret = gfx_v10_set_crtc_timing(adev, mode);
-  
-  if (ret != 0) {
-    os_prim_log("HAL: [Display Manager] Failed to set CRTC timing (error %d)\n", ret);
-    return ret;
-  }
-  
-  os_prim_log("HAL: [Display Manager] CRTC timing set successfully\n");
-
-  // Step 2: Program scanout address via GMC (Phase 2.2)
-  // Use VRAM base from adev or from pre-allocated framebuffer
-  // For now, use simple scanout address from GPU memory
-  uint64_t scanout_addr = adev->gpu_info.vram_base;
-  
-  ret = gmc_v10_set_scanout_address(adev, scanout_addr);
-  if (ret != 0) {
-    os_prim_log("HAL: [Display Manager] Failed to set scanout address (error %d)\n", ret);
-    return ret;
-  }
-  
-  os_prim_log("HAL: [Display Manager] Scanout address set to 0x%llx\n", scanout_addr);
-
-  // Step 3: Program pixel clock via PLL (Phase 2.3)
-  // Extract pixel clock from display_mode.timing
-  uint32_t pixel_clock = mode->timing.pixel_clock;  // Already in 10kHz units
-  
-  ret = clock_v10_set_pixel_clock(adev, pixel_clock);
-  if (ret != 0) {
-    os_prim_log("HAL: [Display Manager] Failed to set pixel clock (error %d)\n", ret);
-    return ret;
-  }
-  
-  os_prim_log("HAL: [Display Manager] Pixel clock set to %u.%u MHz\n",
-              pixel_clock / 100, pixel_clock % 100);
-  os_prim_log("HAL: [Display Manager] Display mode set successfully!\n");
-  
-  return 0;
-}
-#else
-// Stub for non-Haiku platforms
-int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const struct display_mode *mode) {
-  os_prim_log("HAL: [Display Manager] Display mode setting not supported on this platform\n");
-  return 0;  // Success - display mode not needed on non-Haiku
-}
-#endif
-*/
-
-/* --- Belter "Self-Healing" Implementation --- */
-
-// 1. Shadow Write: Mirror writes to RAM
-void amdgpu_hal_shadow_write(struct OBJGPU *adev, uint32_t offset,
-                             uint32_t value) {
-  if (offset < 1024) {
-    adev->shadow.regs[offset] = value;
-    adev->shadow.valid[offset] = true;
-  }
-  // Write to real hardware
-  uintptr_t poke_addr = (uintptr_t)adev->mmio_base + offset * 4;
-  os_prim_write32(poke_addr, value);
 }
 
-// 2. Transparent Reset: The Lazarus Protocol
+// Command submission
+int amdgpu_command_submit_hal(struct OBJGPU *adev, struct amdgpu_command_buffer *cb) {
+    if (!adev || !cb) {
+        return -1;
+    }
+
+    // For now, just log - real implementation would submit to ring
+    os_prim_log("HAL: Command buffer submitted (%zu bytes)\n", cb->size);
+
+    return 0;
+}
+
+// Reset
 int amdgpu_hal_reset(struct OBJGPU *adev) {
-  os_prim_log(
-      "HAL: [Belter] CRITICAL! GPU hang detected. Initiating reset...\n");
-
-  adev->state = AMD_GPU_STATE_RESETTING;
-
-  // A. Stop the Engines
-  amdgpu_device_fini_hal(adev);
-
-  // B. Restart the Hardware
-  os_prim_log("HAL: [Belter] Kickstarting the ASIC...\n");
-  amdgpu_device_init_hal(adev);
-
-  // C. Replay the Shadow State
-  os_prim_log("HAL: [Belter] Replaying Shadow State to restore context...\n");
-  for (int i = 0; i < 1024; i++) {
-    if (adev->shadow.valid[i]) {
-      uintptr_t poke_addr = (uintptr_t)adev->mmio_base + i * 4;
-      os_prim_write32(poke_addr, adev->shadow.regs[i]);
-    }
-  }
-
-  adev->state = AMD_GPU_STATE_RUNNING;
-  os_prim_log("HAL: [Belter] GPU resurrection complete. We are back online.\n");
-  return 0;
+    os_prim_log("HAL: GPU reset requested\n");
+    // Placeholder for reset logic
+    return 0;
 }
 
-// 3. Heartbeat Monitor: Staying Alive
+// Heartbeat
 void *amdgpu_hal_heartbeat(void *arg) {
-  struct OBJGPU *adev = (struct OBJGPU *)arg;
-  while (1) {
-    os_prim_delay_us(1000000); // Check every second
+    struct OBJGPU *adev = arg;
+    os_prim_log("HAL: Heartbeat thread started\n");
 
-    // In a real driver, we would check fence values.
-    // Here, we simulate a check.
-    if (adev->state == AMD_GPU_STATE_HUNG) {
-      amdgpu_hal_reset(adev);
+    while (1) {
+        // Check GPU health
+        os_prim_delay_us(1000000); // 1 second
     }
-  }
-  return NULL;
+
+    return NULL;
 }

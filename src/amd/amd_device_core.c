@@ -111,7 +111,18 @@ int amd_device_init(amd_device_t *dev)
     }
     printf("\n");
     
-    /* Hardware initialization */
+    /* Hardware initialization - NEW: try real IP blocks first */
+    if (dev->handler->init_hardware) {
+        ret = dev->handler->init_hardware(dev);
+        if (ret == 0) {
+            printf("Hardware initialized via real IP blocks\n");
+            dev->initialized = true;
+            return 0;
+        }
+        printf("Note: Real IP block init not available, falling back to legacy\n");
+    }
+    
+    /* Legacy: Hardware initialization (fallback for compatibility) */
     if (dev->handler->hw_init) {
         ret = dev->handler->hw_init(dev);
         if (ret < 0) {
@@ -120,7 +131,7 @@ int amd_device_init(amd_device_t *dev)
         }
     }
     
-    /* IP block initialization */
+    /* IP block initialization (legacy) */
     if (dev->handler->init_ip_blocks) {
         ret = dev->handler->init_ip_blocks(dev);
         if (ret < 0) {

@@ -64,17 +64,10 @@ struct ip_block_ops {
     int (*resume)(struct OBJGPU *adev);
 };
 
-// AMD IP Block structure (similar to hal)
-struct amd_ip_block {
-    uint32_t version;
-    bool status; // true if initialized
-    struct ip_block_ops *funcs; // operations
-};
-
-// AMD GPU Handler structure - centralizes IP block management with members
+// AMD GPU Handler structure - centralizes IP block management
 struct amd_gpu_handler {
     struct OBJGPU *gpu;
-    struct amd_ip_block ip_blocks[AMDGPU_MAX_IP_BLOCKS]; // Members like hal
+    struct ip_block_ops *ip_blocks[AMDGPU_MAX_IP_BLOCKS]; // Direct ops
     int num_ip_blocks;
 
     // Hardware initialization handlers - delegate to IP blocks
@@ -229,6 +222,9 @@ struct OBJGPU {
 
   // GPU Handler for centralized management
   struct amd_gpu_handler *handler;
+
+  // MMIO access
+  size_t mmio_size;
 
   void *mmio_base;             // The direct connection to the hardware
   struct RsResource *res_root; // The top of the "Family Tree"
