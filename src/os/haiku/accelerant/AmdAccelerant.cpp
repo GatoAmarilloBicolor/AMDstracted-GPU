@@ -188,8 +188,36 @@ status_t AmdAccelerant::SetDisplayMode(display_mode *mode_to_set) {
   if (!m_connected || !mode_to_set)
     return B_ERROR;
 
-  // PROPOSE: Send mode set request to RMAPI server
-  return B_OK;
+  // Send mode set request to RMAPI server and wait for response
+  ipc_message_t request = {IPC_REQ_SET_DISPLAY_MODE, 1, 
+                           sizeof(display_mode), (void *)mode_to_set};
+  
+  if (ipc_send_message(&m_conn, &request) != 0) {
+    return B_ERROR;
+  }
+  
+  // Wait for server response
+  ipc_message_t reply;
+  ssize_t bytes = ipc_recv_message(&m_conn, &reply);
+  if (bytes <= 0) {
+    return B_ERROR;
+  }
+  
+  // Check response type
+  if (reply.type != IPC_REP_SET_DISPLAY_MODE) {
+    if (reply.data)
+      free(reply.data);
+    return B_ERROR;
+  }
+  
+  // Extract result from reply
+  status_t result = B_ERROR;
+  if (reply.data && reply.size >= sizeof(status_t)) {
+    result = *(status_t *)reply.data;
+    free(reply.data);
+  }
+  
+  return result;
 }
 
 status_t AmdAccelerant::GetFrameBufferConfig(frame_buffer_config *fbc) {
