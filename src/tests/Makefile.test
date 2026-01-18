@@ -40,7 +40,10 @@ $(TEST_BIN): $(TEST_OBJS) $(DRIVER_OBJS)
 	@echo "✅ Test suite built: $(TEST_BIN)"
 
 # Compile test source files
-%.o: %.c test_framework.h
+test_runner.o: test_runner.c test_framework.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+test_gmc_v10.o: test_gmc_v10.c test_framework.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Compile driver source files
