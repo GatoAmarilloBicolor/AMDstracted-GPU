@@ -9,21 +9,26 @@ extern amd_gpu_handler_t vliw_handler;
 extern amd_gpu_handler_t gcn_handler;
 extern amd_gpu_handler_t rdna_handler;
 
-/* Get appropriate handler for GPU generation */
+/* Forward declarations for integrated handlers */
+extern amd_gpu_handler_t vliw_handler_integrated;
+extern amd_gpu_handler_t gcn_handler_integrated;
+extern amd_gpu_handler_t rdna_handler_integrated;
+
+/* Get appropriate handler for GPU generation - Updated with integrated handlers */
 amd_gpu_handler_t* amd_get_handler(amd_gpu_generation_t generation)
 {
     switch (generation) {
         case AMD_VLIW:
-            return &vliw_handler;
+            return &vliw_handler_integrated;  // Uses real IP blocks
         case AMD_GCN1:
         case AMD_GCN2:
         case AMD_GCN3:
         case AMD_GCN4:
         case AMD_GCN5:
-            return &gcn_handler;
+            return &gcn_handler_integrated;   // Uses real IP blocks
         case AMD_RDNA2:
         case AMD_RDNA3:
-            return &rdna_handler;
+            return &rdna_handler_integrated;  // Uses real IP blocks
         default:
             return NULL;
     }

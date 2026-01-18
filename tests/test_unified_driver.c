@@ -94,7 +94,39 @@ void test_handler_assignment(void)
     assert(handler != NULL);
     assert(handler->hw_init != NULL);
     printf("  ✓ RDNA handler assigned\n");
-    
+
+    TEST_PASS(test_name);
+    tests_passed++;
+}
+
+/* Test 4: Handler IP Block Integration */
+void test_handler_ip_blocks(void)
+{
+    const char *test_name = "Handler IP Block Integration";
+    amd_gpu_handler_t *handler = NULL;
+
+    /* Test GCN handler has IP blocks */
+    handler = amd_get_handler(AMD_GCN2);
+    assert(handler != NULL);
+    assert(handler->ip_blocks.gmc != NULL);
+    assert(handler->ip_blocks.gfx != NULL);
+    assert(handler->ip_blocks.display != NULL);
+    printf("  ✓ GCN handler has IP blocks assigned\n");
+
+    /* Test VLIW handler has IP blocks */
+    handler = amd_get_handler(AMD_VLIW);
+    assert(handler != NULL);
+    assert(handler->ip_blocks.gmc != NULL);
+    assert(handler->ip_blocks.gfx != NULL);
+    printf("  ✓ VLIW handler has IP blocks assigned\n");
+
+    /* Test RDNA handler has IP blocks */
+    handler = amd_get_handler(AMD_RDNA2);
+    assert(handler != NULL);
+    assert(handler->ip_blocks.gmc != NULL);
+    assert(handler->ip_blocks.gfx != NULL);
+    printf("  ✓ RDNA handler has IP blocks assigned\n");
+
     TEST_PASS(test_name);
     tests_passed++;
 }
@@ -246,7 +278,14 @@ int main(void)
     
     test_device_detection();
     printf("\n");
-    test_backend_selection();
+
+    test_handler_assignment();
+    printf("\n");
+
+    test_handler_ip_blocks();
+    printf("\n");
+
+    test_device_probe();
     printf("\n");
     test_handler_assignment();
     printf("\n");
