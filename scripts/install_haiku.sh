@@ -43,19 +43,9 @@ echo "────────────────────────�
 echo "📦 Step 1: Building Main Driver for Haiku"
 echo "────────────────────────────────────────────────────────────────"
 
-# Check if running on Haiku
-if [ "$(uname -s)" = "Haiku" ]; then
-    echo "Building natively on Haiku..."
-    meson setup builddir
-else
-    echo "Cross-compiling for Haiku..."
-    if [ -f "haiku-cross.ini" ]; then
-        meson setup --cross-file haiku-cross.ini builddir
-    else
-        echo "⚠️  haiku-cross.ini not found, attempting native build..."
-        meson setup builddir
-    fi
-fi
+# Always build natively (cross-compilation requires proper toolchain)
+echo "Building natively..."
+meson setup builddir
 
 if [ $? -ne 0 ]; then
     echo "❌ Meson setup failed!"
@@ -107,14 +97,36 @@ echo "Installing to Haiku user paths..."
 # Use manual copy instead of meson install to avoid binary corruption
 echo "Copying binaries manually to prevent ELF header corruption..."
 
-# The meson install will put files in:
-# - bin/amd_rmapi_server
-# - bin/amd_rmapi_client_demo
-# - bin/amd_test_suite
-# - lib/libamdgpu.so
-
 INSTALL_DIR="$HAIKU_COMMON/bin"
 LIB_DIR="$HAIKU_COMMON/lib"
+
+mkdir -p "$INSTALL_DIR"
+mkdir -p "$LIB_DIR"
+
+# Copy binaries manually with verification
+echo "Copying amd_rmapi_server..."
+cp -f builddir/amd_rmapi_server "$INSTALL_DIR/" || {
+    echo "❌ Failed to copy amd_rmapi_server"
+    exit 1
+}
+
+echo "Copying libamdgpu.so..."
+cp -f builddir/libamdgpu.so "$LIB_DIR/" || {
+    echo "❌ Failed to copy libamdgpu.so"
+    exit 1
+}
+
+echo "Copying amd_rmapi_client_demo..."
+cp -f builddir/amd_rmapi_client_demo "$INSTALL_DIR/" || {
+    echo "❌ Failed to copy amd_rmapi_client_demo"
+    exit 1
+}
+
+echo "Copying amd_test_suite..."
+cp -f builddir/amd_test_suite "$INSTALL_DIR/" || {
+    echo "❌ Failed to copy amd_test_suite"
+    exit 1
+}
 
 # Verify installation
 echo "Verifying installation..."

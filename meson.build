@@ -99,37 +99,75 @@ if host_os == 'haiku'
     '-Wl,-z,defs',
     '-no-pie',  # Disable PIE which can cause loader issues on Haiku
     '-Wl,--hash-style=sysv',  # Use sysv hash for better compatibility
-    '-static-libgcc'  # Link libgcc statically to avoid runtime issues
+    '-static-libgcc',  # Link libgcc statically to avoid runtime issues
+    '-Wl,--build-id=none'  # Remove build-id which can cause loader issues
+  ], language: 'c')
+  # Also set compiler flags for Haiku
+  add_project_arguments([
+    '-D_GNU_SOURCE',  # Enable GNU extensions
+    '-fPIC'  # Position independent code
   ], language: 'c')
 endif
 
-# Library
-libamdgpu = shared_library('amdgpu',
-  all_sources,
-  include_directories: inc_dirs,
-  dependencies: deps,
-  install: true,
-  install_dir: 'lib'
-)
+# Library - try static linking for Haiku compatibility
+if host_os == 'haiku'
+  libamdgpu = static_library('amdgpu',
+    all_sources,
+    include_directories: inc_dirs,
+    dependencies: deps,
+    install: false  # Don't install static lib
+  )
+else
+  libamdgpu = shared_library('amdgpu',
+    all_sources,
+    include_directories: inc_dirs,
+    dependencies: deps,
+    install: true,
+    install_dir: 'lib'
+  )
+endif
 
 # Executables
-rmapi_server = executable('amd_rmapi_server',
-  'core/rmapi/rmapi_server.c',
-  include_directories: inc_dirs,
-  dependencies: deps,
-  link_with: libamdgpu,
-  install: true,
-  install_dir: 'bin'
-)
+if host_os == 'haiku'
+  # For Haiku, link statically to avoid runtime loader issues
+  rmapi_server = executable('amd_rmapi_server',
+    'core/rmapi/rmapi_server.c',
+    all_sources,  # Include all sources directly for static linking
+    include_directories: inc_dirs,
+    dependencies: deps,
+    link_args: ['-static', '-no-pie'],
+    install: true,
+    install_dir: 'bin'
+  )
 
-rmapi_client_demo = executable('amd_rmapi_client_demo',
-  'examples/rmapi_client_demo.c',
-  include_directories: inc_dirs,
-  dependencies: deps,
-  link_with: libamdgpu,
-  install: true,
-  install_dir: 'bin'
-)
+  rmapi_client_demo = executable('amd_rmapi_client_demo',
+    'examples/rmapi_client_demo.c',
+    all_sources,  # Include all sources directly for static linking
+    include_directories: inc_dirs,
+    dependencies: deps,
+    link_args: ['-static', '-no-pie'],
+    install: true,
+    install_dir: 'bin'
+  )
+else
+  rmapi_server = executable('amd_rmapi_server',
+    'core/rmapi/rmapi_server.c',
+    include_directories: inc_dirs,
+    dependencies: deps,
+    link_with: libamdgpu,
+    install: true,
+    install_dir: 'bin'
+  )
+
+  rmapi_client_demo = executable('amd_rmapi_client_demo',
+    'examples/rmapi_client_demo.c',
+    include_directories: inc_dirs,
+    dependencies: deps,
+    link_with: libamdgpu,
+    install: true,
+    install_dir: 'bin'
+  )
+endif
 
 # Test framework
 test_framework = static_library('test_framework',
@@ -138,18 +176,34 @@ test_framework = static_library('test_framework',
 )
 
 # Test runner with coverage
-test_runner = executable('amd_test_suite',
-  'src/tests/test_runner.c',
-  'src/tests/test_gmc_v10.c',
-  'tests/mocks/test_mocks.c',
-  include_directories: inc_dirs + [include_directories('src/tests'), include_directories('tests')],
-  dependencies: deps,
-  link_with: [libamdgpu, test_framework],
-  c_args: ['-fprofile-arcs', '-ftest-coverage'] + get_option('c_args'),
-  link_args: ['-fprofile-arcs', '-ftest-coverage'] + get_option('c_link_args'),
-  install: true,
-  install_dir: 'bin'
-)
+if host_os == 'haiku'
+  test_runner = executable('amd_test_suite',
+    'src/tests/test_runner.c',
+    'src/tests/test_gmc_v10.c',
+    'tests/mocks/test_mocks.c',
+    all_sources,  # Include all sources directly for static linking
+    'tests/framework/test_framework.c',  # Include test framework
+    include_directories: inc_dirs + [include_directories('src/tests'), include_directories('tests'), include_directories('tests/framework')],
+    dependencies: deps,
+    c_args: ['-fprofile-arcs', '-ftest-coverage'] + get_option('c_args'),
+    link_args: ['-static', '-no-pie', '-fprofile-arcs', '-ftest-coverage'] + get_option('c_link_args'),
+    install: true,
+    install_dir: 'bin'
+  )
+else
+  test_runner = executable('amd_test_suite',
+    'src/tests/test_runner.c',
+    'src/tests/test_gmc_v10.c',
+    'tests/mocks/test_mocks.c',
+    include_directories: inc_dirs + [include_directories('src/tests'), include_directories('tests')],
+    dependencies: deps,
+    link_with: [libamdgpu, test_framework],
+    c_args: ['-fprofile-arcs', '-ftest-coverage'] + get_option('c_args'),
+    link_args: ['-fprofile-arcs', '-ftest-coverage'] + get_option('c_link_args'),
+    install: true,
+    install_dir: 'bin'
+  )
+endif
 
 # Tests
 test('gmc_v10_tests', test_runner)
