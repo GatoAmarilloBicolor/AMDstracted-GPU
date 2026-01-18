@@ -89,32 +89,60 @@ if [ "$(uname -s)" = "Haiku" ] && [ "$EUID" -ne 0 ]; then
     echo ""
 fi
 
-# Haiku non-packaged directory (user-writable)
-HAIKU_COMMON=/boot/home/config/non-packaged
-
-echo "Installing to Haiku user paths..."
+# Detect OS and set appropriate paths
+if [ "$(uname -s)" = "Haiku" ]; then
+    # Haiku paths
+    HAIKU_COMMON=/boot/home/config/non-packaged
+    INSTALL_DIR="$HAIKU_COMMON/bin"
+    LIB_DIR="$HAIKU_COMMON/lib"
+    echo "Installing to Haiku user paths..."
+else
+    # Linux paths (use local installation)
+    INSTALL_DIR="/usr/local/bin"
+    LIB_DIR="/usr/local/lib"
+    echo "Installing to Linux system paths..."
+fi
 
 # Use manual copy instead of meson install to avoid binary corruption
 echo "Copying binaries manually to prevent ELF header corruption..."
 
-INSTALL_DIR="$HAIKU_COMMON/bin"
-LIB_DIR="$HAIKU_COMMON/lib"
-
-mkdir -p "$INSTALL_DIR"
-mkdir -p "$LIB_DIR"
+# Create directories if they don't exist (avoid permission errors)
+mkdir -p "$INSTALL_DIR" 2>/dev/null || {
+    echo "Warning: Could not create $INSTALL_DIR, trying user directory..."
+    INSTALL_DIR="$HOME/.local/bin"
+    LIB_DIR="$HOME/.local/lib"
+    mkdir -p "$INSTALL_DIR" || {
+        echo "Error: Cannot create installation directories"
+        exit 1
+    }
+}
+mkdir -p "$LIB_DIR" 2>/dev/null || true
 
 # Copy binaries manually with verification
+# Check if we're on Haiku (static linking)
+if [ "$(uname -s)" = "Haiku" ]; then
+    echo "Haiku detected - copying statically linked executables..."
+    LIB_COPY=false
+else
+    echo "Linux detected - copying shared library and executables..."
+    LIB_COPY=true
+fi
+
 echo "Copying amd_rmapi_server..."
 cp -f builddir/amd_rmapi_server "$INSTALL_DIR/" || {
     echo "❌ Failed to copy amd_rmapi_server"
     exit 1
 }
 
-echo "Copying libamdgpu.so..."
-cp -f builddir/libamdgpu.so "$LIB_DIR/" || {
-    echo "❌ Failed to copy libamdgpu.so"
-    exit 1
-}
+if [ "$LIB_COPY" = true ]; then
+    echo "Copying libamdgpu.so..."
+    cp -f builddir/libamdgpu.so "$LIB_DIR/" || {
+        echo "❌ Failed to copy libamdgpu.so"
+        exit 1
+    }
+else
+    echo "Skipping libamdgpu.so copy (static linking)"
+fi
 
 echo "Copying amd_rmapi_client_demo..."
 cp -f builddir/amd_rmapi_client_demo "$INSTALL_DIR/" || {
