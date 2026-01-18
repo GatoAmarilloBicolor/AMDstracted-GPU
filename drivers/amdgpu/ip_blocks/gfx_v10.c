@@ -26,7 +26,8 @@
  */
 static int gfx_v10_early_init(struct OBJGPU *adev) {
     (void)adev;
-    // Placeholder - early init
+    // GFX early initialization - called before device probe
+    // Placeholder - real implementation would initialize GFX early state
     return 0;
 }
 
