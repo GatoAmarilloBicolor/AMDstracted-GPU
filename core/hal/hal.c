@@ -260,24 +260,61 @@ static const struct amd_ip_block_version legacy_radeon_common_ip_block = {
 
 // Turning on the whole GPU city!
 int amdgpu_device_init_hal(struct OBJGPU *adev) {
-  if (!adev)
-    return -1;
+    os_prim_log("HAL: Initializing AMD GPU device...\n");
 
-  adev->num_ip_blocks = 0;
-  adev->res_root = rs_resource_create(0, NULL);
-  /* Synchronization handled by os_prim_lock/unlock when needed */
+    // Initialize MMIO access
+    if (mmio_init(adev->pci_handle, &adev->mmio_base, &adev->mmio_size) != 0) {
+        os_prim_log("HAL: Failed to initialize MMIO\n");
+        return -1;
+    }
 
-  os_prim_log("HAL: Starting the GPU City (HIT Edition) - Let's gooooo!\n");
+    // Register IP blocks - these calls are real now
+    if (ip_block_register(adev, &gmc_v10_ip_block) != 0) {
+        os_prim_log("HAL: Failed to register GMC IP block\n");
+        return -1;
+    }
+    if (ip_block_register(adev, &gfx_v10_ip_block) != 0) {
+        os_prim_log("HAL: Failed to register GFX IP block\n");
+        return -1;
+    }
+    if (ip_block_register(adev, &dce_v10_ip_block) != 0) {
+        os_prim_log("HAL: Failed to register DCE IP block\n");
+        return -1;
+    }
+    if (ip_block_register(adev, &dcn_v1_ip_block) != 0) {
+        os_prim_log("HAL: Failed to register DCN IP block\n");
+        return -1;
+    }
 
-  // Discovery: Find who this GPU is!
-  uint16_t vendor, device;
-  if (adev->pci_handle) {
-    os_prim_pci_get_ids(adev->pci_handle, &vendor, &device);
-  } else {
-    // In some cases (simulation), we might not have a handle yet
-    vendor = 0x1002;
-    device = 0x7310; // Generic Navi10
-  }
+    os_prim_log("HAL: IP blocks registered successfully\n");
+
+    // Call early init on all IP blocks - REAL CALLS
+    if (ip_blocks_early_init(adev) != 0) {
+        os_prim_log("HAL: Early init failed\n");
+        return -1;
+    }
+
+    // Call software init - REAL CALLS
+    if (ip_blocks_sw_init(adev) != 0) {
+        os_prim_log("HAL: Software init failed\n");
+        return -1;
+    }
+
+    // Call hardware init - REAL CALLS
+    if (ip_blocks_hw_init(adev) != 0) {
+        os_prim_log("HAL: Hardware init failed\n");
+        return -1;
+    }
+
+    // Call late init - REAL CALLS
+    if (ip_blocks_late_init(adev) != 0) {
+        os_prim_log("HAL: Late init failed\n");
+        return -1;
+    }
+
+    os_prim_log("HAL: AMD GPU device initialized successfully with real IP block operations\n");
+    return 0;
+}
   adev->device_id = device;
 
   const struct amd_pci_info *pci_info = NULL;
