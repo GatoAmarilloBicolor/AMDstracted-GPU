@@ -106,6 +106,72 @@ static ssize_t amd_clone_info_size() { return g_acc.CloneInfoSize(); }
 static void amd_get_clone_info(void *data) { g_acc.GetCloneInfo(data); }
 static status_t amd_clone_accelerant(void *data) { return g_acc.Clone(data); }
 
+// 2D Acceleration Hooks (Phase 3.3) - Screen to Screen BLIT
+static status_t amd_screen_to_screen_blit(engine_token *et, blit_rect *list,
+                                          uint32 count, sync_token *st) {
+  if (!et || !list || count == 0) {
+    return B_BAD_VALUE;
+  }
+
+  os_prim_log("Accelerant: 2D BLIT request: %u rectangles\n", count);
+
+  uint32_t engine_token = (uint32_t)((uintptr_t)et);
+
+  // For each blit in the list
+  for (uint32 i = 0; i < count; i++) {
+    blit_rect *rect = &list[i];
+    os_prim_log("  [%u] (%u,%u)→(%u,%u) size %ux%u\n",
+                i, rect->src_left, rect->src_top,
+                rect->dest_left, rect->dest_top,
+                rect->width, rect->height);
+
+    // TODO: Submit to 2D engine via ring buffer
+    // For now, just log
+  }
+
+  return B_OK;
+}
+
+// 2D Acceleration Hooks - Rectangle Fill
+static status_t amd_fill_rectangle(engine_token *et, uint32 color,
+                                   fill_rect_list *list, uint32 count,
+                                   sync_token *st) {
+  if (!et || !list || count == 0) {
+    return B_BAD_VALUE;
+  }
+
+  os_prim_log("Accelerant: 2D FILL request: %u rectangles, color=0x%08x\n",
+              count, color);
+
+  uint32_t engine_token = (uint32_t)((uintptr_t)et);
+
+  // For each fill
+  for (uint32 i = 0; i < count; i++) {
+    fill_rect *rect = &list->rects[i];
+    os_prim_log("  [%u] Fill %ux%u at (%u,%u)\n",
+                i, rect->right - rect->left, rect->bottom - rect->top,
+                rect->left, rect->top);
+
+    // TODO: Submit to 2D engine via ring buffer
+    // For now, just log
+  }
+
+  return B_OK;
+}
+
+// Wait for engine idle
+static status_t amd_wait_engine_idle(engine_token *et) {
+  if (!et) {
+    return B_BAD_VALUE;
+  }
+
+  uint32_t engine_token = (uint32_t)((uintptr_t)et);
+  os_prim_log("Accelerant: Wait engine idle (token=0x%x)\n", engine_token);
+
+  // TODO: Poll GPU fence register or use engine_wait_fence
+  return B_OK;
+}
+
 // Belter Strategy: Engine Hooks for 2D Acceleration (Phase 3.1)
 // Acquire GPU engine with real state machine
 static status_t amd_acquire_engine(uint32 caps, uint32 max_wait, sync_token *st,
@@ -309,6 +375,15 @@ _EXPORT void *get_accelerant_hook(uint32 feature, void *data) {
      return (void *)amd_get_clone_info;
    case B_CLONE_ACCELERANT:
      return (void *)amd_clone_accelerant;
+   
+   // 2D Acceleration Hooks (Phase 3.3)
+   case B_SCREEN_TO_SCREEN_BLIT:
+     return (void *)amd_screen_to_screen_blit;
+   case B_FILL_RECTANGLE:
+     return (void *)amd_fill_rectangle;
+   case B_WAIT_ENGINE_IDLE:
+     return (void *)amd_wait_engine_idle;
+   
     // BGL Hooks (commented out until BGL constants are available)
     // case BGL_GET_RENDERER:
     //   return (void *)amd_get_gl_renderer;
