@@ -43,6 +43,10 @@ $(TEST_BIN): $(TEST_OBJS) $(DRIVER_OBJS)
 %.o: %.c test_framework.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# Compile driver source files
+../src/%.o: ../src/%.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
 # Run tests
 test: $(TEST_BIN)
 	@echo ""
