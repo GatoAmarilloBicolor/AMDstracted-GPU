@@ -353,6 +353,107 @@ static int gfx_v10_soft_reset(struct OBJGPU *adev) {
     return 0;
 }
 
+/*
+ * Set CRTC Timing for Display Mode (Phase 2.1)
+ * Programs the CRTC registers to match the requested display mode
+ */
+#include <GraphicsDefs.h>  // For display_mode
+
+// CRTC Register Offsets (simplified - would need full register map)
+#define mmCRTC0_CRTC_H_TOTAL                  0x6E00   // Horizontal total
+#define mmCRTC0_CRTC_H_BLANK_START_END        0x6E04   // H blank timing
+#define mmCRTC0_CRTC_H_SYNC_A                 0x6E08   // H sync
+#define mmCRTC0_CRTC_V_TOTAL                  0x6E20   // Vertical total
+#define mmCRTC0_CRTC_V_BLANK_START_END        0x6E24   // V blank timing
+#define mmCRTC0_CRTC_V_SYNC_A                 0x6E28   // V sync
+#define mmCRTC0_CRTC_CONTROL                  0x6E70   // CRTC enable
+
+int gfx_v10_set_crtc_timing(struct OBJGPU *adev, const display_mode *mode) {
+    if (!adev || !mode || !adev->mmio_base) {
+        os_prim_log("GFX v10: [CRTC] Invalid parameters\n");
+        return -1;
+    }
+
+    os_prim_log("GFX v10: [CRTC] Setting timing for %ux%u\n",
+                mode->virtual_width, mode->virtual_height);
+
+    // Extract timing parameters from display_mode
+    // display_mode.timing is a timing_t structure with pixel clock and sync parameters
+    uint32_t h_total = mode->timing.h_total;
+    uint32_t h_display = mode->virtual_width;
+    uint32_t h_blank_start = mode->timing.h_blank_start;
+    uint32_t h_blank_end = mode->timing.h_blank_end;
+    uint32_t h_sync_start = mode->timing.h_sync_start;
+    uint32_t h_sync_end = mode->timing.h_sync_end;
+    
+    uint32_t v_total = mode->timing.v_total;
+    uint32_t v_display = mode->virtual_height;
+    uint32_t v_blank_start = mode->timing.v_blank_start;
+    uint32_t v_blank_end = mode->timing.v_blank_end;
+    uint32_t v_sync_start = mode->timing.v_sync_start;
+    uint32_t v_sync_end = mode->timing.v_sync_end;
+    
+    os_prim_log("GFX v10: [CRTC] H: total=%u, blank %u-%u, sync %u-%u\n",
+                h_total, h_blank_start, h_blank_end, h_sync_start, h_sync_end);
+    os_prim_log("GFX v10: [CRTC] V: total=%u, blank %u-%u, sync %u-%u\n",
+                v_total, v_blank_start, v_blank_end, v_sync_start, v_sync_end);
+
+    // Map CRTC registers (CRTC0 base)
+    // In real hardware, need to determine offset based on asic_type and device
+    // For now, use fixed offset for Navi10
+    uintptr_t crtc_base = (uintptr_t)adev->mmio_base + 0x6E00;  // CRTC0 base
+    
+    // Safety check: ensure CRTC base is within reasonable bounds
+    if (crtc_base < (uintptr_t)adev->mmio_base ||
+        crtc_base >= (uintptr_t)adev->mmio_base + 0x1000000) {
+        os_prim_log("GFX v10: [CRTC] ERROR - CRTC base address out of bounds\n");
+        return -1;
+    }
+
+    // Program H_TOTAL (horizontal total)
+    uintptr_t h_total_addr = crtc_base + (mmCRTC0_CRTC_H_TOTAL & 0xFF);
+    os_prim_write32(h_total_addr, h_total);
+    os_prim_delay_us(10);
+
+    // Program H_BLANK_START_END
+    uintptr_t h_blank_addr = crtc_base + (mmCRTC0_CRTC_H_BLANK_START_END & 0xFF);
+    uint32_t h_blank_val = (h_blank_end << 16) | h_blank_start;
+    os_prim_write32(h_blank_addr, h_blank_val);
+    os_prim_delay_us(10);
+
+    // Program H_SYNC (start and end)
+    uintptr_t h_sync_addr = crtc_base + (mmCRTC0_CRTC_H_SYNC_A & 0xFF);
+    uint32_t h_sync_val = (h_sync_end << 16) | h_sync_start;
+    os_prim_write32(h_sync_addr, h_sync_val);
+    os_prim_delay_us(10);
+
+    // Program V_TOTAL (vertical total)
+    uintptr_t v_total_addr = crtc_base + (mmCRTC0_CRTC_V_TOTAL & 0xFF);
+    os_prim_write32(v_total_addr, v_total);
+    os_prim_delay_us(10);
+
+    // Program V_BLANK_START_END
+    uintptr_t v_blank_addr = crtc_base + (mmCRTC0_CRTC_V_BLANK_START_END & 0xFF);
+    uint32_t v_blank_val = (v_blank_end << 16) | v_blank_start;
+    os_prim_write32(v_blank_addr, v_blank_val);
+    os_prim_delay_us(10);
+
+    // Program V_SYNC (start and end)
+    uintptr_t v_sync_addr = crtc_base + (mmCRTC0_CRTC_V_SYNC_A & 0xFF);
+    uint32_t v_sync_val = (v_sync_end << 16) | v_sync_start;
+    os_prim_write32(v_sync_addr, v_sync_val);
+    os_prim_delay_us(10);
+
+    // Enable CRTC
+    uintptr_t crtc_ctrl_addr = crtc_base + (mmCRTC0_CRTC_CONTROL & 0xFF);
+    uint32_t crtc_ctrl = 0x1;  // Enable CRTC
+    os_prim_write32(crtc_ctrl_addr, crtc_ctrl);
+    
+    os_prim_log("GFX v10: [CRTC] CRTC timing programmed and enabled\n");
+    
+    return 0;
+}
+
 /* ============================================================================
  * GFX v10 IP Block Definition
  * ============================================================================ */

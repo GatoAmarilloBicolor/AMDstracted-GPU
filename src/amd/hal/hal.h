@@ -159,6 +159,10 @@ void amdgpu_buffer_free_hal(struct OBJGPU *adev, struct amdgpu_buffer *buf);
 int amdgpu_command_submit_hal(struct OBJGPU *adev,
                               struct amdgpu_command_buffer *cb);
 
+// Display Mode Setting (requires GraphicsDefs.h)
+#include <GraphicsDefs.h>
+int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const display_mode *mode);
+
 // Helping the brain find new specialists
 int amdgpu_device_ip_block_add(
     struct OBJGPU *adev, const struct amd_ip_block_version *ip_block_version);

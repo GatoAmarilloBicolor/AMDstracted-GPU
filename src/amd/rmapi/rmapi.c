@@ -128,6 +128,26 @@ int rmapi_get_gpu_info(struct OBJGPU *gpu, struct amdgpu_gpu_info *info) {
   return 0;
 }
 
+// 5. "Show this on the display!" (Set display mode)
+int rmapi_set_display_mode(struct OBJGPU *gpu, const display_mode *mode) {
+  if (!gpu)
+    gpu = global_gpu;
+  if (!gpu || !mode)
+    return -1;
+
+  os_prim_log("RMAPI: Setting display mode to %ux%u@%uHz\n", mode->virtual_width,
+              mode->virtual_height, mode->timing.pixel_clock);
+
+  // Call HAL to program the CRTC
+  int ret = amdgpu_set_display_mode_hal(gpu, mode);
+  if (ret == 0) {
+    os_prim_log("RMAPI: Display mode set successfully!\n");
+  } else {
+    os_prim_log("RMAPI: Failed to set display mode (error %d)\n", ret);
+  }
+  return ret;
+}
+
 /* --- Vulkan RMAPI Functions for RADV/Zink Integration --- */
 
 // Persistent IPC connection for Vulkan (performance optimization)

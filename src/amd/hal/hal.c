@@ -307,6 +307,45 @@ int amdgpu_command_submit_hal(struct OBJGPU *adev,
   return 0;
 }
 
+// Setting the display mode (CRTC timing)
+int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const display_mode *mode) {
+  os_prim_log("HAL: [Display Manager] Setting mode %ux%u\n", 
+              mode->virtual_width, mode->virtual_height);
+  
+  if (!adev || !mode) {
+    os_prim_log("HAL: [Display Manager] Invalid GPU or mode pointer!\n");
+    return -1;
+  }
+
+  // Find the GFX block to program CRTC
+  int gfx_block_idx = -1;
+  for (int i = 0; i < adev->num_ip_blocks; i++) {
+    if (adev->ip_blocks[i].version &&
+        adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GFX) {
+      gfx_block_idx = i;
+      break;
+    }
+  }
+
+  if (gfx_block_idx < 0) {
+    os_prim_log("HAL: [Display Manager] GFX block not found!\n");
+    return -1;
+  }
+
+  // Call GFX block to program CRTC timing
+  // NOTE: This function pointer doesn't exist yet - we need to add it to amd_ip_funcs
+  // For now, call the specific implementation
+  int ret = gfx_v10_set_crtc_timing(adev, mode);
+  
+  if (ret == 0) {
+    os_prim_log("HAL: [Display Manager] CRTC timing set successfully\n");
+  } else {
+    os_prim_log("HAL: [Display Manager] Failed to set CRTC timing (error %d)\n", ret);
+  }
+  
+  return ret;
+}
+
 /* --- Belter "Self-Healing" Implementation --- */
 
 // 1. Shadow Write: Mirror writes to RAM

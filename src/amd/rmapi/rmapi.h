@@ -14,6 +14,10 @@ int rmapi_free_memory(struct OBJGPU* gpu, uint64_t addr);
 int rmapi_submit_command(struct OBJGPU* gpu, struct amdgpu_command_buffer* cb);
 int rmapi_get_gpu_info(struct OBJGPU* gpu, struct amdgpu_gpu_info* info);
 
+// Display & Mode Setting
+#include <GraphicsDefs.h>  // For display_mode
+int rmapi_set_display_mode(struct OBJGPU* gpu, const display_mode* mode);
+
 // Vulkan RMAPI functions (for RADV/Zink integration)
 int rmapi_vk_create_instance(void* create_info, void** instance);
 int rmapi_vk_enumerate_physical_devices(void* instance, uint32_t* count, void** devices);

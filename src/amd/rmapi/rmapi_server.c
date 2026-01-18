@@ -88,6 +88,17 @@ void *handle_client(void *arg) {
           &(ipc_message_t){IPC_REP_SUBMIT_COMMAND, msg.id, sizeof(ret), &ret});
       break;
     }
+    case IPC_REQ_SET_DISPLAY_MODE: { // REQUEST: Set video mode!
+      display_mode *mode = (display_mode *)msg.data;
+      os_prim_log("RMAPI Server: IPC_REQ_SET_DISPLAY_MODE received\n");
+      int ret = rmapi_set_display_mode(NULL, mode);
+
+      // Tell the app if the mode was set
+      ipc_send_message(
+          &server->conn,
+          &(ipc_message_t){IPC_REP_SET_DISPLAY_MODE, msg.id, sizeof(ret), &ret});
+      break;
+    }
     case IPC_REQ_VK_CREATE_INSTANCE: {
       os_prim_log("RMAPI Server: VK_CREATE_INSTANCE received\n");
       void *instance = (void *)0xCAFEBABE; // Dummy handle
