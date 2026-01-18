@@ -33,7 +33,21 @@ echo ""
 echo "────────────────────────────────────────────────────────────────"
 echo "📦 Step 1: Building Main Driver for Haiku"
 echo "────────────────────────────────────────────────────────────────"
-meson setup --cross-file haiku-cross.ini builddir
+
+# Check if running on Haiku
+if [ "$(uname -s)" = "Haiku" ]; then
+    echo "Building natively on Haiku..."
+    meson setup builddir
+else
+    echo "Cross-compiling for Haiku..."
+    if [ -f "haiku-cross.ini" ]; then
+        meson setup --cross-file haiku-cross.ini builddir
+    else
+        echo "⚠️  haiku-cross.ini not found, attempting native build..."
+        meson setup builddir
+    fi
+fi
+
 if [ $? -ne 0 ]; then
     echo "❌ Meson setup failed!"
     exit 1
