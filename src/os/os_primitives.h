@@ -26,6 +26,12 @@ void os_prim_write32(uintptr_t addr, uint32_t val);
 void os_prim_lock(void);
 void os_prim_unlock(void);
 
+// Locking primitive type (for future use)
+typedef void* os_prim_lock_t;
+
+// Process/Thread info
+uint32_t os_prim_get_current_pid(void);
+
 // Time (basic delay)
 void os_prim_delay_us(uint32_t us);
 

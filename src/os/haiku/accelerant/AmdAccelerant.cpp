@@ -1,6 +1,7 @@
 #include "../../src/amd/rmapi/rmapi.h"
 #include "../../src/common/ipc/ipc_lib.h"
 #include "../../src/common/ipc/ipc_protocol.h"
+#include "../../src/amd/engine/engine_manager.h"
 #include <Accelerant.h>
 #include <GraphicsDefs.h>
 #include <OS.h>
@@ -105,15 +106,48 @@ static ssize_t amd_clone_info_size() { return g_acc.CloneInfoSize(); }
 static void amd_get_clone_info(void *data) { g_acc.GetCloneInfo(data); }
 static status_t amd_clone_accelerant(void *data) { return g_acc.Clone(data); }
 
-// Belter Strategy: Engine Hooks for 2D Acceleration
+// Belter Strategy: Engine Hooks for 2D Acceleration (Phase 3.1)
+// Acquire GPU engine with real state machine
 static status_t amd_acquire_engine(uint32 caps, uint32 max_wait, sync_token *st,
                                    engine_token **et) {
-  if (et)
-    *et = (engine_token *)0x1; // The "Golden Ticket" token
+  if (!et) {
+    return B_BAD_VALUE;
+  }
+
+  // Use real engine manager instead of fake token
+  uint32_t engine_token;
+  int ret = engine_acquire(caps, max_wait, &engine_token);
+  
+  if (ret != 0) {
+    os_prim_log("Accelerant: engine_acquire failed (ret=%d)\n", ret);
+    return B_WOULD_BLOCK;  // No engines available
+  }
+
+  // Return token as opaque engine_token pointer
+  *et = (engine_token *)((uintptr_t)engine_token);
+  
+  // Initialize sync_token if provided
+  if (st) {
+    st->counter = 0;
+  }
+  
   return B_OK;
 }
 
+// Release GPU engine
 static status_t amd_release_engine(engine_token *et, sync_token *st) {
+  if (!et) {
+    return B_BAD_VALUE;
+  }
+
+  uint32_t engine_token = (uint32_t)((uintptr_t)et);
+  int ret = engine_release(engine_token);
+  
+  if (ret != 0) {
+    os_prim_log("Accelerant: engine_release failed (ret=%d)\n", ret);
+    return B_BAD_VALUE;
+  }
+
   return B_OK;
 }
 
