@@ -79,7 +79,7 @@ test-asan: clean $(TEST_BIN)
 
 # Clean build artifacts
 clean:
-	rm -f $(TEST_BIN) $(TEST_OBJS) $(DRIVER_OBJS)
+	rm -f $(TEST_BIN) $(TEST_OBJS)
 	rm -f *.gcov *.gcda *.gcno
 	@echo "✅ Cleaned test artifacts"
 
