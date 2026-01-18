@@ -1,0 +1,40 @@
+# Build directories and files
+build/
+builddir/
+.cache/
+*.o
+*.so
+*.a
+*.exe
+*.dll
+
+# Meson build artifacts
+.cache/
+build/
+builddir/
+meson-private/
+meson-logs/
+meson-info/
+
+# Test artifacts
+*.gcda
+*.gcno
+*.gcov
+coverage/
+*.profraw
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.log

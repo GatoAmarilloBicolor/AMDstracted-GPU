@@ -29,6 +29,15 @@ fi
 echo "✅ Prerequisites OK"
 echo ""
 
+# Clean old build artifacts
+echo "🧹 Cleaning old build artifacts..."
+find . -name "*.o" -type f -delete 2>/dev/null || true
+find . -name "*.so" -type f -delete 2>/dev/null || true
+find . -name "*.a" -type f -delete 2>/dev/null || true
+rm -rf builddir 2>/dev/null || true
+echo "✅ Clean complete"
+echo ""
+
 # 1. Build main driver for Haiku
 echo "────────────────────────────────────────────────────────────────"
 echo "📦 Step 1: Building Main Driver for Haiku"

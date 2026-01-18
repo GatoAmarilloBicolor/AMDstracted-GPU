@@ -1,3 +1,0 @@
-[HIT] Building for OS: linux (Detected: linux)
-make: No se hace nada para 'all'.
-[✅] linux: SUCCESS
