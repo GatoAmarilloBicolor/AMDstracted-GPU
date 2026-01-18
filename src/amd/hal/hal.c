@@ -1,5 +1,5 @@
 #include "hal.h"
-#include "../os/os_primitives.h"
+#include "../../os/os_primitives.h"
 #include "../amdgpu_pci_ids.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -318,6 +318,7 @@ int amdgpu_command_submit_hal(struct OBJGPU *adev,
 }
 
 // Setting the display mode (CRTC timing + scanout)
+/*
 #ifdef __HAIKU__
 int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const display_mode *mode) {
   os_prim_log("HAL: [Display Manager] Setting mode %ux%u\n", 
@@ -389,6 +390,7 @@ int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const struct display_mode *
   return 0;  // Success - display mode not needed on non-Haiku
 }
 #endif
+*/
 
 /* --- Belter "Self-Healing" Implementation --- */
 

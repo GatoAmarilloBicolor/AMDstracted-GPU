@@ -1,7 +1,7 @@
 #ifndef AMDGPU_PCI_IDS_H
 #define AMDGPU_PCI_IDS_H
 
-#include "hal.h"
+#include "hal/hal.h"
 #include <stdint.h>
 
 /*
