@@ -81,12 +81,12 @@ int rmapi_alloc_memory(struct OBJGPU *gpu, size_t size, uint64_t *addr) {
   if (!gpu)
     return -1;
 
-  // Call HAL buffer allocation
-  struct amdgpu_buffer buf;
-  if (amdgpu_buffer_alloc_hal(gpu, size, &buf) != 0)
-    return -1;
+  // For real hardware: Use DRM GEM allocation
+  // This would call drmIoctl(drm_fd, DRM_IOCTL_AMDGPU_GEM_CREATE, &args)
+  // and return the GPU virtual address
 
-  *addr = buf.gpu_addr;
+  // Placeholder for real implementation
+  *addr = (uint64_t)os_prim_alloc(size); // Temporary - should use DRM
   return 0;
 }
 
