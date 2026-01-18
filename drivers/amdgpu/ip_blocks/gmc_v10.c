@@ -102,14 +102,6 @@ static int gmc_v10_sw_init(struct OBJGPU *adev) {
 
     return 0;
 }
-    
-    memset(page_table, 0, 0x1000);
-    
-    os_prim_log("GMC v10: [SW Init] Page table allocated at %p\n", page_table);
-    os_prim_log("GMC v10: [SW Init] Configured for 48-bit VA, 4K pages\n");
-    
-    return 0;
-}
 
 /*
  * Hardware Init: Program the actual hardware registers
@@ -153,43 +145,6 @@ static int gmc_v10_hw_init(struct OBJGPU *adev) {
 
     return 0;
 }
-    
-    // ========================================================================
-    // Step 1: Disable VM while we configure
-    // ========================================================================
-    os_prim_log("GMC v10: [HW] Disabling VM for configuration...\n");
-    
-    uintptr_t vm_l2_cntl_addr = (uintptr_t)adev->mmio_base + 
-                                 (GFXHUB_OFFSET + mmVM_L2_CNTL) * 4;
-    
-    // In userland with safety checks
-    if (vm_l2_cntl_addr < (uintptr_t)adev->mmio_base ||
-        vm_l2_cntl_addr >= (uintptr_t)adev->mmio_base + 0x1000000) {
-        os_prim_log("GMC v10: [SAFETY] VM_L2_CNTL address out of bounds\n");
-        return -1;
-    }
-    
-    // Clear VM_L2_CNTL (disable VM)
-    os_prim_write32(vm_l2_cntl_addr, 0);
-    os_prim_delay_us(100);  // Brief delay for hardware
-    
-    // ========================================================================
-    // Step 2: Set Page Table Base Address (simulated)
-    // ========================================================================
-    os_prim_log("GMC v10: [HW] Setting page table base...\n");
-    
-    // In a real driver: physical address of page table
-    // In userland: use a fake address
-    uint32_t page_table_base = 0x400000000ULL;  // Fake base
-    
-    uintptr_t pt_base_addr = (uintptr_t)adev->mmio_base + 
-                              (GFXHUB_OFFSET + mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR) * 4;
-    
-    if (pt_base_addr < (uintptr_t)adev->mmio_base ||
-        pt_base_addr >= (uintptr_t)adev->mmio_base + 0x1000000) {
-        os_prim_log("GMC v10: [SAFETY] PT_BASE address out of bounds\n");
-        return -1;
-    }
     
     os_prim_write32(pt_base_addr, page_table_base & 0xFFFFFFFF);
     os_prim_log("GMC v10: [HW] Page table base: 0x%x\n", page_table_base);
@@ -313,9 +268,15 @@ static int gmc_v10_hw_fini(struct OBJGPU *adev) {
  * Check if GMC is idle (no pending operations)
  */
 static bool gmc_v10_is_idle(struct OBJGPU *adev) {
-    // In userland, always report as idle
-    // In real hardware, check pending DMA/TLB operations
-    return true;
+    (void)adev; // Suppress unused parameter warning
+    os_prim_log("GMC v10: Checking idle status\n");
+    return true; // Always idle for now
+}
+
+static int gmc_v10_wait_for_idle(struct OBJGPU *adev) {
+    (void)adev; // Suppress unused parameter warning
+    os_prim_log("GMC v10: Waiting for idle\n");
+    return 0; // No wait needed
 }
 
 /*
