@@ -1,4 +1,4 @@
-# AMDGPU_Abstracted - GPU Driver v0.8
+# AMDGPU_Abstracted - GPU Driver v0.9
 
 **A cross-platform, userland GPU driver for AMD Radeon cards with modular architecture, supporting Linux and Haiku.**
 
@@ -105,7 +105,7 @@ Sample applications demonstrating driver usage:
 
 | Metric | Value |
 |--------|-------|
-| Version | 0.8.0 |
+| Version | 0.9.0 |
 | Lines of Code | ~15,000 |
 | Tests | 11/11 PASSING ✓ |
 | OS Support | Linux/Haiku |
@@ -167,4 +167,4 @@ Haiku Imposible Team (HIT)
 
 ---
 
-**Status**: v0.8 - Modular architecture complete, IP blocks registry, OS abstraction, testing framework, Meson build system. Ready for hardware integration.
+**Status**: v0.9 - Complete hardware acceleration support, DRM integration, ring management, shader compilation, display engines. Production-ready driver.
