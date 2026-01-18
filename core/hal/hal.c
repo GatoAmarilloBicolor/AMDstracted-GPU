@@ -5,6 +5,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Forward declarations for IP blocks
+extern struct ip_block_ops gmc_v10_ip_block;
+extern struct ip_block_ops gfx_v10_ip_block;
+extern struct ip_block_ops dce_v10_ip_block;
+extern struct ip_block_ops dcn_v1_ip_block;
+
 // IP Block registration
 int ip_block_register(struct OBJGPU *adev, struct ip_block_ops *block) {
     if (!adev || !block || adev->num_ip_blocks >= AMDGPU_MAX_IP_BLOCKS) {
