@@ -64,7 +64,7 @@ endif
 
 CFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c99 -include config/config.h -I. \
           -Iconfig -I$(OS_INTERFACE_DIR) -I$(OS_PRIMITIVES_DIR) \
-          -Isrc -Isrc/common -Isrc/amd -Isrc/amd/hal -Isrc/amd/rmapi \
+          -Icore -Icore/gpu -Icore/hal -Icore/rmapi -Icore/ipc -Ios \
           $(HAIKU_INCLUDES)
 CXXFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c++11 -include config/config.h -I. \
             -Iconfig -I$(OS_INTERFACE_DIR) -I$(OS_PRIMITIVES_DIR) \
@@ -72,22 +72,21 @@ CXXFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c++11 -include config/config.h
             $(HAIKU_INCLUDES)
 
 # Directories
-SRC_DIR = src/amd
-COMMON_DIR = src/common
+CORE_DIR = core
 
 # List of Objects to build
-SRC_OBJS = $(COMMON_DIR)/gpu/objgpu.o \
-           $(SRC_DIR)/hal/hal.o \
-           $(SRC_DIR)/amdgpu_gem_userland.o \
-           $(SRC_DIR)/amdgpu_kms_userland.o \
-           $(COMMON_DIR)/resource/resserv.o \
-           $(SRC_DIR)/rmapi/rmapi.o \
-           $(SRC_DIR)/rmapi/rmapi_server.o \
-           $(SRC_DIR)/ip_blocks/gmc_v10.o \
-           $(SRC_DIR)/ip_blocks/gfx_v10.o \
-           $(SRC_DIR)/shader_compiler/shader_compiler.o \
-           $(SRC_DIR)/radv_backend/radv_backend.o \
-           $(SRC_DIR)/zink_layer/zink_layer.o \
+SRC_OBJS = $(CORE_DIR)/gpu/objgpu.o \
+           $(CORE_DIR)/hal/hal/hal.o \
+           $(CORE_DIR)/rmapi/rmapi/rmapi.o \
+           $(CORE_DIR)/rmapi/rmapi/rmapi_server.o \
+           $(CORE_DIR)/ipc/ipc_lib.o \
+           drivers/amdgpu/amdgpu_gem_userland.o \
+           drivers/amdgpu/amdgpu_kms_userland.o \
+           drivers/amdgpu/ip_blocks/gmc_v10.o \
+           drivers/amdgpu/ip_blocks/gfx_v10.o \
+           drivers/amdgpu/shader_compiler/shader_compiler.o \
+           drivers/amdgpu/radv_backend/radv_backend.o \
+           drivers/amdgpu/zink_layer/zink_layer.o \
            $(COMMON_DIR)/ipc/ipc_lib.o
 
 OS_OBJS = $(OS_INTERFACE_DIR)/os_interface_$(OS_DIR_SUFFIX).o \
