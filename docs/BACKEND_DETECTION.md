@@ -141,21 +141,39 @@ RDNA2+ (modern)
 
 ## Usage Examples
 
-### Example 1: Auto-detection (Default)
+### Example 1: Auto-detection on Linux (Default)
 
 ```c
 #include "amd_backend_detection.h"
 
 amd_backend_support_t support;
 amd_detect_backend_support(&support);  // Detect what's available
-amd_setup_backend_env(&support);       // Set env vars
+amd_setup_backend_env(&support);       // Suggest env vars (Linux only)
 amd_print_backend_support(&support);   // Show what was chosen
-
-// Now fork/exec graphics application
-// It will use the configured backend
 ```
 
-**Output for Warrior (VLIW) on Haiku:**
+**Output on Linux with Lucienne (RDNA2):**
+```
+[Backend Detection]
+  Checking RADV (Vulkan)... ✓ available
+  Checking Zink (GL→Vulkan)... ✗ not found
+  Checking Mesa Gallium (OpenGL)... ✓ available
+  Checking LLVMPipe (software)... ✗ not found
+
+[Suggested Environment Variables]
+  (Not setting on Linux - configure manually if needed)
+
+  export AMD_GPU_BACKEND=radv
+  export VK_DRIVER_FILES=/etc/vulkan/icd.d/amd_icd.json
+  Selected: RADV
+  Note: Auto-detected: RADV (Vulkan)
+```
+
+### Example 2: Auto-detection on Haiku (Sets Env Vars)
+
+Same code, but on Haiku automatically configures:
+
+**Output on Haiku with Warrior (VLIW):**
 ```
 [Backend Detection]
   Checking RADV (Vulkan)... ✗ not found
@@ -166,12 +184,16 @@ amd_print_backend_support(&support);   // Show what was chosen
 [Setting Environment Variables]
   Setting AMD_GPU_BACKEND=gallium
   Setting LIBGL_ALWAYS_INDIRECT=1 (OpenGL mode)
-  Setting MESA_GL_VERSION_OVERRIDE (compatibility)
+  Setting MESA_GL_VERSION_OVERRIDE=4.5
   Selected: Mesa Gallium
   Note: Auto-detected: Mesa Gallium (OpenGL)
 ```
 
-### Example 2: User Override on Lucienne
+Note: Variables are **automatically set** - no manual configuration needed.
+
+### Example 3: User Override on Lucienne
+
+On **Linux**, manually set the variable:
 
 ```bash
 # Force Zink even though RADV is available
@@ -183,18 +205,64 @@ export AMD_GPU_BACKEND=gallium
 ./my_app
 ```
 
-The driver will detect user preference and use it if available.
+On **Haiku**, the driver checks `AMD_GPU_BACKEND` and respects user preference:
 
-### Example 3: Headless System
+```bash
+# On Haiku shell
+setenv AMD_GPU_BACKEND gallium
+# Then run accelerant - driver respects this override
+```
+
+The driver detects user preference and uses it if available.
+
+### Example 4: Headless System
 
 On a system with no display libraries:
 
 ```c
 amd_detect_backend_support(&support);  // Will find no libraries
-amd_setup_backend_env(&support);       // Automatically selects LLVMPipe
+amd_setup_backend_env(&support);       // Suggests or sets LLVMPipe
 ```
 
 Useful for compute-only workloads or containers.
+
+---
+
+## OS-Specific Behavior
+
+### Linux (Artix, Ubuntu, Fedora, etc.)
+
+- **Detection**: ✓ Detects available libraries
+- **Environment Variables**: Only **suggested** (printed as `export` commands)
+- **System State**: ✗ Not modified
+- **User Action**: Manually set variables if desired
+
+```bash
+# Driver suggests:
+#   export AMD_GPU_BACKEND=radv
+#   export VK_DRIVER_FILES=/etc/vulkan/icd.d/amd_icd.json
+
+# User can copy-paste:
+eval "$(driver_output | grep export)"
+```
+
+### Haiku
+
+- **Detection**: ✓ Detects available libraries
+- **Environment Variables**: Automatically **set** in process
+- **System State**: ✓ Configured for graphics
+- **User Action**: None needed (automatic)
+
+```c
+/* On Haiku, the driver automatically configures:
+   - AMD_GPU_BACKEND = best available (radv, gallium, etc.)
+   - LIBGL_ALWAYS_INDIRECT = 1
+   - MESA_GL_VERSION_OVERRIDE = 4.5
+   - VK_DRIVER_FILES = proper path
+ */
+```
+
+This ensures Haiku systems are ready for graphics without manual setup.
 
 ---
 
