@@ -96,7 +96,7 @@ cp -f rmapi_client_demo "$INSTALL_DIR/amd_rmapi_client_demo"
 chmod +x "$INSTALL_DIR/amd_rmapi_client_demo"
 
 # Install test suite
-cp -f tests/test_suite "$INSTALL_DIR/amd_test_suite"
+cp -f src/tests/test_suite "$INSTALL_DIR/amd_test_suite"
 chmod +x "$INSTALL_DIR/amd_test_suite"
 
 # Install Accelerant
