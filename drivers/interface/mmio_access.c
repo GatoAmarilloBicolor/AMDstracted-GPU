@@ -7,9 +7,10 @@
 
 // Real MMIO mapping for Linux - maps PCI BAR to process address space
 static void *mmio_mapped = NULL;
-static size_t mmio_size = 0;
+// static size_t mmio_size = 0;
 
 int mmio_init(void *pci_handle, uintptr_t *mmio_base_out, size_t *mmio_size_out) {
+    (void)pci_handle;
     // For real hardware access on Linux, we need:
     // 1. PCI device handle with BAR info
     // 2. Open /dev/mem and mmap the BAR region
@@ -39,6 +40,7 @@ int mmio_init(void *pci_handle, uintptr_t *mmio_base_out, size_t *mmio_size_out)
 }
 
 void mmio_fini(uintptr_t mmio_base, size_t mmio_size) {
+    (void)mmio_base;
     if (mmio_mapped) {
         munmap(mmio_mapped, mmio_size);
         mmio_mapped = NULL;
@@ -46,40 +48,48 @@ void mmio_fini(uintptr_t mmio_base, size_t mmio_size) {
 }
 
 uint8_t mmio_read8(uintptr_t base, uint32_t offset) {
+    (void)base; (void)offset;
     // Real hardware access would be: return *(volatile uint8_t *)(base + offset);
     // For now, indicate hardware access needed
     return 0xFF; // Placeholder - requires real hardware mapping
 }
 
 uint16_t mmio_read16(uintptr_t base, uint32_t offset) {
+    (void)base; (void)offset;
     // Real: return *(volatile uint16_t *)(base + offset);
     return 0xFFFF;
 }
 
 uint32_t mmio_read32(uintptr_t base, uint32_t offset) {
+    (void)base; (void)offset;
     // Real: return *(volatile uint32_t *)(base + offset);
     return 0xFFFFFFFF;
 }
 
 uint64_t mmio_read64(uintptr_t base, uint32_t offset) {
+    (void)base; (void)offset;
     // Real: return *(volatile uint64_t *)(base + offset);
     return 0xFFFFFFFFFFFFFFFFULL;
 }
 
 void mmio_write8(uintptr_t base, uint32_t offset, uint8_t val) {
+    (void)base; (void)offset; (void)val;
     // Real: *(volatile uint8_t *)(base + offset) = val;
     // Placeholder - requires real hardware mapping
 }
 
 void mmio_write16(uintptr_t base, uint32_t offset, uint16_t val) {
+    (void)base; (void)offset; (void)val;
     // Real: *(volatile uint16_t *)(base + offset) = val;
 }
 
 void mmio_write32(uintptr_t base, uint32_t offset, uint32_t val) {
+    (void)base; (void)offset; (void)val;
     // Real: *(volatile uint32_t *)(base + offset) = val;
 }
 
 void mmio_write64(uintptr_t base, uint32_t offset, uint64_t val) {
+    (void)base; (void)offset; (void)val;
     // Real: *(volatile uint64_t *)(base + offset) = val;
 }
 

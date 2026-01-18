@@ -143,6 +143,7 @@ int rmapi_get_gpu_info(struct OBJGPU *gpu, struct amdgpu_gpu_info *info) {
 
 // 5. Create buffer object
 int rmapi_create_buffer(struct OBJGPU *gpu, size_t size, uint32_t usage, struct amdgpu_buffer **buffer) {
+    (void)usage;
   if (!gpu)
     gpu = global_gpu;
   if (!gpu || !buffer)
@@ -202,41 +203,48 @@ int rmapi_destroy_command_buffer(struct OBJGPU *gpu, struct amdgpu_command_buffe
 
 // Vulkan stubs (for future RADV integration)
 int rmapi_vk_create_instance(void* create_info, void** instance) {
+    (void)create_info;
   // Stub
   *instance = NULL;
   return -1;
 }
 
 int rmapi_vk_enumerate_physical_devices(void* instance, uint32_t* count, void** devices) {
+    (void)instance; (void)devices;
   // Stub
   *count = 0;
   return -1;
 }
 
 int rmapi_vk_create_device(void* physical_device, void* create_info, void** device) {
+    (void)physical_device; (void)create_info;
   // Stub
   *device = NULL;
   return -1;
 }
 
 int rmapi_vk_allocate_memory(void* device, void* alloc_info, void** memory) {
+    (void)device; (void)alloc_info;
   // Stub
   *memory = NULL;
   return -1;
 }
 
 int rmapi_vk_free_memory(void* device, void* memory) {
+    (void)device; (void)memory;
   // Stub
   return -1;
 }
 
 int rmapi_vk_create_command_pool(void* device, void* create_info, void** pool) {
+    (void)device; (void)create_info;
   // Stub
   *pool = NULL;
   return -1;
 }
 
 int rmapi_vk_submit_queue(void* queue, uint32_t submit_count, void* submits, void* fence) {
+    (void)queue; (void)submit_count; (void)submits; (void)fence;
   // Stub
   return -1;
 }

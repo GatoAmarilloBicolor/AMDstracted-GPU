@@ -247,6 +247,7 @@ int amdgpu_buffer_alloc_hal(struct OBJGPU *adev, size_t size, struct amdgpu_buff
 
 // Buffer free
 void amdgpu_buffer_free_hal(struct OBJGPU *adev, struct amdgpu_buffer *buf) {
+    (void)adev;
     if (buf && buf->cpu_addr) {
         os_prim_free(buf->cpu_addr);
     }
@@ -266,6 +267,7 @@ int amdgpu_command_submit_hal(struct OBJGPU *adev, struct amdgpu_command_buffer 
 
 // Reset
 int amdgpu_hal_reset(struct OBJGPU *adev) {
+    (void)adev;
     os_prim_log("HAL: GPU reset requested\n");
     // Placeholder for reset logic
     return 0;
@@ -274,6 +276,7 @@ int amdgpu_hal_reset(struct OBJGPU *adev) {
 // Heartbeat
 void *amdgpu_hal_heartbeat(void *arg) {
     struct OBJGPU *adev = arg;
+    (void)adev;
     os_prim_log("HAL: Heartbeat thread started\n");
 
     while (1) {

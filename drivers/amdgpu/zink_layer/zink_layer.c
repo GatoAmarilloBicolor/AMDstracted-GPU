@@ -156,6 +156,7 @@ GLuint zink_create_program(const char *vertex_src, const char *fragment_src) {
  * ============================================================================ */
 
 GLuint zink_create_buffer(size_t size, const void *data) {
+    (void)size; (void)data;
     if (!g_zink_state.current_context) {
         return 0;
     }
@@ -178,6 +179,7 @@ GLuint zink_create_buffer(size_t size, const void *data) {
 
 GLuint zink_create_texture(GLint width, GLint height, GLenum format,
                           GLenum type, const void *data) {
+    (void)width; (void)height; (void)format; (void)type; (void)data;
     if (!g_zink_state.current_context) {
         return 0;
     }
@@ -260,6 +262,7 @@ int zink_draw_arrays(GLenum mode, GLint count) {
 }
 
 int zink_draw_elements(GLenum mode, GLint count, GLenum type, const void *indices) {
+    (void)mode; (void)count; (void)type; (void)indices;
     if (!g_zink_state.current_context) {
         return -1;
     }
