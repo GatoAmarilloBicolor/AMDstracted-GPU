@@ -146,21 +146,17 @@ static bool gmc_v10_is_idle(struct OBJGPU *adev) {
  * Wait for GMC to become idle
  */
 static int gmc_v10_wait_for_idle(struct OBJGPU *adev) {
-    (void)adev; // Suppress unused parameter
-    // Wait for GMC operations to complete
+    (void)adev;
     return 0;
 }
 
-/*
- * GMC v10.0 IP block operations structure
- */
-const struct amd_ip_funcs gmc_v10_ip_funcs = {
-    .name = "gmc_v10",
-    .early_init = gmc_v10_early_init,
-    .sw_init = gmc_v10_sw_init,
-    .hw_init = gmc_v10_hw_init,
-    .late_init = gmc_v10_late_init,
-    .hw_fini = gmc_v10_hw_fini,
-    .is_idle = gmc_v10_is_idle,
-    .wait_for_idle = gmc_v10_wait_for_idle,
-};
+static int gmc_v10_suspend(struct OBJGPU *adev) {
+    (void)adev;
+    return 0;
+}
+
+static int gmc_v10_resume(struct OBJGPU *adev) {
+    (void)adev;
+    return 0;
+}
+

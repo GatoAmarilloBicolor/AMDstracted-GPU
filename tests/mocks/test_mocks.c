@@ -1,5 +1,67 @@
 #include "../framework/test_framework.h"
 #include "../../os/os_interface.h"
+#include "../framework/test_framework.h"
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
+
+// Global mock instance (defined in test_framework.h)
+os_mock_t *global_os_mock = NULL;
+
+// Performance timer instance
+perf_timer_t mock_timer;
+
+// Timer functions with correct signatures
+void perf_timer_start(perf_timer_t *timer) {
+    if (timer) {
+        timer->start_time = 1000000ULL; // Mock nanoseconds
+    }
+}
+
+void perf_timer_stop(perf_timer_t *timer) {
+    if (timer) {
+        timer->end_time = 2000000ULL; // Mock nanoseconds
+    }
+}
+
+uint64_t perf_timer_elapsed_ns(perf_timer_t *timer) {
+    if (timer) {
+        return timer->end_time - timer->start_time;
+    }
+    return 0;
+}
+
+// Mock OS functions with correct signatures
+void *mock_alloc(size_t size) {
+    return malloc(size);
+}
+
+void mock_free(void *ptr) {
+    free(ptr);
+}
+
+void mock_log(const char *fmt, ...) {
+    (void)fmt;
+    // Mock logging - do nothing
+}
+
+void mock_os_setup(void) {
+    if (!global_os_mock) {
+        global_os_mock = malloc(sizeof(os_mock_t));
+        if (global_os_mock) {
+            global_os_mock->alloc_mock = mock_alloc;
+            global_os_mock->free_mock = mock_free;
+            global_os_mock->log_mock = mock_log;
+        }
+    }
+}
+
+void mock_os_teardown(void) {
+    if (global_os_mock) {
+        free(global_os_mock);
+        global_os_mock = NULL;
+    }
+}
 
 // Mock test suite
 static int mock_test_setup(void) {
