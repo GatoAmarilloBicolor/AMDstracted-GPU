@@ -12,6 +12,10 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#ifdef __HAIKU__
+#include <GraphicsDefs.h>
+#endif
+
 // Extern global GPU from rmapi.c
 extern struct OBJGPU *global_gpu;
 
@@ -89,9 +93,14 @@ void *handle_client(void *arg) {
       break;
     }
     case IPC_REQ_SET_DISPLAY_MODE: { // REQUEST: Set video mode!
+#ifdef __HAIKU__
       display_mode *mode = (display_mode *)msg.data;
       os_prim_log("RMAPI Server: IPC_REQ_SET_DISPLAY_MODE received\n");
       int ret = rmapi_set_display_mode(NULL, mode);
+#else
+      os_prim_log("RMAPI Server: Display mode setting not supported on this platform\n");
+      int ret = 0;  // Pretend success
+#endif
 
       // Tell the app if the mode was set
       ipc_send_message(

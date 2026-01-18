@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __HAIKU__
+#include <GraphicsDefs.h>
+#endif
+
 /*
  * Developed by: Haiku Imposible Team (HIT)
  * This is the HAL "Factory". It handles all the specialist workers (IP Blocks).
@@ -314,6 +318,7 @@ int amdgpu_command_submit_hal(struct OBJGPU *adev,
 }
 
 // Setting the display mode (CRTC timing + scanout)
+#ifdef __HAIKU__
 int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const display_mode *mode) {
   os_prim_log("HAL: [Display Manager] Setting mode %ux%u\n", 
               mode->virtual_width, mode->virtual_height);
@@ -377,6 +382,13 @@ int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const display_mode *mode) {
   
   return 0;
 }
+#else
+// Stub for non-Haiku platforms
+int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const struct display_mode *mode) {
+  os_prim_log("HAL: [Display Manager] Display mode setting not supported on this platform\n");
+  return 0;  // Success - display mode not needed on non-Haiku
+}
+#endif
 
 /* --- Belter "Self-Healing" Implementation --- */
 

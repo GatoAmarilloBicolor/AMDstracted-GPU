@@ -357,6 +357,7 @@ static int gfx_v10_soft_reset(struct OBJGPU *adev) {
  * Set CRTC Timing for Display Mode (Phase 2.1)
  * Programs the CRTC registers to match the requested display mode
  */
+#ifdef __HAIKU__
 #include <GraphicsDefs.h>  // For display_mode
 
 // CRTC Register Offsets (simplified - would need full register map)
@@ -452,11 +453,18 @@ int gfx_v10_set_crtc_timing(struct OBJGPU *adev, const display_mode *mode) {
     os_prim_log("GFX v10: [CRTC] CRTC timing programmed and enabled\n");
     
     return 0;
-}
-
-/* ============================================================================
- * GFX v10 IP Block Definition
- * ============================================================================ */
+    }
+    #else
+    // Stub for non-Haiku platforms
+    int gfx_v10_set_crtc_timing(struct OBJGPU *adev, const struct display_mode *mode) {
+    os_prim_log("GFX v10: CRTC timing not supported on this platform\n");
+    return 0;
+    }
+    #endif
+    
+    /* ============================================================================
+    * GFX v10 IP Block Definition
+    * ============================================================================ */
 
 static const struct amd_ip_funcs gfx_v10_ip_funcs = {
     .name = "gfx_v10",

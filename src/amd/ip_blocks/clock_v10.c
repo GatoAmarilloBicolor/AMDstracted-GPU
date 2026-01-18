@@ -8,7 +8,9 @@
 #include "../hal/hal.h"
 #include "../../os/os_primitives.h"
 #include <string.h>
+#ifdef __HAIKU__
 #include <GraphicsDefs.h>
+#endif
 
 /* ============================================================================
  * PLL Register Offsets (SPLL - System PLL for display)

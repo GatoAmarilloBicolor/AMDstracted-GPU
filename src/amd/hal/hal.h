@@ -163,8 +163,14 @@ int amdgpu_command_submit_hal(struct OBJGPU *adev,
                               struct amdgpu_command_buffer *cb);
 
 // Display Mode Setting (requires GraphicsDefs.h)
+#ifdef __HAIKU__
 #include <GraphicsDefs.h>
 int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const display_mode *mode);
+#else
+// Forward declaration for non-Haiku platforms
+struct display_mode;
+int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const struct display_mode *mode);
+#endif
 
 // Memory Controller Scanout Address (Phase 2.2)
 int gmc_v10_set_scanout_address(struct OBJGPU *adev, uint64_t gpu_address);

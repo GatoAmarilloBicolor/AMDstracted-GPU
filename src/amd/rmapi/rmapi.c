@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __HAIKU__
+#include <GraphicsDefs.h>
+#endif
+
 /*
  * Yo! This is the RMAPI Layer.
  * It's the high-level way to talk to the driver. Apps use this so they don't
@@ -129,6 +133,7 @@ int rmapi_get_gpu_info(struct OBJGPU *gpu, struct amdgpu_gpu_info *info) {
 }
 
 // 5. "Show this on the display!" (Set display mode)
+#ifdef __HAIKU__
 int rmapi_set_display_mode(struct OBJGPU *gpu, const display_mode *mode) {
   if (!gpu)
     gpu = global_gpu;
@@ -147,6 +152,12 @@ int rmapi_set_display_mode(struct OBJGPU *gpu, const display_mode *mode) {
   }
   return ret;
 }
+#else
+int rmapi_set_display_mode(struct OBJGPU *gpu, const struct display_mode *mode) {
+  os_prim_log("RMAPI: Display mode setting not supported on this platform\n");
+  return 0;
+}
+#endif
 
 /* --- Vulkan RMAPI Functions for RADV/Zink Integration --- */
 
