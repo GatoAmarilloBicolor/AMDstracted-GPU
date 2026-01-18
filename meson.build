@@ -13,14 +13,18 @@ host_os = host_machine.system()
 # Global includes
 global_inc = include_directories('.')
 
-# Core sources
+# Core sources (without rmapi_server which has its own main)
 core_sources = files(
   'core/gpu/objgpu.c',
   'core/hal/hal.c',
   'core/resource/resserv.c',
   'core/rmapi/rmapi.c',
-  'core/rmapi/rmapi_server.c',
   'core/ipc/ipc_lib.c'
+)
+
+# Server-specific source (has main())
+server_sources = files(
+  'core/rmapi/rmapi_server.c'
 )
 
 # Driver sources
@@ -131,8 +135,10 @@ endif
 if host_os == 'haiku'
   # For Haiku, link statically to avoid runtime loader issues
   rmapi_server = executable('amd_rmapi_server',
-    'core/rmapi/rmapi_server.c',
-    all_sources,  # Include all sources directly for static linking
+    server_sources,
+    core_sources,
+    driver_sources,
+    os_sources,
     include_directories: inc_dirs,
     dependencies: deps,
     link_args: ['-static', '-no-pie'],
@@ -142,7 +148,9 @@ if host_os == 'haiku'
 
   rmapi_client_demo = executable('amd_rmapi_client_demo',
     'examples/rmapi_client_demo.c',
-    all_sources,  # Include all sources directly for static linking
+    core_sources,
+    driver_sources,
+    os_sources,
     include_directories: inc_dirs,
     dependencies: deps,
     link_args: ['-static', '-no-pie'],
