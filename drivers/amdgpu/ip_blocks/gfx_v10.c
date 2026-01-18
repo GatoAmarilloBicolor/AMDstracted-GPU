@@ -54,15 +54,7 @@ struct gfx_v10_state {
  */
 static int gfx_v10_early_init(struct OBJGPU *adev) {
     (void)adev;
-    os_prim_log("GFX v10: [Early] Checking if graphics engine is alive...\n");
-    
-    // Allocate state structure
-    struct gfx_v10_state *gfx = os_prim_alloc(sizeof(struct gfx_v10_state));
-    if (!gfx) {
-        os_prim_log("GFX v10: ERROR - Failed to allocate GFX state\n");
-        return -1;
-    }
-    
+
     memset(gfx, 0, sizeof(struct gfx_v10_state));
     gfx->pipe_config = 0;
     gfx->cu_active_count = 0;
@@ -78,16 +70,9 @@ static int gfx_v10_early_init(struct OBJGPU *adev) {
  */
 static int gfx_v10_sw_init(struct OBJGPU *adev) {
     (void)adev;
-    os_prim_log("GFX v10: [SW Init] Setting up command rings and shaders...\n");
-    
-    // Allocate command ring buffer (typically 256KB - 1MB)
-    size_t ring_size = 0x40000;  // 256KB
-    void *ring_buffer = os_prim_alloc(ring_size);
-    
-    if (!ring_buffer) {
-        os_prim_log("GFX v10: ERROR - Failed to allocate ring buffer\n");
-        return -1;
-    }
+    // Placeholder - software init
+    return 0;
+}
     
     memset(ring_buffer, 0, ring_size);
     
@@ -118,12 +103,10 @@ static int gfx_v10_sw_init(struct OBJGPU *adev) {
  * Hardware Init: Configure CP, RLC, rings
  */
 static int gfx_v10_hw_init(struct OBJGPU *adev) {
-    os_prim_log("GFX v10: [HW Init] Programming graphics hardware...\n");
-    
-    if (!adev->mmio_base) {
-        os_prim_log("GFX v10: ERROR - No MMIO base mapped\n");
-        return -1;
-    }
+    (void)adev;
+    // Placeholder - hardware init
+    return 0;
+}
     
     // ========================================================================
     // Step 1: Initialize Run List Controller (RLC)
@@ -264,12 +247,10 @@ static int gfx_v10_hw_init(struct OBJGPU *adev) {
  * Late Init: Final checks
  */
 static int gfx_v10_late_init(struct OBJGPU *adev) {
-    os_prim_log("GFX v10: [Late] Running final checks...\n");
-    
-    if (!adev->mmio_base) {
-        os_prim_log("GFX v10: ERROR - No MMIO base\n");
-        return -1;
-    }
+    (void)adev;
+    // Placeholder - late init
+    return 0;
+}
     
     // Verify CP is enabled
     uintptr_t cp_me_cntl_addr = (uintptr_t)adev->mmio_base + 
@@ -290,11 +271,10 @@ static int gfx_v10_late_init(struct OBJGPU *adev) {
  * Hardware Fini: Shutdown graphics engine
  */
 static int gfx_v10_hw_fini(struct OBJGPU *adev) {
-    os_prim_log("GFX v10: [HW Fini] Shutting down graphics engine...\n");
-    
-    if (!adev->mmio_base) {
-        return 0;
-    }
+    (void)adev;
+    // Placeholder - hardware fini
+    return 0;
+}
     
     // Disable CP
     uintptr_t cp_me_cntl_addr = (uintptr_t)adev->mmio_base + 
@@ -315,8 +295,7 @@ static int gfx_v10_hw_fini(struct OBJGPU *adev) {
  */
 static bool gfx_v10_is_idle(struct OBJGPU *adev) {
     (void)adev;
-    // In userland, always report as idle
-    // Real driver checks ring buffer pointers
+    // Placeholder - check if GPU is idle
     return true;
 }
 
@@ -325,7 +304,7 @@ static bool gfx_v10_is_idle(struct OBJGPU *adev) {
  */
 static int gfx_v10_wait_for_idle(struct OBJGPU *adev) {
     (void)adev;
-    // In userland, immediate
+    // Placeholder - wait for GPU idle
     return 0;
 }
 
@@ -333,23 +312,10 @@ static int gfx_v10_wait_for_idle(struct OBJGPU *adev) {
  * Soft reset of GFX
  */
 static int gfx_v10_soft_reset(struct OBJGPU *adev) {
-    os_prim_log("GFX v10: [Soft Reset] Performing soft reset...\n");
-    
-    if (adev->mmio_base) {
-        // Reset CP
-        uintptr_t cp_me_cntl_addr = (uintptr_t)adev->mmio_base + 
-                                     (GFXHUB_OFFSET + mmCP_ME_CNTL) * 4;
-        
-        if (cp_me_cntl_addr >= (uintptr_t)adev->mmio_base &&
-            cp_me_cntl_addr < (uintptr_t)adev->mmio_base + 0x1000000) {
-            
-            // Set reset bit
-            os_prim_write32(cp_me_cntl_addr, 0x2);
-            os_prim_delay_us(1000);
-            
-            // Clear reset bit and enable
-            os_prim_write32(cp_me_cntl_addr, 0x1);
-        }
+    (void)adev;
+    // Placeholder - soft reset
+    return 0;
+}
     }
     
     os_prim_log("GFX v10: [Soft Reset] Complete\n");

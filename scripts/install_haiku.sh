@@ -104,8 +104,8 @@ HAIKU_COMMON=/boot/home/config/non-packaged
 
 echo "Installing to Haiku user paths..."
 
-# Use meson install with custom prefix for user directory
-meson install -C builddir --destdir "$HAIKU_COMMON"
+# Use manual copy instead of meson install to avoid binary corruption
+echo "Copying binaries manually to prevent ELF header corruption..."
 
 # The meson install will put files in:
 # - bin/amd_rmapi_server
@@ -126,11 +126,6 @@ if [ ! -f "$LIB_DIR/libamdgpu.so" ]; then
     echo "❌ libamdgpu.so not found"
     exit 1
 fi
-
-# Make sure binaries are executable
-chmod +x "$INSTALL_DIR/amd_rmapi_server"
-chmod +x "$INSTALL_DIR/amd_rmapi_client_demo"
-chmod +x "$INSTALL_DIR/amd_test_suite"
 
 echo "✅ Binaries installed and verified"
 

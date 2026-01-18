@@ -93,11 +93,13 @@ deps = [
 # OS-specific dependencies and flags
 if host_os == 'haiku'
   deps += meson.get_compiler('c').find_library('network', required: true)
-  # Add Haiku-specific linker flags for proper ELF headers
+  # Add Haiku-specific linker flags for proper ELF headers and compatibility
   add_project_link_arguments([
     '-Wl,--no-undefined',
     '-Wl,-z,defs',
-    '-no-pie'  # Disable PIE which can cause loader issues on Haiku
+    '-no-pie',  # Disable PIE which can cause loader issues on Haiku
+    '-Wl,--hash-style=sysv',  # Use sysv hash for better compatibility
+    '-static-libgcc'  # Link libgcc statically to avoid runtime issues
   ], language: 'c')
 endif
 
