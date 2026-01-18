@@ -90,6 +90,11 @@ deps = [
   meson.get_compiler('c').find_library('m', required: false)
 ]
 
+# OS-specific dependencies
+if host_os == 'haiku'
+  deps += meson.get_compiler('c').find_library('network', required: true)
+endif
+
 # Library
 libamdgpu = shared_library('amdgpu',
   all_sources,

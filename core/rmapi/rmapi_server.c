@@ -77,6 +77,7 @@ void *handle_client(void *arg) {
     }
     case IPC_REQ_FREE_MEMORY: { // REQUEST: I'm done with this memory
       uint64_t addr = *(uint64_t *)msg.data;
+      (void)addr;
       int success = 0;
       ipc_send_message(&server->conn,
                        &(ipc_message_t){IPC_REP_FREE_MEMORY, msg.id,
@@ -138,6 +139,7 @@ void *handle_client(void *arg) {
         void *phys_dev;
         void *create_info;
       } *args = msg.data;
+      (void)args;
       void *device = (void *)0xDEADBEEF; // Dummy
       os_prim_log("RMAPI Server: Returning device handle %p\n", device);
       ipc_send_message(&server->conn,
@@ -151,6 +153,7 @@ void *handle_client(void *arg) {
         void *device;
         void *alloc_info;
       } *args = msg.data;
+      (void)args;
       // TODO: Call real rmapi_alloc_memory
       void *memory = (void *)0xBEEFBEEF; // Dummy
       os_prim_log("RMAPI Server: Returning memory handle %p\n", memory);
@@ -165,6 +168,7 @@ void *handle_client(void *arg) {
         void *device;
         void *memory;
       } *args = msg.data;
+      (void)args;
       int ret = 0; // Success
       ipc_send_message(
           &server->conn,
@@ -177,6 +181,7 @@ void *handle_client(void *arg) {
         void *device;
         void *create_info;
       } *args = msg.data;
+      (void)args;
       void *pool = (void *)0xFACEBEEF; // Dummy
       os_prim_log("RMAPI Server: Returning pool handle %p\n", pool);
       ipc_send_message(&server->conn,
@@ -192,6 +197,7 @@ void *handle_client(void *arg) {
         void *submits;
         void *fence;
       } *args = msg.data;
+      (void)args;
       int ret = 0; // Success
       ipc_send_message(
           &server->conn,
