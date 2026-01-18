@@ -108,16 +108,37 @@ rmapi_client_demo = executable('rmapi_client_demo',
   install: true
 )
 
-# Tests
+# Test framework
+test_framework = static_library('test_framework',
+  'tests/framework/test_framework.c',
+  include_directories: inc_dirs + [include_directories('tests/framework')]
+)
+
+# Test runner with coverage
 test_runner = executable('test_runner',
   'src/tests/test_runner.c',
   'src/tests/test_gmc_v10.c',
-  include_directories: inc_dirs + [include_directories('src/tests')],
+  'tests/mocks/test_mocks.c',
+  include_directories: inc_dirs + [include_directories('src/tests'), include_directories('tests')],
   dependencies: deps,
-  link_with: libamdgpu
+  link_with: [libamdgpu, test_framework],
+  c_args: ['-fprofile-arcs', '-ftest-coverage'] + get_option('c_args'),
+  link_args: ['-fprofile-arcs', '-ftest-coverage'] + get_option('c_link_args')
 )
 
+# Tests
 test('gmc_v10_tests', test_runner)
+test('mock_tests', test_runner, args: ['--mocks'])
+
+# Coverage report
+gcovr = find_program('gcovr', required: false)
+if gcovr.found()
+  custom_target('coverage',
+    command: [gcovr, '--root', meson.source_root(), '--html', '--html-details', '--output', 'coverage.html'],
+    depends: test_runner,
+    output: 'coverage.html'
+  )
+endif
 
 # Install headers
 install_headers('os/os_interface.h', subdir: 'amdgpu')
