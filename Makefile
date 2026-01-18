@@ -95,9 +95,8 @@ OS_OBJS = $(OS_INTERFACE_DIR)/os_interface_$(OS_DIR_SUFFIX).o \
 
 # 6. Build Targets
 TARGETS = libamdgpu.so rmapi_server rmapi_client_demo
-
-ifeq ($(OS),haiku)
-  TARGETS += amdgpu_hit amdgpu_hit.accelerant
+ifdef __HAIKU__
+  TARGETS += amdgpu_hit
 endif
 
 all: $(TARGETS)
