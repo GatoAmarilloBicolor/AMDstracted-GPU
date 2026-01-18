@@ -22,10 +22,11 @@ TEST_SOURCES = test_runner.c test_gmc_v10.c
 TEST_OBJS = $(TEST_SOURCES:.c=.o)
 
 # Core driver objects needed for testing (built by main Makefile)
-DRIVER_OBJS = ../src/amd/hal/hal.o ../src/amd/ip_blocks/gmc_v10.o ../src/amd/ip_blocks/gfx_v10.o \
-              ../src/common/resource/resserv.o ../src/common/ipc/ipc_lib.o \
-              ../src/os/haiku/os_primitives_haiku.o \
-              ../src/os/haiku/os_interface_haiku.o
+# These should be pre-built by the main Makefile - we just list them here
+DRIVER_OBJS = ../../src/amd/hal/hal.o ../../src/amd/ip_blocks/gmc_v10.o ../../src/amd/ip_blocks/gfx_v10.o \
+              ../../src/common/resource/resserv.o ../../src/common/ipc/ipc_lib.o \
+              ../../src/os/haiku/os_primitives_haiku.o \
+              ../../src/os/haiku/os_interface_haiku.o
 
 # Test executable
 TEST_BIN = test_suite
@@ -34,8 +35,8 @@ TEST_BIN = test_suite
 all: $(TEST_BIN)
 
 # Build test executable
-$(TEST_BIN): $(TEST_OBJS) $(DRIVER_OBJS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+$(TEST_BIN): $(TEST_OBJS)
+	$(CC) $(CFLAGS) -o $@ $^ $(DRIVER_OBJS) $(LDFLAGS)
 	@echo "✅ Test suite built: $(TEST_BIN)"
 
 # Compile test source files
@@ -43,28 +44,6 @@ test_runner.o: test_runner.c test_framework.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 test_gmc_v10.o: test_gmc_v10.c test_framework.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-# Build driver objects if not exist
-../src/amd/hal/hal.o: ../src/amd/hal/hal.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-../src/amd/ip_blocks/gmc_v10.o: ../src/amd/ip_blocks/gmc_v10.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-../src/amd/ip_blocks/gfx_v10.o: ../src/amd/ip_blocks/gfx_v10.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-../src/common/resource/resserv.o: ../src/common/resource/resserv.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-../src/common/ipc/ipc_lib.o: ../src/common/ipc/ipc_lib.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-../src/os/haiku/os_primitives_haiku.o: ../src/os/haiku/os_primitives_haiku.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-../src/os/haiku/os_interface_haiku.o: ../src/os/haiku/os_interface_haiku.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Run tests
