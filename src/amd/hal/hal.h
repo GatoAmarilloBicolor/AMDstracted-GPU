@@ -7,7 +7,32 @@
 
 /* Haiku: Include display mode definitions early */
 #ifdef __HAIKU__
-#include <GraphicsDefs.h>
+/* Try multiple include paths for GraphicsDefs.h */
+#if __has_include(<graphics/GraphicsDefs.h>)
+  #include <graphics/GraphicsDefs.h>
+#elif __has_include(<GraphicsDefs.h>)
+  #include <GraphicsDefs.h>
+#else
+  /* Fallback: define minimal display_mode if header not found */
+  /* This allows compilation even if GraphicsDefs.h is not available */
+  #ifndef _DISPLAY_MODE_H
+    typedef struct {
+      uint16_t width;
+      uint16_t height;
+      uint16_t virtual_width;
+      uint16_t virtual_height;
+      uint32_t space;
+      uint32_t pixel_clock;
+      uint32_t h_sync_start;
+      uint32_t h_sync_end;
+      uint32_t h_total;
+      uint32_t v_sync_start;
+      uint32_t v_sync_end;
+      uint32_t v_total;
+      uint32_t flags;
+    } display_mode;
+  #endif
+#endif
 #endif
 
 /*
