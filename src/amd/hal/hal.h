@@ -162,9 +162,9 @@ void amdgpu_buffer_free_hal(struct OBJGPU *adev, struct amdgpu_buffer *buf);
 int amdgpu_command_submit_hal(struct OBJGPU *adev,
                               struct amdgpu_command_buffer *cb);
 
-// Display Mode Setting (requires GraphicsDefs.h)
+// Display Mode Setting (requires GraphicsDefs.h on Haiku)
 #ifdef __HAIKU__
-#include <GraphicsDefs.h>
+// display_mode is defined in GraphicsDefs.h (included via config.h)
 int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const display_mode *mode);
 #else
 // Forward declaration for non-Haiku platforms

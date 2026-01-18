@@ -29,4 +29,9 @@
 #define AMD_DEBUG 0
 #define AMD_LOG_LEVEL 1
 
+// Haiku-specific includes
+#if defined(__HAIKU__)
+#include <GraphicsDefs.h>
+#endif
+
 #endif // CONFIG_H
