@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  linux-build:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.linux
+    container_name: amdgpu-linux-build
+    volumes:
+      - ..:/workspace
+    working_dir: /workspace
+
+  haiku-build:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.haiku
+    container_name: amdgpu-haiku-build
+    volumes:
+      - ..:/workspace
+    working_dir: /workspace

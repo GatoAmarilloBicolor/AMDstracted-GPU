@@ -1,0 +1,50 @@
+# Dockerfile for Haiku builds
+FROM haiku/cross-compiler:x86_64
+
+# Haiku cross-compiler image should have necessary tools
+# Install additional build tools if needed
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Meson (if not included)
+RUN pip3 install meson ninja
+
+# Set working directory
+WORKDIR /workspace
+
+# Copy source
+COPY . .
+
+# Set Haiku target
+ENV MESON_CROSS_FILE=haiku-cross.ini
+
+# Create cross file for Haiku
+RUN echo "[binaries]\n\
+c = '/usr/local/haiku/bin/x86_64-unknown-haiku-gcc'\n\
+cpp = '/usr/local/haiku/bin/x86_64-unknown-haiku-g++'\n\
+ar = '/usr/local/haiku/bin/x86_64-unknown-haiku-ar'\n\
+strip = '/usr/local/haiku/bin/x86_64-unknown-haiku-strip'\n\
+pkgconfig = '/usr/local/haiku/bin/pkg-config'\n\
+\n\
+[host_machine]\n\
+system = 'haiku'\n\
+cpu_family = 'x86_64'\n\
+cpu = 'x86_64'\n\
+endian = 'little'\n\
+\n\
+[properties]\n\
+c_args = ['-I/usr/local/haiku/include']\n\
+cpp_args = ['-I/usr/local/haiku/include']\n\
+c_link_args = ['-L/usr/local/haiku/lib']\n\
+cpp_link_args = ['-L/usr/local/haiku/lib']\n" > haiku-cross.ini
+
+# Build with Meson
+RUN meson setup --cross-file haiku-cross.ini builddir
+RUN meson compile -C builddir
+RUN meson test -C builddir
+
+# Default command
+CMD ["/bin/bash"]

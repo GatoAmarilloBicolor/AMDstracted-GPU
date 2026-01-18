@@ -1,73 +1,124 @@
-project('AMDGPU_Abstracted', 'c', 'cpp',
-  version: '0.2.0',
-  default_options: ['c_std=c99', 'cpp_std=c++11', 'buildtype=release'])
+project('AMDGPU_Abstracted', 'c',
+  version: '1.0.0',
+  default_options: [
+    'c_std=c99',
+    'warning_level=2',
+    'buildtype=debugoptimized'
+  ]
+)
 
 # Detect OS
 host_os = host_machine.system()
+
+# Global includes
+global_inc = include_directories('.')
+
+# Core sources
+core_sources = files(
+  'core/gpu/objgpu.c',
+  'core/hal/hal.c',
+  'core/resource/resserv.c',
+  'core/rmapi/rmapi.c',
+  'core/rmapi/rmapi_server.c',
+  'core/ipc/ipc_lib.c'
+)
+
+# Driver sources
+driver_sources = files(
+  'drivers/driver_loader.c',
+  'drivers/amdgpu/driver_amd.c',
+  'drivers/amdgpu/amdgpu_gem_userland.c',
+  'drivers/amdgpu/amdgpu_kms_userland.c',
+  'drivers/amdgpu/ip_blocks/gmc_v10.c',
+  'drivers/amdgpu/ip_blocks/gfx_v10.c',
+  'drivers/amdgpu/shader_compiler/shader_compiler.c',
+  'drivers/amdgpu/radv_backend/radv_backend.c',
+  'drivers/amdgpu/zink_layer/zink_layer.c'
+)
+
+# OS-specific sources
 if host_os == 'linux'
-  os_dir = 'linux'
+  os_sources = files(
+    'os/linux/os_interface_linux.c',
+    'os/linux/os_primitives_linux.c'
+  )
+  os_inc = include_directories('os/linux')
 elif host_os == 'haiku'
-  os_dir = 'haiku'
+  os_sources = files(
+    'os/haiku/os_interface_haiku.c',
+    'os/haiku/os_primitives_haiku.c'
+  )
+  os_inc = include_directories('os/haiku')
 else
-  os_dir = 'linux'  # fallback
+  error('Unsupported OS: ' + host_os)
 endif
 
-# Userland mode
-userland_mode = get_option('userland_mode')
-add_project_arguments('-DUSERLAND_MODE=' + userland_mode.to_string(), language: 'c')
+# All sources
+all_sources = core_sources + driver_sources + os_sources
 
 # Includes
-incdirs = include_directories('src', 'src/common', 'src/amd', 'src/amd/hal', 'src/amd/rmapi', 'src/os')
-
-# Sources
-common_sources = files(
-  'src/common/gpu/objgpu.c',
-  'src/common/resource/resserv.c',
-  'src/common/ipc/ipc_lib.c'
-)
-
-amd_sources = files(
-  'src/amd/hal/hal.c',
-  'src/amd/rmapi/rmapi.c',
-  'src/amd/rmapi/rmapi_server.c',
-  'src/amd/ip_blocks/gmc_v10.c',
-  'src/amd/ip_blocks/gfx_v10.c',
-  'src/amd/shader_compiler/shader_compiler.c',
-  'src/amd/radv_backend/radv_backend.c',
-  'src/amd/zink_layer/zink_layer.c',
-  'src/amd/amdgpu_gem_userland.c',
-  'src/amd/amdgpu_kms_userland.c'
-)
-
-os_sources = files(
-  'src/os/@0@/os_primitives_@0@.c'.format(os_dir),
-  'src/os/@0@/os_interface_@0@.c'.format(os_dir)
-)
+inc_dirs = [
+  global_inc,
+  include_directories('core'),
+  include_directories('core/gpu'),
+  include_directories('core/hal'),
+  include_directories('core/rmapi'),
+  include_directories('core/ipc'),
+  include_directories('core/resource'),
+  include_directories('drivers'),
+  include_directories('drivers/interface'),
+  include_directories('drivers/amdgpu'),
+  include_directories('drivers/amdgpu/ip_blocks'),
+  include_directories('drivers/amdgpu/radv_backend'),
+  include_directories('drivers/amdgpu/shader_compiler'),
+  include_directories('drivers/amdgpu/zink_layer'),
+  include_directories('os'),
+  include_directories('os/interface'),
+  os_inc
+]
 
 # Dependencies
-thread_dep = dependency('threads')
-math_dep = meson.get_compiler('c').find_library('m', required: false)
+deps = [
+  dependency('threads'),
+  meson.get_compiler('c').find_library('m', required: false)
+]
 
 # Library
 libamdgpu = shared_library('amdgpu',
-  sources: common_sources + amd_sources + os_sources,
-  include_directories: incdirs,
-  dependencies: [thread_dep, math_dep],
+  all_sources,
+  include_directories: inc_dirs,
+  dependencies: deps,
   install: true
 )
 
 # Executables
 rmapi_server = executable('rmapi_server',
-  sources: files('src/amd/rmapi/rmapi_server.c'),
+  'core/rmapi/rmapi_server.c',
+  include_directories: inc_dirs,
+  dependencies: deps,
   link_with: libamdgpu,
   install: true
 )
 
 rmapi_client_demo = executable('rmapi_client_demo',
-  sources: files('rmapi_client_demo.c'),
+  'examples/rmapi_client_demo.c',
+  include_directories: inc_dirs,
+  dependencies: deps,
   link_with: libamdgpu,
   install: true
 )
 
-# Options
-option('userland_mode', type: 'integer', value: 1, description: 'Enable userland mode')
+# Tests
+test_runner = executable('test_runner',
+  'src/tests/test_runner.c',
+  'src/tests/test_gmc_v10.c',
+  include_directories: inc_dirs + [include_directories('src/tests')],
+  dependencies: deps,
+  link_with: libamdgpu
+)
+
+test('gmc_v10_tests', test_runner)
+
+# Install headers
+install_headers('os/os_interface.h', subdir: 'amdgpu')
+install_headers('drivers/interface/driver_interface.h', subdir: 'amdgpu')
