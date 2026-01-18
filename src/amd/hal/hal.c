@@ -360,6 +360,19 @@ int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const display_mode *mode) {
   }
   
   os_prim_log("HAL: [Display Manager] Scanout address set to 0x%llx\n", scanout_addr);
+
+  // Step 3: Program pixel clock via PLL (Phase 2.3)
+  // Extract pixel clock from display_mode.timing
+  uint32_t pixel_clock = mode->timing.pixel_clock;  // Already in 10kHz units
+  
+  ret = clock_v10_set_pixel_clock(adev, pixel_clock);
+  if (ret != 0) {
+    os_prim_log("HAL: [Display Manager] Failed to set pixel clock (error %d)\n", ret);
+    return ret;
+  }
+  
+  os_prim_log("HAL: [Display Manager] Pixel clock set to %u.%u MHz\n",
+              pixel_clock / 100, pixel_clock % 100);
   os_prim_log("HAL: [Display Manager] Display mode set successfully!\n");
   
   return 0;

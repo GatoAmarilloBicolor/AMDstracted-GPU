@@ -169,6 +169,11 @@ int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const display_mode *mode);
 // Memory Controller Scanout Address (Phase 2.2)
 int gmc_v10_set_scanout_address(struct OBJGPU *adev, uint64_t gpu_address);
 
+// Pixel Clock Control (Phase 2.3)
+int clock_v10_set_pixel_clock(struct OBJGPU *adev, uint32_t pixel_clock_10khz);
+uint32_t clock_v10_get_pixel_clock(struct OBJGPU *adev);
+int clock_v10_disable_clock(struct OBJGPU *adev);
+
 // Helping the brain find new specialists
 int amdgpu_device_ip_block_add(
     struct OBJGPU *adev, const struct amd_ip_block_version *ip_block_version);
