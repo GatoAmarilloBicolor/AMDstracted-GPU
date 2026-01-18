@@ -27,7 +27,7 @@ server_sources = files(
   'core/rmapi/rmapi_server.c'
 )
 
-# Driver sources
+# Driver sources (excluding IP blocks for shared library)
 driver_sources = files(
   'drivers/driver_loader.c',
   'drivers/interface/mmio_access.c',
@@ -36,15 +36,19 @@ driver_sources = files(
   'drivers/amdgpu/driver_amd.c',
   'drivers/amdgpu/amdgpu_gem_userland.c',
   'drivers/amdgpu/amdgpu_kms_userland.c',
+  'drivers/amdgpu/shader_compiler/shader_compiler.c',
+  'drivers/amdgpu/radv_backend/radv_backend.c',
+  'drivers/amdgpu/zink_layer/zink_layer.c'
+)
+
+# IP block sources (separate to avoid duplication in static linking)
+ip_block_sources = files(
   'drivers/amdgpu/ip_blocks/gmc_v10.c',
   'drivers/amdgpu/ip_blocks/gfx_v10.c',
   'drivers/amdgpu/ip_blocks/gmc_v10_ip_block.c',
   'drivers/amdgpu/ip_blocks/gfx_v10_ip_block.c',
   'drivers/amdgpu/ip_blocks/dce_v10_ip_block.c',
-  'drivers/amdgpu/ip_blocks/dcn_v1_ip_block.c',
-  'drivers/amdgpu/shader_compiler/shader_compiler.c',
-  'drivers/amdgpu/radv_backend/radv_backend.c',
-  'drivers/amdgpu/zink_layer/zink_layer.c'
+  'drivers/amdgpu/ip_blocks/dcn_v1_ip_block.c'
 )
 
 # OS-specific sources
@@ -131,35 +135,38 @@ else
   )
 endif
 
+# All sources combined (for static linking)
+all_sources = core_sources + driver_sources + ip_block_sources
+
+# Test framework library
+test_framework = static_library('test_framework',
+  'tests/framework/test_framework.c',
+  include_directories: include_directories('tests/framework'),
+  dependencies: deps
+)
+
 # Executables
 if host_os == 'haiku'
   # For Haiku, link statically to avoid runtime loader issues
   rmapi_server = executable('amd_rmapi_server',
-    server_sources,
-    core_sources,
-    driver_sources,
-    os_sources,
+    server_sources + all_sources,
     include_directories: inc_dirs,
     dependencies: deps,
     link_args: ['-static', '-no-pie'],
-    install: true,
-    install_dir: 'bin'
+    install: false  # Don't auto-install, use script instead
   )
 
   rmapi_client_demo = executable('amd_rmapi_client_demo',
     'examples/rmapi_client_demo.c',
-    core_sources,
-    driver_sources,
-    os_sources,
+    all_sources,
     include_directories: inc_dirs,
     dependencies: deps,
     link_args: ['-static', '-no-pie'],
-    install: true,
-    install_dir: 'bin'
+    install: false  # Don't auto-install, use script instead
   )
 else
   rmapi_server = executable('amd_rmapi_server',
-    'core/rmapi/rmapi_server.c',
+    server_sources,
     include_directories: inc_dirs,
     dependencies: deps,
     link_with: libamdgpu,
@@ -189,14 +196,12 @@ if host_os == 'haiku'
     'src/tests/test_runner.c',
     'src/tests/test_gmc_v10.c',
     'tests/mocks/test_mocks.c',
-    all_sources,  # Include all sources directly for static linking
-    'tests/framework/test_framework.c',  # Include test framework
+    all_sources,
     include_directories: inc_dirs + [include_directories('src/tests'), include_directories('tests'), include_directories('tests/framework')],
     dependencies: deps,
     c_args: ['-fprofile-arcs', '-ftest-coverage'] + get_option('c_args'),
     link_args: ['-static', '-no-pie', '-fprofile-arcs', '-ftest-coverage'] + get_option('c_link_args'),
-    install: true,
-    install_dir: 'bin'
+    install: false  # Don't auto-install, use script instead
   )
 else
   test_runner = executable('amd_test_suite',
