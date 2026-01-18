@@ -73,6 +73,7 @@ CXXFLAGS += -DUSERLAND_MODE=$(USERLAND_MODE) -std=c++11 -include config/config.h
 
 # Directories
 CORE_DIR = core
+DRIVERS_DIR = drivers/amdgpu
 
 # List of Objects to build
 SRC_OBJS = $(CORE_DIR)/gpu/objgpu.o \
@@ -80,17 +81,16 @@ SRC_OBJS = $(CORE_DIR)/gpu/objgpu.o \
            $(CORE_DIR)/rmapi/rmapi/rmapi.o \
            $(CORE_DIR)/rmapi/rmapi/rmapi_server.o \
            $(CORE_DIR)/ipc/ipc_lib.o \
-           drivers/amdgpu/amdgpu_gem_userland.o \
-           drivers/amdgpu/amdgpu_kms_userland.o \
-           drivers/amdgpu/ip_blocks/gmc_v10.o \
-           drivers/amdgpu/ip_blocks/gfx_v10.o \
-           drivers/amdgpu/shader_compiler/shader_compiler.o \
-           drivers/amdgpu/radv_backend/radv_backend.o \
-           drivers/amdgpu/zink_layer/zink_layer.o \
-           $(COMMON_DIR)/ipc/ipc_lib.o
+           $(DRIVERS_DIR)/amdgpu_gem_userland.o \
+           $(DRIVERS_DIR)/amdgpu_kms_userland.o \
+           $(DRIVERS_DIR)/ip_blocks/gmc_v10.o \
+           $(DRIVERS_DIR)/ip_blocks/gfx_v10.o \
+           $(DRIVERS_DIR)/shader_compiler/shader_compiler.o \
+           $(DRIVERS_DIR)/radv_backend/radv_backend.o \
+           $(DRIVERS_DIR)/zink_layer/zink_layer.o
 
-OS_OBJS = $(OS_INTERFACE_DIR)/os_interface_$(OS_DIR_SUFFIX).o \
-          $(OS_PRIMITIVES_DIR)/os_primitives_$(OS_DIR_SUFFIX).o
+OS_OBJS = os/$(OS_DIR_SUFFIX)/os_interface_$(OS_DIR_SUFFIX).o \
+           os/$(OS_DIR_SUFFIX)/os_primitives_$(OS_DIR_SUFFIX).o
 
 # 6. Build Targets
 TARGETS = libamdgpu.so rmapi_server rmapi_client_demo
@@ -137,7 +137,7 @@ rmapi_client_demo: examples/rmapi_client_demo.c \
 	$(CC) $(CFLAGS) -Wall $^ $(PTHREAD_LIBS) $(LDFLAGS) -o $@
 
 # --- Haiku Specific Specialist Binaries ---
-amdgpu_hit: src/os/haiku/addon/AmdAddon.o $(OS_OBJS)
+amdgpu_hit: os/haiku/addon/AmdAddon.o $(OS_OBJS)
 	$(CXX) -shared -o $@ $^ $(LDFLAGS) $(HAIKU_LDFLAGS)
 
 # amdgpu_hit.accelerant: src/os/haiku/accelerant/AmdAccelerant.o $(COMMON_DIR)/ipc/ipc_lib.o $(OS_OBJS)

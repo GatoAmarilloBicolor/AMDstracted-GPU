@@ -10,12 +10,12 @@ ifeq ($(UNAME_S),Haiku)
     CC = clang
     LDFLAGS = -lm -lroot -lnetwork
     CFLAGS += -I/boot/system/develop/headers -I/boot/system/develop/headers/posix
-    OS_PRIMS = ../../src/os/haiku/os_primitives_haiku.o
-    OS_IFACE = ../../src/os/haiku/os_interface_haiku.o
+    OS_PRIMS = ../../os/haiku/os_primitives_haiku.o
+    OS_IFACE = ../../os/haiku/os_interface_haiku.o
 else
     LDFLAGS = -lm -pthread
-    OS_PRIMS = ../../src/os/linux/os_primitives_linux.o
-    OS_IFACE = ../../src/os/linux/os_interface_linux.o
+    OS_PRIMS = ../../os/linux/os_primitives_linux.o
+    OS_IFACE = ../../os/linux/os_interface_linux.o
 endif
 
 # Allow multiple definitions (for test compilation)
@@ -27,8 +27,8 @@ TEST_OBJS = $(TEST_SOURCES:.c=.o)
 
 # Core driver objects needed for testing (built by main Makefile)
 # These should be pre-built by the main Makefile - we just list them here
-DRIVER_OBJS = ../../src/amd/hal/hal.o ../../src/amd/ip_blocks/gmc_v10.o ../../src/amd/ip_blocks/gfx_v10.o \
-              ../../src/common/resource/resserv.o ../../src/common/ipc/ipc_lib.o \
+DRIVER_OBJS = ../../core/hal/hal/hal.o ../../drivers/amdgpu/ip_blocks/gmc_v10.o ../../drivers/amdgpu/ip_blocks/gfx_v10.o \
+              ../../core/ipc/ipc_lib.o \
               $(OS_PRIMS) $(OS_IFACE)
 
 # Test executable
