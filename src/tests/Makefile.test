@@ -45,7 +45,27 @@ test_runner.o: test_runner.c test_framework.h
 test_gmc_v10.o: test_gmc_v10.c test_framework.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Driver objects are built by main Makefile
+# Build driver objects if not exist
+../src/amd/hal/hal.o: ../src/amd/hal/hal.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+../src/amd/ip_blocks/gmc_v10.o: ../src/amd/ip_blocks/gmc_v10.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+../src/amd/ip_blocks/gfx_v10.o: ../src/amd/ip_blocks/gfx_v10.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+../src/common/resource/resserv.o: ../src/common/resource/resserv.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+../src/common/ipc/ipc_lib.o: ../src/common/ipc/ipc_lib.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+../src/os/haiku/os_primitives_haiku.o: ../src/os/haiku/os_primitives_haiku.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+../src/os/haiku/os_interface_haiku.o: ../src/os/haiku/os_interface_haiku.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
 # Run tests
 test: $(TEST_BIN)
