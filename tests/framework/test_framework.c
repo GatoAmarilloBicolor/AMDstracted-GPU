@@ -81,6 +81,7 @@ void coverage_start_tracking(const char *file) {
 }
 
 void coverage_record_line(int line) {
+    (void)line;
     // Simple implementation - in real coverage, track executed lines
     if (coverage_count > 0) {
         coverage_data[coverage_count - 1].covered_lines++;

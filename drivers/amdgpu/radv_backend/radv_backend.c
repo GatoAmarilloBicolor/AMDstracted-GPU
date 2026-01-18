@@ -174,6 +174,7 @@ VkResult radv_enumerate_devices(VkPhysicalDevice *devices, uint32_t *device_coun
 }
 
 VkResult radv_get_device_info(VkPhysicalDevice device, radv_physical_device_info_t *info) {
+    (void)device;
     if (!info || !g_radv_state.gpu) {
         return VK_ERROR_DEVICE_LOST;
     }
@@ -221,6 +222,7 @@ VkResult radv_create_device(VkPhysicalDevice physical_device,
 }
 
 void radv_destroy_device(VkDevice device) {
+    (void)device;
     // Device cleanup (no-op for now)
     fprintf(stderr, "[RADV] Device destroyed\n");
 }
@@ -232,6 +234,7 @@ void radv_destroy_device(VkDevice device) {
 VkResult radv_create_buffer(VkDevice device,
                            const radv_buffer_create_info_t *create_info,
                            VkBuffer *buffer) {
+    (void)device;
     if (!create_info || !buffer) {
         return VK_ERROR_DEVICE_LOST;
     }
@@ -250,6 +253,7 @@ VkResult radv_create_buffer(VkDevice device,
 }
 
 VkResult radv_allocate_memory(VkDevice device, size_t size, uint32_t memory_type,
+    (void)device;
                               VkMemory *memory) {
     if (!memory) {
         return VK_ERROR_DEVICE_LOST;
@@ -270,6 +274,7 @@ VkResult radv_allocate_memory(VkDevice device, size_t size, uint32_t memory_type
 }
 
 VkResult radv_map_memory(VkDevice device, VkMemory memory, void **ppData) {
+    (void)device;
     if (!ppData) {
         return VK_ERROR_DEVICE_LOST;
     }
@@ -282,6 +287,7 @@ VkResult radv_map_memory(VkDevice device, VkMemory memory, void **ppData) {
 }
 
 void radv_unmap_memory(VkDevice device, VkMemory memory) {
+    (void)device; (void)memory;
     // No-op for simulation
     fprintf(stderr, "[RADV] Unmapped memory\n");
 }
@@ -291,6 +297,7 @@ void radv_unmap_memory(VkDevice device, VkMemory memory) {
  * ============================================================================ */
 
 VkResult radv_allocate_command_buffer(VkDevice device,
+    (void)device;
                                       const radv_command_buffer_allocate_info_t *allocate_info,
                                       VkCommandBuffer *cmd_buffer) {
     if (!allocate_info || !cmd_buffer) {
@@ -328,6 +335,7 @@ VkResult radv_end_command_buffer(VkCommandBuffer cmd_buffer) {
 }
 
 VkResult radv_queue_submit(VkQueue queue, VkCommandBuffer cmd_buffer) {
+    (void)queue;
     if (!cmd_buffer) {
         return VK_ERROR_DEVICE_LOST;
     }
@@ -347,6 +355,7 @@ VkResult radv_queue_submit(VkQueue queue, VkCommandBuffer cmd_buffer) {
 }
 
 VkResult radv_device_wait_idle(VkDevice device) {
+    (void)device;
     fprintf(stderr, "[RADV] Waiting for device idle\n");
     return VK_SUCCESS;
 }

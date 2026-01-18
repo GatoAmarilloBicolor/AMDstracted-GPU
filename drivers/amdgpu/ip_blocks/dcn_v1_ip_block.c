@@ -28,35 +28,43 @@ struct ip_block_ops dcn_v1_ip_block = {
 
 // Implementation delegates to display core next functions
 static int dcn_v1_early_init(struct OBJGPU *adev) {
+    (void)adev;
     // Initialize display core next early
     return 0; // Placeholder
 }
 
 static int dcn_v1_sw_init(struct OBJGPU *adev) {
+    (void)adev;
     return 0; // Placeholder
 }
 
 static int dcn_v1_hw_init(struct OBJGPU *adev) {
+    (void)adev;
     // Initialize display hardware (DCN)
     return 0; // Placeholder
 }
 
 static int dcn_v1_late_init(struct OBJGPU *adev) {
+    (void)adev;
     return 0; // Placeholder
 }
 
 static int dcn_v1_hw_fini(struct OBJGPU *adev) {
+    (void)adev;
     return 0; // Placeholder
 }
 
 static int dcn_v1_sw_fini(struct OBJGPU *adev) {
+    (void)adev;
     return 0; // Placeholder
 }
 
 static bool dcn_v1_is_idle(struct OBJGPU *adev) {
+    (void)adev;
     return true; // Placeholder
 }
 
 static int dcn_v1_wait_for_idle(struct OBJGPU *adev) {
+    (void)adev;
     return 0; // Placeholder
 }

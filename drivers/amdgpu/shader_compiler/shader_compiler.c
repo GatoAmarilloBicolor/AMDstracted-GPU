@@ -241,8 +241,9 @@ static int spirv_to_rdna(const uint32_t *spirv, size_t spirv_size,
  * ============================================================================ */
 
 int shader_compile_spirv_to_isa(const uint32_t *spirv, size_t spirv_size,
-                               shader_type_t shader_type,
+                                 shader_type_t shader_type,
                                shader_compile_result_t *result) {
+    (void)shader_type;
     if (!spirv || !result) {
         return -1;
     }
@@ -296,8 +297,9 @@ int shader_compile_spirv_to_isa(const uint32_t *spirv, size_t spirv_size,
  * ============================================================================ */
 
 int shader_compile_glsl_to_spirv(const char *glsl, size_t glsl_size,
-                                shader_type_t shader_type,
+                          shader_type_t shader_type,
                                 uint32_t **spirv_out, size_t *spirv_size_out) {
+    (void)glsl_size; (void)shader_type;
     if (!glsl || !spirv_out || !spirv_size_out) {
         return -1;
     }

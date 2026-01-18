@@ -53,6 +53,7 @@ struct gfx_v10_state {
  * Early Init: Check if graphics engine responds
  */
 static int gfx_v10_early_init(struct OBJGPU *adev) {
+    (void)adev;
     os_prim_log("GFX v10: [Early] Checking if graphics engine is alive...\n");
     
     // Allocate state structure
@@ -76,6 +77,7 @@ static int gfx_v10_early_init(struct OBJGPU *adev) {
  * Software Init: Set up command rings, shaders
  */
 static int gfx_v10_sw_init(struct OBJGPU *adev) {
+    (void)adev;
     os_prim_log("GFX v10: [SW Init] Setting up command rings and shaders...\n");
     
     // Allocate command ring buffer (typically 256KB - 1MB)
@@ -312,6 +314,7 @@ static int gfx_v10_hw_fini(struct OBJGPU *adev) {
  * Check if GFX is idle
  */
 static bool gfx_v10_is_idle(struct OBJGPU *adev) {
+    (void)adev;
     // In userland, always report as idle
     // Real driver checks ring buffer pointers
     return true;
@@ -321,6 +324,7 @@ static bool gfx_v10_is_idle(struct OBJGPU *adev) {
  * Wait for GFX to become idle
  */
 static int gfx_v10_wait_for_idle(struct OBJGPU *adev) {
+    (void)adev;
     // In userland, immediate
     return 0;
 }
@@ -371,6 +375,7 @@ static int gfx_v10_soft_reset(struct OBJGPU *adev) {
 
 // Stub for display_mode issues
 int gfx_v10_set_crtc_timing(struct OBJGPU *adev, const struct display_mode *mode) {
+    (void)adev; (void)mode;
     os_prim_log("GFX v10: CRTC timing not supported (display_mode compatibility issues)\n");
     return 0;
 }

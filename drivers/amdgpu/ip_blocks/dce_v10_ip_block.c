@@ -28,35 +28,43 @@ struct ip_block_ops dce_v10_ip_block = {
 
 // Implementation delegates to display engine functions
 static int dce_v10_early_init(struct OBJGPU *adev) {
+    (void)adev;
     // Initialize display core engine early
     return 0; // Placeholder
 }
 
 static int dce_v10_sw_init(struct OBJGPU *adev) {
+    (void)adev;
     return 0; // Placeholder
 }
 
 static int dce_v10_hw_init(struct OBJGPU *adev) {
+    (void)adev;
     // Initialize display hardware
     return 0; // Placeholder
 }
 
 static int dce_v10_late_init(struct OBJGPU *adev) {
+    (void)adev;
     return 0; // Placeholder
 }
 
 static int dce_v10_hw_fini(struct OBJGPU *adev) {
+    (void)adev;
     return 0; // Placeholder
 }
 
 static int dce_v10_sw_fini(struct OBJGPU *adev) {
+    (void)adev;
     return 0; // Placeholder
 }
 
 static bool dce_v10_is_idle(struct OBJGPU *adev) {
+    (void)adev;
     return true; // Placeholder
 }
 
 static int dce_v10_wait_for_idle(struct OBJGPU *adev) {
+    (void)adev;
     return 0; // Placeholder
 }

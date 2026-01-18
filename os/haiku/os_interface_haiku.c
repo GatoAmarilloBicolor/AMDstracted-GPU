@@ -14,33 +14,40 @@ void os_prim_delay_us(unsigned int us);
 
 // Haiku implementations (stubs)
 int haiku_pci_find_device(uint16_t vendor, uint16_t device, os_pci_device *dev) {
+    (void)vendor; (void)device;
     // Stub: In Haiku, use PCI bus scanning
     dev->handle = NULL;
     return -1;
 }
 
 uint32_t haiku_pci_read_config(os_pci_device *dev, int offset) {
+    (void)dev; (void)offset;
     return 0;
 }
 
 void haiku_pci_write_config(os_pci_device *dev, int offset, uint32_t val) {
+    (void)dev; (void)offset; (void)val;
     // Stub
 }
 
 void *haiku_pci_map_resource(os_pci_device *dev, int bar, size_t *size) {
+    (void)dev; (void)bar;
     *size = 0;
     return NULL;
 }
 
 void haiku_pci_unmap_resource(void *addr, size_t size) {
+    (void)addr; (void)size;
     // Stub
 }
 
 int haiku_register_interrupt(int irq, os_interrupt_handler handler, void *data) {
+    (void)irq; (void)handler; (void)data;
     return -1;
 }
 
 void haiku_unregister_interrupt(int irq) {
+    (void)irq;
     // Stub
 }
 
@@ -49,6 +56,7 @@ int haiku_display_init(void) {
 }
 
 void haiku_display_put_pixel(int x, int y, uint32_t color) {
+    (void)x; (void)y; (void)color;
     // Stub
 }
 

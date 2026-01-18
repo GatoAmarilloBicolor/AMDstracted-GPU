@@ -35,11 +35,13 @@ static void amdgpu_fini(struct OBJGPU *adev) {
 }
 
 static int amdgpu_suspend(struct OBJGPU *adev) {
+    (void)adev;
     // Suspend operations (stub)
     return 0;
 }
 
 static int amdgpu_resume(struct OBJGPU *adev) {
+    (void)adev;
     // Resume operations (stub)
     return 0;
 }

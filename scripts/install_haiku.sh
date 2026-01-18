@@ -105,7 +105,7 @@ HAIKU_COMMON=/boot/home/config/non-packaged
 echo "Installing to Haiku user paths..."
 
 # Use meson install with custom prefix for user directory
-meson install -C builddir --destdir "$HAIKU_COMMON" --prefix ""
+meson install -C builddir --destdir "$HAIKU_COMMON"
 
 # The meson install will put files in:
 # - bin/amd_rmapi_server

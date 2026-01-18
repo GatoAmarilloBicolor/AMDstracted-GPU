@@ -25,28 +25,33 @@ void os_prim_free(void *ptr) {
 
 // PCI primitives (stub implementations for Haiku)
 int os_prim_pci_find_device(uint16_t vendor, uint16_t device, void **handle) {
+    (void)vendor; (void)device;
     // Stub: In Haiku, use PCI bus
     *handle = (void *)0x1;
     return 0;
 }
 
 void os_prim_pci_get_ids(void *pci_handle, uint16_t *vendor, uint16_t *device) {
+    (void)pci_handle;
     *vendor = 0x1002; // AMD
     *device = 0x7310; // Navi10
 }
 
 void *os_prim_pci_map_resource(void *pci_handle, int bar) {
+    (void)pci_handle; (void)bar;
     // Stub: return a fake MMIO address
     return (void *)0x10000000; // Fake address
 }
 
 // MMIO access (stub)
 void os_prim_write32(uintptr_t addr, uint32_t val) {
+    (void)addr; (void)val;
     // In real implementation, write to MMIO
     // For now, do nothing
 }
 
 uint32_t os_prim_read32(uintptr_t addr) {
+    (void)addr;
     // In real implementation, read from MMIO
     return 0;
 }

@@ -139,6 +139,7 @@ int drm_gem_close(drm_device_t *dev, uint32_t handle) {
 
 // GEM buffer CPU mapping
 int drm_gem_mmap(drm_device_t *dev, uint32_t handle, size_t size, void **cpu_addr) {
+    (void)dev; (void)handle; (void)size;
     // This is complex - involves prime handles and mmap
     // Simplified placeholder
     *cpu_addr = NULL;

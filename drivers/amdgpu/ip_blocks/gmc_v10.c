@@ -130,6 +130,7 @@ static int gmc_v10_hw_fini(struct OBJGPU *adev) {
  */
 static int gmc_v10_sw_fini(struct OBJGPU *adev) {
     (void)adev;
+    (void)adev;
     os_prim_log("GMC v10: [SW Fini] Cleaning up memory structures\n");
     // Free page tables, etc.
     return 0;
