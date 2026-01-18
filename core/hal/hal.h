@@ -121,12 +121,16 @@ struct amdgpu_buffer {
 };
 
 struct amdgpu_command_buffer {
+  struct OBJGPU *gpu;
   void *cmds; // The list of things to do
   size_t size;
 };
 
 // Basic info about your cool GPU
 struct amdgpu_gpu_info {
+  uint32_t device_id;
+  uint32_t family;
+  uint32_t asic_type;
   uint32_t vram_size_mb;
   uint32_t gpu_clock_mhz;
   char gpu_name[32];

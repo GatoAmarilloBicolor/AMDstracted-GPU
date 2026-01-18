@@ -80,18 +80,28 @@ static int gmc_v10_early_init(struct OBJGPU *adev) {
  */
 static int gmc_v10_sw_init(struct OBJGPU *adev) {
     os_prim_log("GMC v10: [SW Init] Setting up page tables and memory layout...\n");
-    
-    // In userland simulation:
-    // - Allocate a fake page table (4KB per level)
-    // - Set up 4KB page granularity
-    // - Configure for 48-bit virtual addressing
-    
-    // Fake page table allocation
-    void *page_table = os_prim_alloc(0x1000);  // 4KB page table
+
+    // Allocate page table (simulated)
+    // In real implementation: allocate VRAM for page directory
+    void *page_table = os_prim_alloc(4096); // 4K page
     if (!page_table) {
         os_prim_log("GMC v10: ERROR - Failed to allocate page table\n");
         return -1;
     }
+
+    os_prim_log("GMC v10: [SW Init] Page table allocated at %p\n", page_table);
+
+    // Configure for 48-bit VA, 4K pages (typical modern config)
+    os_prim_log("GMC v10: [SW Init] Configured for 48-bit VA, 4K pages\n");
+
+    // Initialize page table to zero (invalid entries)
+    memset(page_table, 0, 4096);
+
+    // Store page table in GPU object (placeholder)
+    // adev->gmc.page_table_base = (uint64_t)page_table;
+
+    return 0;
+}
     
     memset(page_table, 0, 0x1000);
     
@@ -106,11 +116,43 @@ static int gmc_v10_sw_init(struct OBJGPU *adev) {
  */
 static int gmc_v10_hw_init(struct OBJGPU *adev) {
     os_prim_log("GMC v10: [HW Init] Programming memory controller hardware...\n");
-    
+
     if (!adev->mmio_base) {
         os_prim_log("GMC v10: ERROR - No MMIO base mapped\n");
         return -1;
     }
+
+    // Disable VM for configuration
+    os_prim_log("GMC v10: [HW] Disabling VM for configuration...\n");
+    // GMC_VM_FB_LOCATION_BASE = 0 (disable)
+    os_prim_write32((uintptr_t)adev->mmio_base + 0x268, 0);
+
+    // Set page table base (simulated register write)
+    uint64_t page_table_base = 0x400000000ULL;  // Fake base
+    os_prim_log("GMC v10: [HW] Setting page table base...\n");
+    // GMC_VM_PDB0 = page table base
+    os_prim_write32((uintptr_t)adev->mmio_base + 0x270, page_table_base & 0xFFFFFFFF);
+    os_prim_write32((uintptr_t)adev->mmio_base + 0x274, page_table_base >> 32);
+    os_prim_log("GMC v10: [HW] Page table base: 0x%llx\n", page_table_base);
+
+    // Configure L2 cache
+    os_prim_log("GMC v10: [HW] Configuring L2 cache...\n");
+    // L2 cache settings (placeholder)
+
+    // Enable virtual memory
+    os_prim_log("GMC v10: [HW] Enabling virtual memory...\n");
+    // GMC_VM_FB_LOCATION_TOP = enable VM
+    os_prim_write32((uintptr_t)adev->mmio_base + 0x26c, 0x10000000); // Enable at 256MB
+
+    // Invalidate TLB
+    os_prim_log("GMC v10: [HW] Invalidating TLB...\n");
+    // GMC_VM_INVALIDATE = invalidate all
+    os_prim_write32((uintptr_t)adev->mmio_base + 0x278, 0x1);
+
+    os_prim_log("GMC v10: [HW Init] Memory controller ready!\n");
+
+    return 0;
+}
     
     // ========================================================================
     // Step 1: Disable VM while we configure
