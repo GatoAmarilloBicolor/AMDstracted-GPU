@@ -151,31 +151,45 @@ echo "✅ Haiku installation complete"
 echo ""
 
 # 4. Build Mesa RADV for Vulkan (optional, may take time)
-RADV_LIB="/boot/home/config/non-packaged/lib/libvulkan_radeon.so"
-if [ -f "$RADV_LIB" ]; then
-    echo "✅ RADV already installed at $RADV_LIB, skipping Mesa build"
-elif [ -d "mesa" ]; then
-    echo ""
-    echo "🔥 Building Mesa RADV for Vulkan support..."
-    echo "This may take several minutes (only rebuilds changed files)..."
-    cd mesa
-    if [ -f "build/build.ninja" ]; then
-        # Incremental build: only rebuilds what changed
-        echo "Running incremental build..."
-        ninja -C build > /tmp/mesa_build.log 2>&1
-        if [ $? -eq 0 ]; then
-            echo "✅ Mesa built successfully"
-            ninja -C build install || echo "⚠️  Mesa install failed"
+echo "────────────────────────────────────────────────────────────────"
+echo "🎨 Step 4: Vulkan RADV Support (Optional)"
+echo "────────────────────────────────────────────────────────────────"
+echo ""
+echo "Do you want to build Mesa RADV for Vulkan support?"
+echo "This provides hardware-accelerated Vulkan on AMD GPUs."
+echo "Note: Building may take 10-30 minutes on first run."
+echo ""
+read -p "Build RADV Vulkan? (y/n): " -n 1 -r
+echo ""
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    RADV_LIB="/boot/home/config/non-packaged/lib/libvulkan_radeon.so"
+    if [ -f "$RADV_LIB" ]; then
+        echo "✅ RADV already installed at $RADV_LIB, skipping Mesa build"
+    elif [ -d "mesa" ]; then
+        echo ""
+        echo "🔥 Building Mesa RADV for Vulkan support..."
+        echo "This may take several minutes (only rebuilds changed files)..."
+        cd mesa
+        if [ -f "build/build.ninja" ]; then
+            # Incremental build: only rebuilds what changed
+            echo "Running incremental build..."
+            ninja -C build > /tmp/mesa_build.log 2>&1
+            if [ $? -eq 0 ]; then
+                echo "✅ Mesa built successfully"
+                ninja -C build install || echo "⚠️  Mesa install failed"
+            else
+                echo "⚠️  Mesa build failed - check /tmp/mesa_build.log"
+            fi
         else
-            echo "⚠️  Mesa build failed - check /tmp/mesa_build.log"
+            echo "⚠️  Mesa not configured - run scripts/setup_mesa.sh first"
         fi
+        cd ..
+        echo "✅ Mesa build attempt complete"
     else
-        echo "⚠️  Mesa not configured - run scripts/setup_mesa.sh first"
+        echo "⚠️  Mesa not available - RADV not built"
     fi
-    cd ..
-    echo "✅ Mesa build attempt complete"
 else
-    echo "⚠️  Mesa not available - RADV not built"
+    echo "⏭️  Skipping RADV build - continuing with OpenGL only"
 fi
 
 # 5. Summary
