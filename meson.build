@@ -117,26 +117,26 @@ if host_os == 'haiku'
   ], language: 'c')
 endif
 
+# All sources combined (for static linking)
+all_sources = core_sources + driver_sources + ip_block_sources
+
 # Library - try static linking for Haiku compatibility
 if host_os == 'haiku'
   libamdgpu = static_library('amdgpu',
-    all_sources,
+    core_sources + driver_sources + ip_block_sources + os_sources,
     include_directories: inc_dirs,
     dependencies: deps,
     install: false  # Don't install static lib
   )
 else
   libamdgpu = shared_library('amdgpu',
-    all_sources,
+    core_sources + driver_sources + ip_block_sources + os_sources,
     include_directories: inc_dirs,
     dependencies: deps,
     install: true,
     install_dir: 'lib'
   )
 endif
-
-# All sources combined (for static linking)
-all_sources = core_sources + driver_sources + ip_block_sources
 
 # Test framework library
 test_framework = static_library('test_framework',
@@ -149,7 +149,7 @@ test_framework = static_library('test_framework',
 if host_os == 'haiku'
   # For Haiku, link statically to avoid runtime loader issues
   rmapi_server = executable('amd_rmapi_server',
-    server_sources + all_sources,
+    server_sources + all_sources + os_sources,
     include_directories: inc_dirs,
     dependencies: deps,
     link_args: ['-static', '-no-pie'],
@@ -158,7 +158,7 @@ if host_os == 'haiku'
 
   rmapi_client_demo = executable('amd_rmapi_client_demo',
     'examples/rmapi_client_demo.c',
-    all_sources,
+    all_sources + os_sources,
     include_directories: inc_dirs,
     dependencies: deps,
     link_args: ['-static', '-no-pie'],
@@ -184,19 +184,13 @@ else
   )
 endif
 
-# Test framework
-test_framework = static_library('test_framework',
-  'tests/framework/test_framework.c',
-  include_directories: inc_dirs + [include_directories('tests/framework')]
-)
-
 # Test runner with coverage
 if host_os == 'haiku'
   test_runner = executable('amd_test_suite',
     'src/tests/test_runner.c',
     'src/tests/test_gmc_v10.c',
     'tests/mocks/test_mocks.c',
-    all_sources,
+    all_sources + os_sources,
     include_directories: inc_dirs + [include_directories('src/tests'), include_directories('tests'), include_directories('tests/framework')],
     dependencies: deps,
     c_args: ['-fprofile-arcs', '-ftest-coverage'] + get_option('c_args'),
