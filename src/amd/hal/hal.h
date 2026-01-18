@@ -192,15 +192,8 @@ void amdgpu_buffer_free_hal(struct OBJGPU *adev, struct amdgpu_buffer *buf);
 int amdgpu_command_submit_hal(struct OBJGPU *adev,
                               struct amdgpu_command_buffer *cb);
 
-// Display Mode Setting (display_mode is defined in GraphicsDefs.h on Haiku)
-#ifdef __HAIKU__
-#include <os/interface/GraphicsDefs.h>
-int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const display_mode *mode);
-#else
-// Forward declaration for non-Haiku platforms
-struct display_mode;
-int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const struct display_mode *mode);
-#endif
+// Display Mode Setting - disabled for now due to header compatibility issues
+// int amdgpu_set_display_mode_hal(struct OBJGPU *adev, const struct display_mode *mode);
 
 // Memory Controller Scanout Address (Phase 2.2)
 int gmc_v10_set_scanout_address(struct OBJGPU *adev, uint64_t gpu_address);
@@ -220,4 +213,4 @@ void amdgpu_hal_shadow_write(struct OBJGPU *adev, uint32_t offset,
 int amdgpu_hal_reset(struct OBJGPU *adev);
 void *amdgpu_hal_heartbeat(void *arg);
 
-#endif // AMD_HAL_H
+#endif /* AMD_HAL_H */
