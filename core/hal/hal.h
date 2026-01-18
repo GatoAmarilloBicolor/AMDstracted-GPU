@@ -48,6 +48,37 @@
 
 struct OBJGPU;
 
+// IP Block interface (renamed to avoid conflict)
+struct ip_block_ops {
+    const char *name;
+    uint32_t version;
+    int (*early_init)(struct OBJGPU *adev);
+    int (*sw_init)(struct OBJGPU *adev);
+    int (*hw_init)(struct OBJGPU *adev);
+    int (*late_init)(struct OBJGPU *adev);
+    int (*hw_fini)(struct OBJGPU *adev);
+    int (*sw_fini)(struct OBJGPU *adev);
+    bool (*is_idle)(struct OBJGPU *adev);
+    int (*wait_for_idle)(struct OBJGPU *adev);
+    int (*suspend)(struct OBJGPU *adev);
+    int (*resume)(struct OBJGPU *adev);
+};
+
+// Register an IP block
+int ip_block_register(struct OBJGPU *adev, struct ip_block_ops *block);
+
+// Call IP block handlers
+int ip_blocks_early_init(struct OBJGPU *adev);
+int ip_blocks_sw_init(struct OBJGPU *adev);
+int ip_blocks_hw_init(struct OBJGPU *adev);
+int ip_blocks_late_init(struct OBJGPU *adev);
+int ip_blocks_hw_fini(struct OBJGPU *adev);
+int ip_blocks_sw_fini(struct OBJGPU *adev);
+bool ip_blocks_is_idle(struct OBJGPU *adev);
+int ip_blocks_wait_for_idle(struct OBJGPU *adev);
+int ip_blocks_suspend(struct OBJGPU *adev);
+int ip_blocks_resume(struct OBJGPU *adev);
+
 // Cool macro to keep track of versions (like 1.0.2!)
 #define IP_VERSION(maj, min, rev) (((maj) << 16) | ((min) << 8) | (rev))
 
@@ -169,7 +200,7 @@ struct OBJGPU {
   void *pci_handle;             // The connection to the OS PCI bus
   uint32_t family;              // Which GPU family does it belong to?
 
-  struct amd_ip_block ip_blocks[AMDGPU_MAX_IP_BLOCKS]; // List of workers
+  struct ip_block_ops *ip_blocks[AMDGPU_MAX_IP_BLOCKS]; // List of IP block operations
   int num_ip_blocks;
 
   void *mmio_base;             // The direct connection to the hardware

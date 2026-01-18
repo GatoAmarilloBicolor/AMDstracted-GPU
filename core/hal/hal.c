@@ -1,9 +1,118 @@
 #include "hal.h"
-#include "../../os/os_interface.h"
-#include "../../drivers/amdgpu/amdgpu_pci_ids.h"
+#include "../os/os_interface.h"
+#include "../drivers/interface/mmio_access.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+// IP Block registration
+int ip_block_register(struct OBJGPU *adev, struct ip_block_ops *block) {
+    if (!adev || !block || adev->num_ip_blocks >= AMDGPU_MAX_IP_BLOCKS) {
+        return -1;
+    }
+    adev->ip_blocks[adev->num_ip_blocks++] = block;
+    return 0;
+}
+
+int ip_blocks_early_init(struct OBJGPU *adev) {
+    for (int i = 0; i < adev->num_ip_blocks; i++) {
+        struct ip_block_ops *block = adev->ip_blocks[i];
+        if (block->early_init && block->early_init(adev) != 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int ip_blocks_sw_init(struct OBJGPU *adev) {
+    for (int i = 0; i < adev->num_ip_blocks; i++) {
+        struct ip_block_ops *block = adev->ip_blocks[i];
+        if (block->sw_init && block->sw_init(adev) != 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int ip_blocks_hw_init(struct OBJGPU *adev) {
+    for (int i = 0; i < adev->num_ip_blocks; i++) {
+        struct ip_block_ops *block = adev->ip_blocks[i];
+        if (block->hw_init && block->hw_init(adev) != 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int ip_blocks_late_init(struct OBJGPU *adev) {
+    for (int i = 0; i < adev->num_ip_blocks; i++) {
+        struct ip_block_ops *block = adev->ip_blocks[i];
+        if (block->late_init && block->late_init(adev) != 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int ip_blocks_hw_fini(struct OBJGPU *adev) {
+    for (int i = 0; i < adev->num_ip_blocks; i++) {
+        struct ip_block_ops *block = adev->ip_blocks[i];
+        if (block->hw_fini && block->hw_fini(adev) != 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int ip_blocks_sw_fini(struct OBJGPU *adev) {
+    for (int i = 0; i < adev->num_ip_blocks; i++) {
+        struct ip_block_ops *block = adev->ip_blocks[i];
+        if (block->sw_fini && block->sw_fini(adev) != 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+bool ip_blocks_is_idle(struct OBJGPU *adev) {
+    for (int i = 0; i < adev->num_ip_blocks; i++) {
+        struct ip_block_ops *block = adev->ip_blocks[i];
+        if (block->is_idle && !block->is_idle(adev)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+int ip_blocks_wait_for_idle(struct OBJGPU *adev) {
+    for (int i = 0; i < adev->num_ip_blocks; i++) {
+        struct ip_block_ops *block = adev->ip_blocks[i];
+        if (block->wait_for_idle && block->wait_for_idle(adev) != 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int ip_blocks_suspend(struct OBJGPU *adev) {
+    for (int i = 0; i < adev->num_ip_blocks; i++) {
+        struct ip_block_ops *block = adev->ip_blocks[i];
+        if (block->suspend && block->suspend(adev) != 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int ip_blocks_resume(struct OBJGPU *adev) {
+    for (int i = 0; i < adev->num_ip_blocks; i++) {
+        struct ip_block_ops *block = adev->ip_blocks[i];
+        if (block->resume && block->resume(adev) != 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
 
 #ifdef __HAIKU__
 #include <GraphicsDefs.h>
