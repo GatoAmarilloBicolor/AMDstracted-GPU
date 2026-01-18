@@ -5,9 +5,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-/* Forward declaration for HAL integration */
-typedef struct OBJGPU OBJGPU;
-
 /* GPU Generations */
 typedef enum {
     AMD_VLIW,       /* VLIW4/2 (2005-2012) */
@@ -55,40 +52,18 @@ typedef struct {
     amd_backend_type_t preferred_backend;
 } amd_gpu_device_info_t;
 
-/* IP Block structure for real hardware access */
-typedef struct {
-    const char *name;
-    uint32_t version;
-    int (*early_init)(OBJGPU *gpu);
-    int (*hw_init)(OBJGPU *gpu);
-    int (*hw_fini)(OBJGPU *gpu);
-    int (*sw_init)(OBJGPU *gpu);
-    int (*sw_fini)(OBJGPU *gpu);
-} amd_ip_block_ops_t;
-
 /* Forward declarations */
 typedef struct amd_device amd_device_t;
 typedef struct amd_gpu_handler amd_gpu_handler_t;
 typedef struct amd_api_backend amd_api_backend_t;
 typedef struct amd_platform_bridge amd_platform_bridge_t;
 
-/* GPU Handler: Generation-specific operations with IP block support */
+/* GPU Handler: Generation-specific operations */
 typedef struct amd_gpu_handler {
     const char *name;
     amd_gpu_generation_t generation;
     
-    /* IP Block Members (for direct hardware access) */
-    struct {
-        amd_ip_block_ops_t *gmc;      /* Graphics Memory Controller */
-        amd_ip_block_ops_t *gfx;      /* Graphics Engine */
-        amd_ip_block_ops_t *sdma;     /* DMA Engines */
-        amd_ip_block_ops_t *display;  /* Display Engine */
-        amd_ip_block_ops_t *clock;    /* Clock/Power Management */
-    } ip_blocks;
-    
-    /* Core initialization - now delegates to IP blocks */
-    int (*init_hardware)(amd_device_t *dev);      /* NEW: calls real IP blocks */
-    int (*hw_init)(amd_device_t *dev);            /* LEGACY: for compatibility */
+    int (*hw_init)(amd_device_t *dev);
     int (*hw_fini)(amd_device_t *dev);
     
     int (*init_ip_blocks)(amd_device_t *dev);
@@ -157,10 +132,6 @@ typedef struct amd_device {
     /* Device reference count */
     int ref_count;
     bool initialized;
-    
-    /* HAL integration (for real hardware) */
-    OBJGPU *hal_device;  /* Bridge to real HAL layer */
-    int use_hal_backend;  /* Use HAL for initialization if 1 */
 } amd_device_t;
 
 /* Public API */

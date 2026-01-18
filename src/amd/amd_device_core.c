@@ -9,26 +9,21 @@ extern amd_gpu_handler_t vliw_handler;
 extern amd_gpu_handler_t gcn_handler;
 extern amd_gpu_handler_t rdna_handler;
 
-/* Forward declarations for integrated handlers */
-extern amd_gpu_handler_t vliw_handler_integrated;
-extern amd_gpu_handler_t gcn_handler_integrated;
-extern amd_gpu_handler_t rdna_handler_integrated;
-
-/* Get appropriate handler for GPU generation - Updated with integrated handlers */
+/* Get appropriate handler for GPU generation */
 amd_gpu_handler_t* amd_get_handler(amd_gpu_generation_t generation)
 {
     switch (generation) {
         case AMD_VLIW:
-            return &vliw_handler_integrated;  // Uses real IP blocks
+            return &vliw_handler;
         case AMD_GCN1:
         case AMD_GCN2:
         case AMD_GCN3:
         case AMD_GCN4:
         case AMD_GCN5:
-            return &gcn_handler_integrated;   // Uses real IP blocks
+            return &gcn_handler;
         case AMD_RDNA2:
         case AMD_RDNA3:
-            return &rdna_handler_integrated;  // Uses real IP blocks
+            return &rdna_handler;
         default:
             return NULL;
     }
@@ -116,18 +111,7 @@ int amd_device_init(amd_device_t *dev)
     }
     printf("\n");
     
-    /* Hardware initialization - NEW: try real IP blocks first */
-    if (dev->handler->init_hardware) {
-        ret = dev->handler->init_hardware(dev);
-        if (ret == 0) {
-            printf("Hardware initialized via real IP blocks\n");
-            dev->initialized = true;
-            return 0;
-        }
-        printf("Note: Real IP block init not available, falling back to legacy\n");
-    }
-    
-    /* Legacy: Hardware initialization (fallback for compatibility) */
+    /* Hardware initialization */
     if (dev->handler->hw_init) {
         ret = dev->handler->hw_init(dev);
         if (ret < 0) {
