@@ -48,7 +48,7 @@
 
 struct OBJGPU;
 
-// IP Block interface (renamed to avoid conflict)
+// IP Block operations interface
 struct ip_block_ops {
     const char *name;
     uint32_t version;
@@ -62,6 +62,23 @@ struct ip_block_ops {
     int (*wait_for_idle)(struct OBJGPU *adev);
     int (*suspend)(struct OBJGPU *adev);
     int (*resume)(struct OBJGPU *adev);
+};
+
+// AMD GPU Handler structure - centralizes IP block management
+struct amd_gpu_handler {
+    struct OBJGPU *gpu;
+    struct ip_block_ops *ip_blocks[AMDGPU_MAX_IP_BLOCKS];
+    int num_ip_blocks;
+
+    // Hardware initialization handlers
+    int (*init_hardware)(struct amd_gpu_handler *handler);
+    int (*fini_hardware)(struct amd_gpu_handler *handler);
+    bool (*is_hardware_idle)(struct amd_gpu_handler *handler);
+    int (*wait_for_idle)(struct amd_gpu_handler *handler);
+
+    // IP Block registry methods
+    int (*register_ip_block)(struct amd_gpu_handler *handler, struct ip_block_ops *block);
+    struct ip_block_ops *(*find_ip_block)(struct amd_gpu_handler *handler, const char *name);
 };
 
 // Register an IP block
@@ -202,6 +219,9 @@ struct OBJGPU {
 
   struct ip_block_ops *ip_blocks[AMDGPU_MAX_IP_BLOCKS]; // List of IP block operations
   int num_ip_blocks;
+
+  // GPU Handler for centralized management
+  struct amd_gpu_handler *handler;
 
   void *mmio_base;             // The direct connection to the hardware
   struct RsResource *res_root; // The top of the "Family Tree"
