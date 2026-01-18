@@ -37,6 +37,7 @@ static int gmc_v10_early_init(struct OBJGPU *adev) {
  * Software Init: Set up page tables and memory structures
  */
 static int gmc_v10_sw_init(struct OBJGPU *adev) {
+    (void)adev;
     os_prim_log("GMC v10: [SW Init] Setting up page tables and memory layout\n");
 
     // Allocate page table (simulated)
@@ -128,6 +129,7 @@ static int gmc_v10_hw_fini(struct OBJGPU *adev) {
  * Software Fini: Clean up software state
  */
 static int gmc_v10_sw_fini(struct OBJGPU *adev) {
+    (void)adev;
     os_prim_log("GMC v10: [SW Fini] Cleaning up memory structures\n");
     // Free page tables, etc.
     return 0;

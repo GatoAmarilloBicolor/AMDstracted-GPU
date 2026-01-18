@@ -61,7 +61,7 @@ TEST_CASE(gmc_v10_hw_init)
     // Allocate fake MMIO space
     void *temp_mmio = TEST_MALLOC(0x100000);
     memcpy(&mock_gpu.mmio_base, &temp_mmio, sizeof(uintptr_t));  // 1MB
-    TEST_ASSERT_NOT_NULL(mock_gpu.mmio_base);
+    TEST_ASSERT_NOT_NULL((void *)mock_gpu.mmio_base);
     
     // Call hw_init
     int result = gmc_v10_hw_init(&mock_gpu);
@@ -84,7 +84,7 @@ TEST_CASE(gmc_v10_late_init)
     struct OBJGPU mock_gpu = {0};
     void *temp_mmio = TEST_MALLOC(0x100000);
     memcpy(&mock_gpu.mmio_base, &temp_mmio, sizeof(uintptr_t));
-    TEST_ASSERT_NOT_NULL(mock_gpu.mmio_base);
+    TEST_ASSERT_NOT_NULL((void *)mock_gpu.mmio_base);
     
     int result = gmc_v10_late_init(&mock_gpu);
     
@@ -105,7 +105,7 @@ TEST_CASE(gmc_v10_hw_fini)
     struct OBJGPU mock_gpu = {0};
     void *temp_mmio = TEST_MALLOC(0x100000);
     memcpy(&mock_gpu.mmio_base, &temp_mmio, sizeof(uintptr_t));
-    TEST_ASSERT_NOT_NULL(mock_gpu.mmio_base);
+    TEST_ASSERT_NOT_NULL((void *)mock_gpu.mmio_base);
     
     int result = gmc_v10_hw_fini(&mock_gpu);
     
@@ -126,7 +126,7 @@ TEST_CASE(gmc_v10_lifecycle)
     struct OBJGPU mock_gpu = {0};
     void *temp_mmio = TEST_MALLOC(0x100000);
     memcpy(&mock_gpu.mmio_base, &temp_mmio, sizeof(uintptr_t));
-    TEST_ASSERT_NOT_NULL(mock_gpu.mmio_base);
+    TEST_ASSERT_NOT_NULL((void *)mock_gpu.mmio_base);
     
     // Full sequence
     int result = 0;

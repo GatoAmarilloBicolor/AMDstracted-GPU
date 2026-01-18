@@ -52,7 +52,7 @@ static int test_performance(void) {
     perf_timer_stop(&timer);
     uint64_t elapsed = perf_timer_elapsed_ns(&timer);
 
-    printf("Performance: %llu ns for 1000 alloc/free cycles\n", elapsed);
+    printf("Performance: %lu ns for 1000 alloc/free cycles\n", elapsed);
     TEST_ASSERT(elapsed > 0, "Elapsed time should be positive");
 
     return TEST_PASS;
