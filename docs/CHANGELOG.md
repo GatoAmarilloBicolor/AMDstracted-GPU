@@ -1,5 +1,44 @@
 # CHANGELOG - AMDGPU_Abstracted
 
+## [0.8.0] - 2025-01-18
+
+### ✅ COMPLETED
+
+#### Modular Architecture Redesign
+- **Core/OS/Drivers Separation**: Complete restructuring with pluggable components
+- **IP Block Registry System**: Dynamic registration and management of GMC/GFX/DCE/DCN blocks
+- **OS Abstraction Layer**: Unified interfaces with Linux/Haiku implementations
+- **Driver Plugin Framework**: Extensible AMD driver architecture
+
+#### Hardware Abstraction Layer (HAL)
+- **IP Block Operations**: Real handler calls instead of stubs (early_init, sw_init, hw_init, late_init)
+- **MMIO Access Layer**: Safe register access with read/write/modify operations
+- **Display Engine Support**: DCE v10.0 and DCN v1.0 IP blocks
+- **Hardware Initialization**: Proper sequences with register programming
+
+#### Build System Modernization
+- **Meson Build System**: Complete migration from Make with options and dependencies
+- **Container Support**: Docker configurations for Linux/Haiku reproducible builds
+- **Conan Integration**: Package management for dependencies
+- **Cross-Platform Scripts**: Updated installation scripts with Meson commands
+
+#### Testing Framework
+- **Mock System**: OS and hardware mocks for isolated testing
+- **Performance Timing**: Execution time measurement utilities
+- **Coverage Support**: Integration with gcovr for code coverage reports
+- **Test Runner**: Consolidated test execution with Meson
+
+#### Resource Management (RMAPI)
+- **Buffer Management**: Real HAL integration for memory allocation
+- **Command Buffer Handling**: GPU object linking and submission
+- **IPC Improvements**: Enhanced client-server communication
+
+### 📊 Metrics
+- **Lines of Code**: ~15,000 total
+- **Test Coverage**: 11/11 tests passing
+- **OS Support**: Linux (complete), Haiku (interfaces ready)
+- **Build System**: Meson with Docker and Conan
+
 ## [0.1.0] - 2024-01-16
 
 ### ✅ COMPLETED

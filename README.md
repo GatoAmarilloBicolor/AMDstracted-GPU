@@ -1,91 +1,89 @@
-# AMDGPU_Abstracted - GPU Driver v0.2
+# AMDGPU_Abstracted - GPU Driver v0.8
 
-**A cross-platform, userland GPU driver for AMD Radeon cards supporting Linux, Haiku, and FreeBSD.**
+**A cross-platform, userland GPU driver for AMD Radeon cards with modular architecture, supporting Linux and Haiku.**
 
 ## 📁 Project Structure
 
 ```
 AMDGPU_Abstracted/
+├── core/                    # Core components (HAL, RMAPI, IPC, GPU)
+├── os/                      # OS abstractions (linux/haiku/interface)
+├── drivers/                 # Driver implementations (AMDGPU, plugins)
+├── tests/                   # Testing framework and mocks
 ├── docs/                    # Documentation and guides
-├── src/                     # Source code (organized by subsystem)
-│   ├── amd/                 # AMD GPU components
-│   ├── common/              # Shared utilities
-│   ├── os/                  # OS abstractions (linux/haiku/freebsd/common)
-│   │   ├── drm/             # DRM compatibility shim
-│   │   └── tests/           # Test suite (unit + integration)
-│   └── examples/            # Example applications
 ├── scripts/                 # Build and install scripts
-├── build/                   # Build files and artifacts
-├── config/                  # Build configuration
-├── tools/                   # Utility scripts
-├── libdrm/                  # libdrm submodule
-└── mesa/                    # Mesa submodule
+├── docker/                  # Container configurations
+├── meson.build              # Meson build system
+├── meson_options.txt        # Build options
+├── conanfile.py             # Conan package management
+└── README.md                # This file
 ```
 
 ## 🚀 Quick Start
 
-### Build
+### Build with Meson
 ```bash
-make clean && make all
+meson setup builddir
+meson compile -C builddir
 ```
 
 ### Test
 ```bash
-./tests/test_components      # Run all 70 tests
-./examples/opengl_app/example_opengl_app
+meson test -C builddir       # Run all tests
 ```
 
 ### Run
 ```bash
-./rmapi_server &             # Start GPU server
-./rmapi_client_demo          # Run test client
+./builddir/rmapi_server &   # Start GPU server
+./builddir/rmapi_client_demo # Run test client
 ```
 
-## 🧪 Simulation Mode
-
-For testing without real AMD hardware:
-
+### Install
 ```bash
-export AMD_SIMULATE=1
-./rmapi_server  # Runs in simulation mode
-```
+# Linux
+./scripts/install_linux.sh
 
-This enables PCI device simulation and allows testing all GPU functions.
+# Haiku
+./scripts/install_haiku.sh
+```
 
 ## 📚 Documentation
 
-Start with these files in order:
-
-1. **docs/QUICK_START.md** - Getting started guide
-2. **docs/STATUS_v0.2.md** - Current status and roadmap
-3. **docs/IMPLEMENTATION_SUMMARY_v0.2.md** - What was implemented
-4. **docs/architecture/** - Architecture documentation
+- **docs/QUICK_START.md** - Getting started guide
+- **docs/ARCHITECTURE_STEP_BY_STEP.md** - Architecture overview
+- **docs/REDESIGN_ARCHITECTURE_PROPOSAL.md** - Design decisions
+- **docs/CHANGELOG.md** - Version history
+- **docs/USAGE_GUIDE.md** - API usage examples
 
 ## 🏗️ Source Code Organization
 
-### src/amd/
-AMD-specific components:
+### core/
+Core components:
 
-- **shader_compiler/** - SPIR-V parsing and RDNA ISA generation
-- **radv_backend/** - Vulkan API with GEM memory allocator
-- **zink_layer/** - OpenGL 4.6 translation to Vulkan
-- **hal/** - Hardware abstraction layer
-- **ip_blocks/** - GPU IP blocks (GMC v10, GFX v10, VCN v2)
+- **gpu/** - GPU object management and interfaces
+- **hal/** - Hardware abstraction layer with IP block registry
 - **rmapi/** - Resource manager API and server
+- **ipc/** - Inter-process communication
+- **resource/** - Resource tracking (RESSERV)
 
-### src/common/
-Shared components:
+### os/
+OS abstractions:
 
-- **ipc/** - Inter-process communication (socket-based)
-- **resource/** - Resource tracking and cleanup (RESSERV)
-- **gpu/** - GPU object management
+- **interface/** - Common OS interfaces and primitives
+- **linux/** - Linux implementations
+- **haiku/** - Haiku implementations
 
-### src/os/
-OS-specific implementations:
+### drivers/
+Driver implementations:
 
-- **linux/** - Linux OS primitives and interface
-- **haiku/** - Haiku OS primitives (TODO)
-- **freebsd/** - FreeBSD OS primitives (TODO)
+- **interface/** - Driver and MMIO interfaces
+- **amdgpu/** - AMD GPU drivers (HAL, IP blocks, backends)
+
+### tests/
+Testing framework:
+
+- **framework/** - Test framework and mocks
+- **mocks/** - OS and hardware mocks
 
 ### drm/
 DRM compatibility layer for bridging apps to the driver.
@@ -107,73 +105,61 @@ Sample applications demonstrating driver usage:
 
 | Metric | Value |
 |--------|-------|
-| New Code (v0.2) | ~410 lines |
-| Tests | 70/70 PASSING ✓ |
-| Coverage | ~55% |
-| Compilation | 0 errors |
-| OS Support | Linux/Haiku/FreeBSD |
-| Build Time | ~2 seconds |
+| Version | 0.8.0 |
+| Lines of Code | ~15,000 |
+| Tests | 11/11 PASSING ✓ |
+| OS Support | Linux/Haiku |
+| Build System | Meson + Conan |
+| Architecture | Modular with plugins |
 
 ## ✨ Features Implemented
 
-✅ SPIR-V to RDNA ISA shader compilation  
-✅ GPU memory management (GEM allocator)  
-✅ Command ring buffer for GPU execution  
-✅ OpenGL 4.6 via Vulkan (Zink)  
-✅ Vulkan API support (RADV)  
-✅ IPC-based client-server architecture  
-✅ Cross-platform POSIX support  
+✅ **Modular Architecture**: Core, OS, Drivers separation  
+✅ **IP Block Registry**: Dynamic registration of GMC/GFX/DCE/DCN  
+✅ **OS Abstraction Layer**: Pluggable Linux/Haiku interfaces  
+✅ **MMIO Access Layer**: Safe memory-mapped register access  
+✅ **Driver Plugins**: Extensible AMD driver framework  
+✅ **Testing Framework**: Mocks, asserts, performance timing  
+✅ **Build System**: Meson with Docker and Conan support  
+✅ **IPC & RMAPI**: Client-server GPU resource management  
 
 ## 🔄 Architecture
 
 ```
-App (OpenGL/Vulkan)
+Applications (OpenGL/Vulkan)
       ↓
-DRM Shim (compatibility layer)
+RMAPI Client (IPC)
       ↓ (UNIX socket)
-RMAPI Server (GPU control)
-      ├→ Shader Compiler
-      ├→ RADV Backend
-      ├→ Zink Layer
+RMAPI Server (Resource Management)
       ↓
 HAL (Hardware Abstraction Layer)
       ↓
-IP Blocks (GMC v10, GFX v10)
+IP Blocks Registry (GMC/GFX/DCE/DCN)
       ↓
-GPU Hardware (simulated in v0.2)
+MMIO Access Layer
+      ↓
+OS Abstraction (Linux/Haiku)
+      ↓
+GPU Hardware
 ```
 
-## 🎯 Next Steps
+## 🎯 Current Status
 
-4 options for continuing development:
+**Version 0.8**: Modular architecture with IP block registry, OS abstraction, testing framework, and Meson build system. Ready for hardware integration and display support.
 
-**A. Enhanced Testing** (2-3 days)
-- Add 80+ stress tests
-- Performance benchmarking
-
-**B. GPU Integration** (1-2 weeks)
-- Real GLSL compiler
-- Interrupt handling
-- Real MMIO access
-
-**C. Haiku Accelerant** (1-2 weeks)
-- Native Haiku driver
-- Display support
-
-**D. Full Stack** (3-4 weeks)
-- A + B + C
-
-See **docs/STATUS_v0.2.md** for details.
+**Supported IP Blocks**: GMC v10.0, GFX v10.0, DCE v10.0, DCN v1.0  
+**OS Support**: Linux (complete), Haiku (interfaces ready)  
+**Build System**: Meson with Docker containers and Conan
 
 ## 🔗 Repository
 
 **GitHub**: https://github.com/GatoAmarilloBicolor/AMDstracted-GPU  
 **Branch**: main  
-**Version**: 0.2  
+**Version**: 0.8.0  
 
 ## 📝 License
 
-See LICENSE file.
+MIT License
 
 ## 👥 Authors
 
@@ -181,4 +167,4 @@ Haiku Imposible Team (HIT)
 
 ---
 
-**Status**: v0.2 - Simulation mode complete, ready for next phase
+**Status**: v0.8 - Modular architecture complete, IP blocks registry, OS abstraction, testing framework, Meson build system. Ready for hardware integration.
