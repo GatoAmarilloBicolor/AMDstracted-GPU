@@ -1,7 +1,7 @@
 #ifndef AMD_RMAPI_H
 #define AMD_RMAPI_H
 
-#include "hal.h"
+#include "../hal/hal.h"
 
 // RMAPI-style userspace interface, inspired by NVIDIA
 // Allows direct calls from apps to RM, reducing kernel overhead
@@ -14,14 +14,14 @@ int rmapi_free_memory(struct OBJGPU* gpu, uint64_t addr);
 int rmapi_submit_command(struct OBJGPU* gpu, struct amdgpu_command_buffer* cb);
 int rmapi_get_gpu_info(struct OBJGPU* gpu, struct amdgpu_gpu_info* info);
 
-// Display & Mode Setting
-#ifdef __HAIKU__
-#include <GraphicsDefs.h>  // For display_mode
-int rmapi_set_display_mode(struct OBJGPU* gpu, const display_mode* mode);
-#else
-struct display_mode;
-int rmapi_set_display_mode(struct OBJGPU* gpu, const struct display_mode* mode);
-#endif
+// Display & Mode Setting - disabled due to header issues
+// #ifdef __HAIKU__
+// #include <GraphicsDefs.h>  // For display_mode
+// int rmapi_set_display_mode(struct OBJGPU* gpu, const display_mode* mode);
+// #else
+// struct display_mode;
+// int rmapi_set_display_mode(struct OBJGPU* gpu, const struct display_mode* mode);
+// #endif
 
 // Vulkan RMAPI functions (for RADV/Zink integration)
 int rmapi_vk_create_instance(void* create_info, void** instance);

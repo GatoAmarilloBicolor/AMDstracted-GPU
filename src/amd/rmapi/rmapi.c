@@ -1,7 +1,7 @@
 #include "rmapi.h"
-#include "../os/os_primitives.h"
-#include "../../src/common/ipc/ipc_lib.h"
-#include "../../src/common/ipc/ipc_protocol.h"
+#include "../../os/os_primitives.h"
+#include "../../common/ipc/ipc_lib.h"
+#include "../../common/ipc/ipc_protocol.h"
 #include "../hal/hal.h"
 #include <stdlib.h>
 #include <string.h>
@@ -133,6 +133,7 @@ int rmapi_get_gpu_info(struct OBJGPU *gpu, struct amdgpu_gpu_info *info) {
 }
 
 // 5. "Show this on the display!" (Set display mode)
+/*
 #ifdef __HAIKU__
 int rmapi_set_display_mode(struct OBJGPU *gpu, const display_mode *mode) {
   if (!gpu)
@@ -158,6 +159,7 @@ int rmapi_set_display_mode(struct OBJGPU *gpu, const struct display_mode *mode) 
   return 0;
 }
 #endif
+*/
 
 /* --- Vulkan RMAPI Functions for RADV/Zink Integration --- */
 
