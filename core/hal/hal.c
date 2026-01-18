@@ -1,5 +1,5 @@
 #include "hal.h"
-#include "../../os/interface/os_primitives.h"
+#include "../../os/os_interface.h"
 #include "../../drivers/amdgpu/amdgpu_pci_ids.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +8,16 @@
 #ifdef __HAIKU__
 #include <GraphicsDefs.h>
 #endif
+
+// Macros to use OS interface
+#define os_prim_log os_get_interface()->log
+#define os_prim_alloc os_get_interface()->alloc
+#define os_prim_free os_get_interface()->free
+#define os_prim_pci_get_ids os_get_interface()->prim_pci_get_ids
+#define os_prim_pci_map_resource os_get_interface()->prim_pci_map_resource
+#define os_prim_write32 os_get_interface()->write32
+#define os_prim_read32 os_get_interface()->read32
+#define os_prim_delay_us os_get_interface()->delay_us
 
 /*
  * Developed by: Haiku Imposible Team (HIT)
