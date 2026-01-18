@@ -5,7 +5,7 @@
 #include <stddef.h>
 
 // OS-agnostic PCI device handle
-typedef struct {
+typedef struct os_pci_device {
     void *handle;
 } os_pci_device;
 

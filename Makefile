@@ -84,6 +84,8 @@ SRC_OBJS = $(CORE_DIR)/gpu/objgpu.o \
            $(CORE_DIR)/rmapi/rmapi.o \
            $(CORE_DIR)/rmapi/rmapi_server.o \
            $(CORE_DIR)/ipc/ipc_lib.o \
+           drivers/driver_loader.o \
+           drivers/amdgpu/driver_amd.o \
            $(DRIVERS_DIR)/amdgpu_gem_userland.o \
            $(DRIVERS_DIR)/amdgpu_kms_userland.o \
            $(DRIVERS_DIR)/ip_blocks/gmc_v10.o \
