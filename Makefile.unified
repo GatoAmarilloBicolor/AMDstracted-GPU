@@ -1,0 +1,81 @@
+CC = gcc
+CFLAGS = -Wall -Wextra -O2 -fPIC -std=c99
+LDFLAGS = -shared
+TESTFLAGS = -Wall -Wextra -O2 -std=c99
+
+SRCDIR = src/amd
+HANDLERDIR = src/amd/handlers
+TESTDIR = tests
+BUILDDIR = build_unified
+
+# Source files
+SOURCES = \
+	$(SRCDIR)/amd_devices.c \
+	$(SRCDIR)/amd_device_core.c \
+	$(HANDLERDIR)/vliw_handler.c \
+	$(HANDLERDIR)/gcn_handler.c \
+	$(HANDLERDIR)/rdna_handler.c
+
+OBJECTS = $(SOURCES:%.c=$(BUILDDIR)/%.o)
+HEADERS = $(SRCDIR)/amd_device.h
+
+# Library name
+LIBNAME = libamd_unified.so
+LIBPATH = $(BUILDDIR)/$(LIBNAME)
+
+# Test executable
+TEST_EXE = $(BUILDDIR)/test_unified_driver
+TEST_SRC = $(TESTDIR)/test_unified_driver.c
+TEST_OBJ = $(BUILDDIR)/test_unified_driver.o
+
+.PHONY: all clean test library handlers debug
+
+all: library test
+
+library: $(LIBPATH)
+
+$(LIBPATH): $(OBJECTS)
+	@mkdir -p $(BUILDDIR)
+	$(CC) $(LDFLAGS) -o $@ $^
+	@echo "✓ Built library: $@"
+
+$(BUILDDIR)/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c -o $@ $<
+	@echo "✓ Compiled: $<"
+
+test: $(TEST_EXE)
+
+$(TEST_EXE): library $(TEST_SRC)
+	@mkdir -p $(BUILDDIR)
+	$(CC) $(TESTFLAGS) -o $@ $(TEST_SRC) $(OBJECTS)
+	@echo "✓ Built test: $@"
+
+clean:
+	@rm -rf $(BUILDDIR)
+	@echo "✓ Cleaned build directory"
+
+# Run tests locally
+run-tests: test
+	@echo "\n=== Running Tests ==="
+	$(TEST_EXE)
+
+# Debug build with symbols
+debug: CFLAGS += -g -DDEBUG
+debug: all
+
+# Show build info
+info:
+	@echo "Build Configuration:"
+	@echo "  Compiler: $(CC)"
+	@echo "  CFLAGS: $(CFLAGS)"
+	@echo "  Sources: $(SOURCES)"
+	@echo "  Library: $(LIBPATH)"
+	@echo "  Test: $(TEST_EXE)"
+
+.PHONY: handlers
+handlers:
+	@echo "Registered Handlers:"
+	@echo "  - VLIW ($(HANDLERDIR)/vliw_handler.c)"
+	@echo "  - GCN ($(HANDLERDIR)/gcn_handler.c)"
+	@echo "  - RDNA ($(HANDLERDIR)/rdna_handler.c)"
