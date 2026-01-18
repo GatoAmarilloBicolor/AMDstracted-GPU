@@ -31,7 +31,7 @@ ifeq ($(OS),haiku)
    HAIKU_LDFLAGS = -lbe -ltranslation
     CC = clang
     CXX = clang++
-    HAIKU_INCLUDES = -I/boot/system/develop/headers -I/boot/system/develop/headers/posix -I/boot/system/develop/headers/os
+    HAIKU_INCLUDES = -I/boot/system/develop/headers -I/boot/system/develop/headers/posix -I/boot/system/develop/headers/os -I/boot/system/develop/headers/os/interface
 endif
 
 $(info [HIT] Building for OS: $(OS) (Detected: $(DETECTED_OS)))
