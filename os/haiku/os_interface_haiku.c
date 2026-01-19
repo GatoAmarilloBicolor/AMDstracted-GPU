@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <drivers/PCI.h>
-#include <drivers/KernelExport.h>
 #include <kernel/OS.h>
 #include <kernel/image.h>
 
@@ -19,18 +18,14 @@ uint32_t os_prim_read32(uintptr_t addr);
 void os_prim_delay_us(unsigned int us);
 
 // Haiku implementations
+// Note: Full PCI access from userland requires kernel driver context
+// These stubs allow compilation but return errors for direct GPU access
+
 int haiku_pci_find_device(uint16_t vendor, uint16_t device, os_pci_device *dev) {
-    pci_info info;
-    int index = 0;
-    while (get_nth_pci_info(index, &info) == B_OK) {
-        if (info.vendor_id == vendor && info.device_id == device) {
-            dev->handle = malloc(sizeof(pci_info));
-            if (!dev->handle) return -1;
-            memcpy(dev->handle, &info, sizeof(pci_info));
-            return 0;
-        }
-        index++;
-    }
+    // Stub: Haiku PCI access not available in userland
+    (void)vendor;
+    (void)device;
+    dev->handle = NULL;
     return -1;
 }
 
@@ -48,26 +43,11 @@ void haiku_pci_write_config(os_pci_device *dev, int offset, uint32_t val) {
 }
 
 void *haiku_pci_map_resource(os_pci_device *dev, int bar, size_t *size) {
-    if (!dev || !dev->handle || bar < 0 || bar >= 6) {
-        *size = 0;
-        return NULL;
-    }
-    
-    pci_info *info = (pci_info *)dev->handle;
-    uint64_t addr = info->u.h0.base_registers[bar];
-    *size = info->u.h0.base_register_sizes[bar];
-    
-    if (*size == 0) return NULL;
-    
-    area_id area;
-    void *virt_addr;
-    
-    area = map_physical_memory("AMD GPU MMIO", addr, *size, B_ANY_KERNEL_ADDRESS,
-                              B_READ_AREA | B_WRITE_AREA, &virt_addr);
-    
-    if (area < 0) return NULL;
-    
-    return virt_addr;
+    // Stub: Physical memory mapping requires kernel driver context
+    (void)dev;
+    (void)bar;
+    *size = 0;
+    return NULL;
 }
 
 void haiku_pci_unmap_resource(void *addr, size_t size) {

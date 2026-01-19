@@ -103,8 +103,7 @@ if host_os == 'haiku'
   # Link required Haiku system libraries
   deps += [
     meson.get_compiler('c').find_library('network', required: true),
-    meson.get_compiler('c').find_library('device', required: false),  # For device I/O
-    meson.get_compiler('c').find_library('kernel', required: false)   # For kernel functions
+    meson.get_compiler('c').find_library('device', required: false)   # For device I/O
   ]
   # Add Haiku-specific linker flags for proper ELF headers and compatibility
   add_project_link_arguments([
