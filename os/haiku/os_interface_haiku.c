@@ -5,22 +5,23 @@
 #include <stdlib.h>
 
 /* Forward declarations from generic stub */
-extern int pci_stub_find_device(uint16_t vendor, uint16_t device, void **handle);
-extern void pci_stub_get_ids(void *pci_handle, uint16_t *vendor, uint16_t *device);
-extern void *pci_stub_map_resource(void *pci_handle, int bar);
-extern uint32_t pci_stub_read_config(void *pci_handle, int offset);
-extern void pci_stub_write_config(void *pci_handle, int offset, uint32_t val);
-extern void pci_stub_unmap_resource(void *addr, size_t size);
-extern int pci_stub_register_interrupt(int irq, void (*handler)(void *), void *data);
-extern void pci_stub_unregister_interrupt(int irq);
-extern int pci_stub_display_init(void);
-extern void pci_stub_display_put_pixel(int x, int y, uint32_t color);
-extern void *pci_stub_alloc(size_t size);
-extern void pci_stub_free(void *ptr);
-extern void pci_stub_log(const char *fmt, ...);
-extern void pci_stub_write32(uintptr_t addr, uint32_t val);
-extern uint32_t pci_stub_read32(uintptr_t addr);
-extern void pci_stub_delay_us(unsigned int us);
+extern int os_pci_find_device(uint16_t vendor, uint16_t device, void **handle);
+extern int os_prim_pci_find_device(uint16_t vendor, uint16_t device, void **handle);
+extern void os_prim_pci_get_ids(void *pci_handle, uint16_t *vendor, uint16_t *device);
+extern void *os_prim_pci_map_resource(void *pci_handle, int bar);
+extern uint32_t os_pci_read_config(void *pci_handle, int offset);
+extern void os_pci_write_config(void *pci_handle, int offset, uint32_t val);
+extern void os_pci_unmap_resource(void *addr, size_t size);
+extern int os_register_interrupt(int irq, void (*handler)(void *), void *data);
+extern void os_unregister_interrupt(int irq);
+extern int os_display_init(void);
+extern void os_display_put_pixel(int x, int y, uint32_t color);
+extern void *os_prim_alloc(size_t size);
+extern void os_prim_free(void *ptr);
+extern void os_prim_log(const char *fmt, ...);
+extern void os_prim_write32(uintptr_t addr, uint32_t val);
+extern uint32_t os_prim_read32(uintptr_t addr);
+extern void os_prim_delay_us(unsigned int us);
 
 /* Haiku-specific implementations */
 void haiku_delay_us(unsigned int us) {
@@ -36,24 +37,24 @@ void haiku_log(const char *fmt, ...) {
 
 /* Haiku OS interface - uses generic stubs + Haiku-specific functions */
 struct os_interface haiku_os_interface = {
-    .pci_find_device = (void *)pci_stub_find_device,
-    .pci_read_config = (void *)pci_stub_read_config,
-    .pci_write_config = (void *)pci_stub_write_config,
-    .pci_map_resource = (void *)pci_stub_map_resource,
-    .pci_unmap_resource = (void *)pci_stub_unmap_resource,
-    .register_interrupt = (void *)pci_stub_register_interrupt,
-    .unregister_interrupt = (void *)pci_stub_unregister_interrupt,
-    .display_init = (void *)pci_stub_display_init,
-    .display_put_pixel = (void *)pci_stub_display_put_pixel,
-    .alloc = (void *)pci_stub_alloc,
-    .free = (void *)pci_stub_free,
-    .log = (void *)haiku_log,
-    .prim_pci_find_device = (void *)pci_stub_find_device,
-    .prim_pci_get_ids = (void *)pci_stub_get_ids,
-    .prim_pci_map_resource = (void *)pci_stub_map_resource,
-    .write32 = (void *)pci_stub_write32,
-    .read32 = (void *)pci_stub_read32,
-    .delay_us = (void *)haiku_delay_us
+    .pci_find_device = os_pci_find_device,
+    .pci_read_config = os_pci_read_config,
+    .pci_write_config = os_pci_write_config,
+    .pci_map_resource = os_prim_pci_map_resource,
+    .pci_unmap_resource = os_pci_unmap_resource,
+    .register_interrupt = os_register_interrupt,
+    .unregister_interrupt = os_unregister_interrupt,
+    .display_init = os_display_init,
+    .display_put_pixel = os_display_put_pixel,
+    .alloc = os_prim_alloc,
+    .free = os_prim_free,
+    .log = os_prim_log,
+    .prim_pci_find_device = os_prim_pci_find_device,
+    .prim_pci_get_ids = os_prim_pci_get_ids,
+    .prim_pci_map_resource = os_prim_pci_map_resource,
+    .write32 = os_prim_write32,
+    .read32 = os_prim_read32,
+    .delay_us = haiku_delay_us
 };
 
 struct os_interface *os_get_interface(void) {
