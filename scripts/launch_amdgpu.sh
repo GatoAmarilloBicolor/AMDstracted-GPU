@@ -32,6 +32,14 @@ check_server() {
 # Function to start server
 start_server() {
     echo "🚀 Starting AMD RMAPI Server..."
+    if [ "$DEBUG_MODE" = true ]; then
+        echo "🐛 Debug: Binary: $AMD_GPU_BIN/amd_rmapi_server"
+        echo "🐛 Debug: LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
+        echo "🐛 Debug: Running server in foreground for 5 seconds..."
+        timeout 5 "$AMD_GPU_BIN/amd_rmapi_server" 2>&1 || true
+        echo "🐛 Debug: Server test complete. Now trying background start."
+    fi
+
     # Run server and capture output for error reporting
     SERVER_OUTPUT=$("$AMD_GPU_BIN/amd_rmapi_server" 2>&1)
     SERVER_EXIT_CODE=$?
@@ -67,6 +75,7 @@ start_server() {
         echo "  - On Linux: Hardware access needs root. Use 'sudo' or '--software' mode."
         echo "  - Try software mode: ./scripts/launch_amdgpu.sh launch --software <command>"
         echo "  - Check libraries: ld $AMD_GPU_BIN/amd_rmapi_server"
+        echo "  - Enable debug: ./scripts/launch_amdgpu.sh launch --debug <command>"
         echo "  - Report issue with this full output at GitHub issues."
         return 1
     fi
@@ -162,18 +171,33 @@ case "$1" in
         ;;
     "launch")
         shift  # Remove 'launch' from args
-        # Check for --software flag
+        # Check for flags
         SOFTWARE_MODE=$DEFAULT_SOFTWARE
-        if [ "$1" = "--software" ]; then
-            SOFTWARE_MODE=true
-            shift
-        fi
+        DEBUG_MODE=false
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --software)
+                    SOFTWARE_MODE=true
+                    shift
+                    ;;
+                --debug)
+                    DEBUG_MODE=true
+                    shift
+                    ;;
+                *)
+                    break
+                    ;;
+            esac
+        done
         app_command="$*"
         setup_environment
         if [ "$SOFTWARE_MODE" = true ]; then
             echo "🔧 Software rendering mode enabled (CPU rendering)"
             export LIBGL_ALWAYS_SOFTWARE=1
             export GALLIUM_DRIVER=llvmpipe
+        fi
+        if [ "$DEBUG_MODE" = true ]; then
+            echo "🐛 Debug mode enabled"
         fi
         if ! check_server; then
             if start_server; then
@@ -223,6 +247,7 @@ case "$1" in
         echo "  $0 status          Check if server is running"
         echo "  $0 launch <cmd>    Launch application with AMD GPU acceleration"
         echo "  $0 launch --software <cmd>  Launch with CPU software rendering"
+        echo "  $0 launch --debug <cmd>     Launch with debug output"
         echo "  $0 env             Setup environment variables only"
         echo "  $0 test            Run the test suite"
         echo "  $0 demo            Run the demo client"
