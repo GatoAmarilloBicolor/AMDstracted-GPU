@@ -271,17 +271,29 @@ if [ "$(uname -s)" = "Haiku" ]; then
                             fi
                         else
                             echo "❌ Mesa installation failed"
-                            tail -20 /tmp/mesa_install.log | grep -E "error|Error"
+                            echo ""
+                            echo "📋 Installation error details:"
+                            echo "────────────────────────────────"
+                            tail -30 /tmp/mesa_install.log
+                            echo "────────────────────────────────"
                             OPENGL_MODE="software"
                         fi
                     else
                         echo "❌ Mesa build failed"
-                        tail -20 /tmp/mesa_build.log | grep -E "error|Error|FAILED"
+                        echo ""
+                        echo "📋 Build error details:"
+                        echo "────────────────────────────────"
+                        tail -40 /tmp/mesa_build.log
+                        echo "────────────────────────────────"
                         OPENGL_MODE="software"
                     fi
                 else
                     echo "❌ Mesa configuration failed"
-                    tail -20 /tmp/mesa_config.log | grep -E "ERROR|error"
+                    echo ""
+                    echo "📋 Configuration error details:"
+                    echo "────────────────────────────────"
+                    tail -30 /tmp/mesa_config.log
+                    echo "────────────────────────────────"
                     OPENGL_MODE="software"
                 fi
                 
