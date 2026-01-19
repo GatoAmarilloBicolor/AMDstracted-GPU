@@ -2,16 +2,24 @@
 # AMDGPU_Abstracted Launcher Script for Haiku
 # This script sets up the environment and launches applications with AMD GPU acceleration
 
-# Check if we're on Haiku
-if [ "$(uname -s)" != "Haiku" ]; then
-    echo "❌ This script is designed for Haiku OS"
-    echo "For Linux usage, see the project documentation"
+# Check OS
+OS="$(uname -s)"
+if [ "$OS" = "Haiku" ]; then
+    AMD_GPU_BIN="/boot/home/config/non-packaged/bin"
+    AMD_GPU_LIB="/boot/home/config/non-packaged/lib"
+elif [ "$OS" = "Linux" ]; then
+    AMD_GPU_BIN="$HOME/.local/bin"
+    AMD_GPU_LIB="$HOME/.local/lib"
+else
+    echo "❌ Unsupported OS: $OS"
+    echo "Supported: Haiku, Linux"
     exit 1
 fi
 
 # Function to check if server is running
 check_server() {
-    if pgrep -f "amd_rmapi_server" > /dev/null; then
+    # Haiku doesn't have pgrep, use ps instead
+    if ps | grep -q "amd_rmapi_server" | grep -v grep > /dev/null; then
         return 0
     else
         return 1
@@ -21,7 +29,7 @@ check_server() {
 # Function to start server
 start_server() {
     echo "🚀 Starting AMD RMAPI Server..."
-    /boot/home/config/non-packaged/bin/amd_rmapi_server &
+    "$AMD_GPU_BIN/amd_rmapi_server" &
     SERVER_PID=$!
     sleep 2
 
@@ -38,7 +46,8 @@ start_server() {
 stop_server() {
     if check_server; then
         echo "🛑 Stopping AMD RMAPI Server..."
-        pkill -f "amd_rmapi_server"
+        # Kill by process name
+        ps | grep "amd_rmapi_server" | grep -v grep | awk '{print $1}' | xargs kill -9 2>/dev/null
         sleep 1
         echo "✅ Server stopped"
     else
@@ -50,18 +59,20 @@ stop_server() {
 setup_environment() {
     echo "🔧 Setting up AMD GPU environment..."
 
-    # Haiku paths
-    export AMD_GPU_BIN="/boot/home/config/non-packaged/bin"
-    export AMD_GPU_LIB="/boot/home/config/non-packaged/lib"
     export LIBRARY_PATH="$AMD_GPU_LIB:$LIBRARY_PATH"
     export LD_LIBRARY_PATH="$AMD_GPU_LIB:$LD_LIBRARY_PATH"
 
     # Vulkan configuration
-    export VK_ICD_FILENAMES="/boot/home/config/non-packaged/lib/vulkan/icd.d/radeon_icd.x86_64.json"
+    if [ "$OS" = "Haiku" ]; then
+        export VK_ICD_FILENAMES="/boot/home/config/non-packaged/lib/vulkan/icd.d/radeon_icd.x86_64.json"
+        export LIBGL_DRIVERS_PATH="/boot/home/config/non-packaged/lib/dri"
+    elif [ "$OS" = "Linux" ]; then
+        export VK_ICD_FILENAMES="$AMD_GPU_LIB/vulkan/icd.d/radeon_icd.x86_64.json"
+        export LIBGL_DRIVERS_PATH="$AMD_GPU_LIB/dri"
+    fi
     export VK_LOADER_DEBUG="error"
 
     # OpenGL configuration (if Mesa is available)
-    export LIBGL_DRIVERS_PATH="/boot/home/config/non-packaged/lib/dri"
     export MESA_LOADER_DRIVER_OVERRIDE="zink"
 
     # Add to PATH
@@ -83,8 +94,8 @@ launch_app() {
     echo "🎮 Launching: $app_command"
 
     # Pre-load DRM shim if available
-    if [ -f "/boot/home/config/non-packaged/lib/libdrm_amdgpu.so" ]; then
-        export LD_PRELOAD="/boot/home/config/non-packaged/lib/libdrm_amdgpu.so:$LD_PRELOAD"
+    if [ -f "$AMD_GPU_LIB/libdrm_amdgpu.so" ]; then
+        export LD_PRELOAD="$AMD_GPU_LIB/libdrm_amdgpu.so:$LD_PRELOAD"
         echo "🔌 DRM shim loaded"
     fi
 
@@ -114,7 +125,7 @@ case "$1" in
     "status")
         if check_server; then
             echo "✅ AMD RMAPI Server is running"
-            pgrep -f "amd_rmapi_server"
+            ps | grep "amd_rmapi_server" | grep -v grep
         else
             echo "❌ AMD RMAPI Server is not running"
         fi
@@ -167,6 +178,14 @@ case "$1" in
         echo "  $0 launch 'vulkaninfo'"
         echo "  $0 launch 'my_vulkan_app'"
         echo ""
-        echo "NOTE: Make sure Mesa with Zink and RADV are installed for OpenGL/Vulkan support"
+        echo "REQUIREMENTS:"
+        echo "  - Mesa with Zink and RADV: pkgman install mesa_devel"
+        echo "  - Vulkan ICD: Ensure /boot/home/config/non-packaged/lib/vulkan/icd.d/radeon_icd.x86_64.json exists"
+        echo "  - DRM library: libdrm_amdgpu.so in /boot/home/config/non-packaged/lib/"
+        echo ""
+        echo "TROUBLESHOOTING:"
+        echo "  - If MMIO fails: Check PCI access permissions"
+        echo "  - If GL/VK errors: Verify Mesa installation and ICD paths"
+        echo "  - If symbol errors: Ensure all required libraries are installed"
         ;;
 esac
