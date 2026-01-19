@@ -21,7 +21,7 @@ export VK_LOADER_DEBUG=all
 export RADV_DEBUG=all
 
 # Start RMAPI server if not running
-if ! pgrep -f rmapi_server > /dev/null; then
+if ! ps aux | grep -q "[r]mapi_server"; then
     echo "[1/3] Starting RMAPI server..."
     ./build/rmapi_server &
     sleep 2

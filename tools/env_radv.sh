@@ -38,7 +38,7 @@ echo "   ✓ OpenGL: Zink (GL over Vulkan)"
 export VK_DRIVER_FILES="/boot/home/config/non-packaged/share/vulkan/icd.d/radeon_icd*.json"
 
 # 7. Ensure rmapi_server is running
-if ! pgrep -x "rmapi_server" > /dev/null; then
+if ! ps aux | grep -q "[r]mapi_server"; then
     echo "   ⚠ rmapi_server not running! Start it with: ./rmapi_server &"
 else
     echo "   ✓ rmapi_server is running"

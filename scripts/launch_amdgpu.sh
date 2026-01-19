@@ -40,23 +40,24 @@ start_server() {
         echo "🐛 Debug: Server test complete. Now trying background start."
     fi
 
-    # Run server and capture output for error reporting
-    SERVER_OUTPUT=$("$AMD_GPU_BIN/amd_rmapi_server" 2>&1)
-    SERVER_EXIT_CODE=$?
-
-    if [ $SERVER_EXIT_CODE -eq 0 ]; then
-        # If successful, run in background
-        "$AMD_GPU_BIN/amd_rmapi_server" &
-        SERVER_PID=$!
-        sleep 2
-        if check_server; then
-            echo "✅ Server started successfully (PID: $SERVER_PID)"
-            return 0
-        else
-            echo "❌ Server process died after startup"
-            return 1
-        fi
+    # Try to run server in background directly first
+    "$AMD_GPU_BIN/amd_rmapi_server" > /tmp/amd_rmapi.log 2>&1 &
+    SERVER_PID=$!
+    sleep 2
+    
+    if check_server; then
+        echo "✅ Server started successfully (PID: $SERVER_PID)"
+        return 0
+    elif ps -p $SERVER_PID > /dev/null 2>&1; then
+        # Process still running, may be initializing
+        echo "✅ Server started successfully (PID: $SERVER_PID, initializing...)"
+        return 0
     else
+        # Process died, capture output for error reporting
+        SERVER_OUTPUT=$(cat /tmp/amd_rmapi.log 2>/dev/null)
+        SERVER_EXIT_CODE=$?
+        
+        if [ $SERVER_EXIT_CODE -ne 0 ] || [ -z "$SERVER_OUTPUT" ]; then
         echo "❌ Failed to start server (exit code: $SERVER_EXIT_CODE)"
         echo "📋 System Information:"
         echo "   OS: $(uname -s) $(uname -r)"
@@ -65,10 +66,11 @@ start_server() {
         echo "   Binary Path: $AMD_GPU_BIN/amd_rmapi_server"
         echo "   Library Path: $LD_LIBRARY_PATH"
         echo ""
-        echo "📋 Full error details:"
-        echo "----------------------------------------"
-        echo "$SERVER_OUTPUT"
-        echo "----------------------------------------"
+            echo "📋 Full error details:"
+            echo "----------------------------------------"
+            echo "$SERVER_OUTPUT"
+            echo "----------------------------------------"
+        fi
         echo ""
         echo "💡 Troubleshooting tips:"
         echo "  - On Haiku: MMIO requires special permissions. Try running as root or check kernel driver."
