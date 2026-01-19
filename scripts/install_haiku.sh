@@ -187,10 +187,18 @@ if [ "$(uname -s)" = "Haiku" ]; then
         if [ -f "$VULKAN_PATH/radeon_icd.x86_64.json" ]; then
             echo "✅ RADV Vulkan ICD found (modern hardware)"
             OPENGL_MODE="radv"
-        # Check for legacy r600 driver (older AMD)
+        # Check for r600 driver (R600/R700/Evergreen/Wrestler/Brazos)
         elif [ -f "$DRI_PATH/r600_dri.so" ] || [ -f "$DRI_PATH/r600_dri.so.1" ]; then
-            echo "✅ R600 DRI driver found (legacy AMD hardware)"
+            echo "✅ R600 DRI driver found (R600/R700/Evergreen/Wrestler AMD)"
             OPENGL_MODE="r600"
+        # Check for r300 driver (R300/R400/R500/Radeon HD)
+        elif [ -f "$DRI_PATH/r300_dri.so" ] || [ -f "$DRI_PATH/r300_dri.so.1" ]; then
+            echo "✅ R300 DRI driver found (R300/R400/R500 AMD)"
+            OPENGL_MODE="r300"
+        # Check for r100 driver (very old R100/R200)
+        elif [ -f "$DRI_PATH/r100_dri.so" ] || [ -f "$DRI_PATH/r100_dri.so.1" ]; then
+            echo "✅ R100 DRI driver found (R100/R200 AMD)"
+            OPENGL_MODE="r100"
         # Check for software rendering
         elif [ -f "$DRI_PATH/swrast_dri.so" ] || [ -f "$DRI_PATH/swrast_dri.so.1" ]; then
             echo "✅ Software rendering available"
@@ -252,9 +260,19 @@ if [ "\$(uname -s)" = "Haiku" ]; then
             echo "[AMD GPU] Mode: Modern RADV (OpenGL via Zink + Vulkan)"
             ;;
         r600)
-            # Legacy AMD GPU (R600/CAYMAN era)
+            # R600/R700/Evergreen/Wrestler/Brazos era AMD GPU
             export MESA_LOADER_DRIVER_OVERRIDE="r600"
-            echo "[AMD GPU] Mode: Legacy R600 driver (direct OpenGL)"
+            echo "[AMD GPU] Mode: R600 driver (R600/R700/Evergreen/Wrestler)"
+            ;;
+        r300)
+            # R300/R400/R500/Radeon HD era AMD GPU
+            export MESA_LOADER_DRIVER_OVERRIDE="r300"
+            echo "[AMD GPU] Mode: R300 driver (R300/R400/R500)"
+            ;;
+        r100)
+            # Very old R100/R200 era AMD GPU
+            export MESA_LOADER_DRIVER_OVERRIDE="r100"
+            echo "[AMD GPU] Mode: R100 driver (R100/R200 ancient)"
             ;;
         software)
             # Software rendering (CPU fallback)
@@ -319,10 +337,22 @@ if [ "$(uname -s)" = "Haiku" ]; then
             echo "🎯 Hardware: Modern AMD GPU (Polaris, Vega, RDNA)"
             ;;
         r600)
-            echo "  ✅ OpenGL (R600 legacy driver)"
+            echo "  ✅ OpenGL (R600 driver)"
             echo "  ✅ RMAPI Server"
             echo ""
-            echo "🎯 Hardware: Legacy AMD GPU (R600/CAYMAN era)"
+            echo "🎯 Hardware: R600/R700/Evergreen/Wrestler/Brazos AMD"
+            ;;
+        r300)
+            echo "  ✅ OpenGL (R300 driver)"
+            echo "  ✅ RMAPI Server"
+            echo ""
+            echo "🎯 Hardware: R300/R400/R500/Radeon HD AMD"
+            ;;
+        r100)
+            echo "  ✅ OpenGL (R100 driver)"
+            echo "  ✅ RMAPI Server"
+            echo ""
+            echo "🎯 Hardware: R100/R200 ancient AMD"
             ;;
         software)
             echo "  ✅ OpenGL (Software Rendering - llvmpipe)"
