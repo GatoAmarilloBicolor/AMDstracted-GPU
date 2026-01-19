@@ -220,6 +220,21 @@ if [ "$(uname -s)" = "Haiku" ]; then
             echo "🔨 Compiling Mesa for Haiku..."
             echo "   This will take several minutes..."
             
+            # Try to install libdrm_radeon first
+            echo "   Checking for libdrm_radeon..."
+            if command -v pkgman &> /dev/null; then
+                if ! pkgman search libdrm_radeon 2>/dev/null | grep -q "libdrm"; then
+                    echo "   ⚠️  libdrm_radeon not found, will compile Mesa with software rendering only"
+                    MESA_DRIVERS="softpipe"
+                else
+                    echo "   Installing libdrm_radeon..."
+                    pkgman install libdrm_radeon_devel 2>&1 | tail -3
+                    MESA_DRIVERS="r600,softpipe"
+                fi
+            else
+                MESA_DRIVERS="softpipe"
+            fi
+            
             MESA_BUILD_DIR="/tmp/mesa_build_$$"
             mkdir -p "$MESA_BUILD_DIR"
             cd "$MESA_BUILD_DIR"
@@ -228,11 +243,12 @@ if [ "$(uname -s)" = "Haiku" ]; then
             if ! git clone --depth 1 --branch=24.3 https://gitlab.freedesktop.org/mesa/mesa.git 2>&1 | grep -q "fatal"; then
                 cd mesa
                 
-                # Build Mesa with R600 driver for Wrestler GPU
-                echo "   Configuring Mesa..."
+                # Build Mesa with appropriate drivers
+                echo "   Configuring Mesa with drivers: $MESA_DRIVERS..."
                 meson setup build \
                     -Dprefix=/boot/home/config/non-packaged \
-                    -Dgallium-drivers=r600,softpipe \
+                    -Dgallium-drivers=$MESA_DRIVERS \
+                    -Dgallium-radeon=disabled \
                     -Dglx=auto \
                     -Dopengl=true \
                     -Dshared-glapi=enabled \
