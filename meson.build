@@ -148,13 +148,19 @@ else
   )
 endif
 
-# DRM Shim library
+# DRM Shim libraries
 drm_shim_sources = files(
   'drivers/drm_shim/drm_shim.c',
   'drivers/drm_shim/drm_to_rmapi.c',
   'drivers/drm_shim/device_manager.c'
 )
 drm_shim_inc = include_directories('drivers/drm_shim')
+
+drm_radeon_shim_sources = files(
+  'drivers/drm_shim/drm_radeon_shim.c',
+  'drivers/drm_shim/drm_to_rmapi.c',
+  'drivers/drm_shim/device_manager.c'
+)
 
 if host_os == 'haiku'
   libdrm_shim = static_library('drm_amdgpu_shim',
@@ -164,9 +170,24 @@ if host_os == 'haiku'
     link_with: libamdgpu,
     install: false
   )
+  libdrm_radeon_shim = static_library('drm_radeon_shim',
+    drm_radeon_shim_sources,
+    include_directories: inc_dirs + [drm_shim_inc],
+    dependencies: deps,
+    link_with: libamdgpu,
+    install: false
+  )
 else
   libdrm_shim = shared_library('drm_amdgpu_shim',
     drm_shim_sources,
+    include_directories: inc_dirs + [drm_shim_inc],
+    dependencies: deps,
+    link_with: libamdgpu,
+    install: true,
+    install_dir: 'lib'
+  )
+  libdrm_radeon_shim = shared_library('drm_radeon_shim',
+    drm_radeon_shim_sources,
     include_directories: inc_dirs + [drm_shim_inc],
     dependencies: deps,
     link_with: libamdgpu,

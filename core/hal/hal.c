@@ -13,7 +13,7 @@
 
 // Forward declarations for IP blocks
 extern struct ip_block_ops gmc_v10_ip_block;
-extern struct ip_block_ops gfx_v10_ip_block;
+extern struct ip_block_ops r600_ip_block;
 extern struct ip_block_ops dce_v10_ip_block;
 extern struct ip_block_ops dcn_v1_ip_block;
 
@@ -176,7 +176,7 @@ int amdgpu_device_init_hal(struct OBJGPU *adev) {
 
     // Register IP blocks with handler - these calls are real now
     if (handler->register_ip_block(handler, &gmc_v10_ip_block) != 0 ||
-        handler->register_ip_block(handler, &gfx_v10_ip_block) != 0 ||
+        handler->register_ip_block(handler, &r600_ip_block) != 0 ||
         handler->register_ip_block(handler, &dce_v10_ip_block) != 0 ||
         handler->register_ip_block(handler, &dcn_v1_ip_block) != 0) {
         os_prim_log("HAL: Failed to register IP blocks\n");
