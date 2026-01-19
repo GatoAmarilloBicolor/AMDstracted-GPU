@@ -207,24 +207,44 @@ case "$1" in
         done
         app_command="$*"
         setup_environment
+        
+        # Configure OpenGL rendering mode
         if [ "$SOFTWARE_MODE" = true ]; then
             echo "🔧 Software rendering mode enabled (CPU rendering)"
             export LIBGL_ALWAYS_SOFTWARE=1
             export GALLIUM_DRIVER=llvmpipe
+        else
+            # Try to use RMAPI Gallium driver for GPU acceleration
+            if [ "$OS" = "Haiku" ] && [ -f "/boot/home/config/non-packaged/lib/dri/rmapi_dri.so" ]; then
+                echo "🚀 RMAPI Gallium driver detected - GPU acceleration enabled"
+                export GALLIUM_DRIVER=rmapi
+                export MESA_LOADER_DRIVER_OVERRIDE=rmapi
+            else
+                # Try other drivers or fallback to software
+                echo "ℹ️  RMAPI driver not found, using default renderer"
+            fi
         fi
+        
         if [ "$DEBUG_MODE" = true ]; then
             echo "🐛 Debug mode enabled"
+            export LIBGL_DEBUG=verbose
         fi
+        
+        # Ensure RMAPI server is running for GPU access
         if ! check_server; then
             if start_server; then
                 echo "✅ Server started"
             else
-                echo "⚠️  Server failed, forcing software mode..."
-                export LIBGL_ALWAYS_SOFTWARE=1
-                export GALLIUM_DRIVER=llvmpipe
-                SOFTWARE_MODE=true
+                echo "⚠️  Server failed to start"
+                if [ "$SOFTWARE_MODE" != true ]; then
+                    echo "⚠️  Falling back to software rendering..."
+                    export LIBGL_ALWAYS_SOFTWARE=1
+                    export GALLIUM_DRIVER=llvmpipe
+                fi
             fi
         fi
+        
+        # Launch the application
         launch_app "$app_command"
         ;;
     "env")
