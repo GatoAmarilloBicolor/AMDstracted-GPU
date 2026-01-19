@@ -50,8 +50,14 @@ start_server() {
         fi
     else
         echo "❌ Failed to start server (exit code: $SERVER_EXIT_CODE)"
-        echo "📋 Error details:"
-        echo "$SERVER_OUTPUT" | head -20  # Show first 20 lines of error
+        echo "📋 Full error details:"
+        echo "----------------------------------------"
+        echo "$SERVER_OUTPUT"
+        echo "----------------------------------------"
+        echo "💡 Troubleshooting tips:"
+        echo "  - On Haiku: Check MMIO permissions or run with root"
+        echo "  - On Linux: Hardware access requires root privileges"
+        echo "  - Try: ./scripts/launch_amdgpu.sh launch --software <command>"
         return 1
     fi
 }
