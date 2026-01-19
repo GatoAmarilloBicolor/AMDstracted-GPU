@@ -242,18 +242,14 @@ if [ "$(uname -s)" = "Haiku" ]; then
                     echo "   Building Mesa (this may take 10+ minutes)..."
                     echo ""
                     
-                    # Build with progress indicator
-                    ninja -C build 2>&1 | while read line; do
-                        if echo "$line" | grep -qE "\[.*\]"; then
-                            echo "$line"
-                        fi
-                    done
-                    BUILD_RESULT=$?
+                    # Build with live progress
+                    ninja -C build 2>&1 | tee /tmp/mesa_build.log | grep -E "(\[|error|Error)"
+                    BUILD_RESULT=${PIPESTATUS[0]}
                     echo ""
                     
                     if [ $BUILD_RESULT -eq 0 ]; then
                         echo "   Installing Mesa..."
-                        ninja -C build install 2>&1 | tail -3
+                        ninja -C build install 2>&1 | tee /tmp/mesa_install.log | tail -5
                         
                         if [ $? -eq 0 ]; then
                             MESA_PREFIX="/boot/home/config/non-packaged"
