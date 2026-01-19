@@ -90,6 +90,7 @@ if [ "$(uname -s)" = "Haiku" ] && [ "$EUID" -ne 0 ]; then
 fi
 
 # Detect OS and set appropriate paths
+LIB_COPY=false
 if [ "$(uname -s)" = "Haiku" ]; then
     # Haiku paths
     HAIKU_COMMON=/boot/home/config/non-packaged
@@ -100,6 +101,7 @@ else
     # Linux paths (prefer user directory to avoid permission issues)
     INSTALL_DIR="$HOME/.local/bin"
     LIB_DIR="$HOME/.local/lib"
+    LIB_COPY=true  # Copy shared lib on Linux
     echo "Installing to Linux user paths ($HOME/.local/)..."
 fi
 

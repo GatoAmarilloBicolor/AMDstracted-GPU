@@ -7,9 +7,12 @@ OS="$(uname -s)"
 if [ "$OS" = "Haiku" ]; then
     AMD_GPU_BIN="/boot/home/config/non-packaged/bin"
     AMD_GPU_LIB="/boot/home/config/non-packaged/lib"
+    # Haiku defaults to software rendering due to hardware access limitations
+    DEFAULT_SOFTWARE=true
 elif [ "$OS" = "Linux" ]; then
     AMD_GPU_BIN="$HOME/.local/bin"
     AMD_GPU_LIB="$HOME/.local/lib"
+    DEFAULT_SOFTWARE=false
 else
     echo "❌ Unsupported OS: $OS"
     echo "Supported: Haiku, Linux"
@@ -131,12 +134,31 @@ case "$1" in
         fi
         ;;
     "launch")
-        setup_environment
-        if ! check_server; then
-            start_server
+        shift  # Remove 'launch' from args
+        # Check for --software flag
+        SOFTWARE_MODE=$DEFAULT_SOFTWARE
+        if [ "$1" = "--software" ]; then
+            SOFTWARE_MODE=true
+            shift
         fi
-        shift
-        launch_app "$*"
+        app_command="$*"
+        setup_environment
+        if [ "$SOFTWARE_MODE" = true ]; then
+            echo "🔧 Software rendering mode enabled (CPU rendering)"
+            export LIBGL_ALWAYS_SOFTWARE=1
+            export GALLIUM_DRIVER=llvmpipe
+        fi
+        if ! check_server; then
+            if start_server; then
+                echo "✅ Server started"
+            else
+                echo "⚠️  Server failed, forcing software mode..."
+                export LIBGL_ALWAYS_SOFTWARE=1
+                export GALLIUM_DRIVER=llvmpipe
+                SOFTWARE_MODE=true
+            fi
+        fi
+        launch_app "$app_command"
         ;;
     "env")
         setup_environment
@@ -167,6 +189,7 @@ case "$1" in
         echo "  $0 restart         Restart the AMD RMAPI server"
         echo "  $0 status          Check if server is running"
         echo "  $0 launch <cmd>    Launch application with AMD GPU acceleration"
+        echo "  $0 launch --software <cmd>  Launch with CPU software rendering"
         echo "  $0 env             Setup environment variables only"
         echo "  $0 test            Run the test suite"
         echo "  $0 demo            Run the demo client"
@@ -175,8 +198,8 @@ case "$1" in
         echo "EXAMPLES:"
         echo "  $0 start"
         echo "  $0 launch 'glinfo'"
+        echo "  $0 launch --software 'glinfo'  # Force software rendering"
         echo "  $0 launch 'vulkaninfo'"
-        echo "  $0 launch 'my_vulkan_app'"
         echo ""
         echo "REQUIREMENTS:"
         echo "  - Mesa with Zink and RADV: pkgman install mesa_devel"
