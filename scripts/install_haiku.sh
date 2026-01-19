@@ -202,13 +202,82 @@ if [ "$(uname -s)" = "Haiku" ]; then
     
     OPENGL_MODE="software"
     
-    # Check if Mesa is installed
+    # Check if Mesa DRI drivers are installed
     if [ -z "$DRI_PATH" ] || [ ! -d "$DRI_PATH" ]; then
         echo "⚠️  Mesa DRI drivers not found"
         echo "   Searched: /boot/system/lib/dri, /boot/home/config/non-packaged/lib/dri"
-        echo "   Install with: pkgman install mesa_devel"
-        echo "   Using software rendering fallback..."
-        OPENGL_MODE="software"
+        echo ""
+        
+        # Ask if user wants to compile Mesa
+        echo "📋 Options:"
+        echo "  1. Continue with software rendering (CPU)"
+        echo "  2. Compile and install Mesa with DRI drivers"
+        echo ""
+        read -p "Choose (1 or 2): " choice
+        
+        if [ "$choice" = "2" ]; then
+            echo ""
+            echo "🔨 Compiling Mesa for Haiku..."
+            echo "   This will take several minutes..."
+            
+            MESA_BUILD_DIR="/tmp/mesa_build_$$"
+            mkdir -p "$MESA_BUILD_DIR"
+            cd "$MESA_BUILD_DIR"
+            
+            # Clone Mesa
+            if ! git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git 2>&1 | grep -q "fatal"; then
+                cd mesa
+                
+                # Build Mesa with R600 driver for Wrestler GPU
+                echo "   Configuring Mesa..."
+                meson setup build \
+                    -Dprefix=/boot/home/config/non-packaged \
+                    -Ddri-drivers=r600,swrast \
+                    -Dgallium-drivers=r600,swrast \
+                    -Dglx=gallium-xlib \
+                    -Dopengl=true \
+                    2>&1 | tail -5
+                
+                if [ $? -eq 0 ]; then
+                    echo "   Building Mesa (this may take 10+ minutes)..."
+                    ninja -C build 2>&1 | grep -E "(Compiling|Linking|error)"
+                    
+                    if [ $? -eq 0 ]; then
+                        echo "   Installing Mesa..."
+                        ninja -C build install
+                        
+                        if [ $? -eq 0 ]; then
+                            MESA_PREFIX="/boot/home/config/non-packaged"
+                            DRI_PATH="$MESA_PREFIX/lib/dri"
+                            VULKAN_PATH="$MESA_PREFIX/share/vulkan/icd.d"
+                            echo "✅ Mesa compiled and installed successfully"
+                            OPENGL_MODE="r600"
+                        else
+                            echo "❌ Mesa installation failed"
+                            OPENGL_MODE="software"
+                        fi
+                    else
+                        echo "❌ Mesa build failed"
+                        OPENGL_MODE="software"
+                    fi
+                else
+                    echo "❌ Mesa configuration failed"
+                    OPENGL_MODE="software"
+                fi
+                
+                cd ../..
+            else
+                echo "❌ Failed to clone Mesa"
+                OPENGL_MODE="software"
+            fi
+            
+            # Cleanup
+            rm -rf "$MESA_BUILD_DIR"
+            
+        else
+            echo "⚠️  Using software rendering fallback..."
+            OPENGL_MODE="software"
+        fi
     else
         echo "✅ Mesa DRI drivers found"
         
