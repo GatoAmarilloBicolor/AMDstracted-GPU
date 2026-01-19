@@ -232,41 +232,56 @@ if [ "$(uname -s)" = "Haiku" ]; then
                 echo "   Configuring Mesa..."
                 meson setup build \
                     -Dprefix=/boot/home/config/non-packaged \
-                    -Dgallium-drivers=r600,swrast \
+                    -Dgallium-drivers=r600,softpipe \
                     -Dglx=auto \
                     -Dopengl=true \
                     -Dshared-glapi=enabled \
-                    2>&1 | tail -3
+                    2>&1 | tee /tmp/mesa_config.log
+                CONFIG_RESULT=$?
                 
-                if [ $? -eq 0 ]; then
+                if [ $CONFIG_RESULT -eq 0 ]; then
+                    echo ""
                     echo "   Building Mesa (this may take 10+ minutes)..."
                     echo ""
                     
                     # Build with live progress
-                    ninja -C build 2>&1 | tee /tmp/mesa_build.log | grep -E "(\[|error|Error)"
+                    ninja -C build 2>&1 | tee /tmp/mesa_build.log | grep -E "(\[|error|Error|FAILED)"
                     BUILD_RESULT=${PIPESTATUS[0]}
                     echo ""
                     
                     if [ $BUILD_RESULT -eq 0 ]; then
                         echo "   Installing Mesa..."
-                        ninja -C build install 2>&1 | tee /tmp/mesa_install.log | tail -5
+                        ninja -C build install 2>&1 | tee /tmp/mesa_install.log | grep -E "(Installing|Copying|error|Error)"
+                        INSTALL_RESULT=$?
                         
-                        if [ $? -eq 0 ]; then
-                            MESA_PREFIX="/boot/home/config/non-packaged"
-                            DRI_PATH="$MESA_PREFIX/lib/dri"
-                            VULKAN_PATH="$MESA_PREFIX/share/vulkan/icd.d"
-                            echo "✅ Mesa compiled and installed successfully"
-                            OPENGL_MODE="r600"
+                        if [ $INSTALL_RESULT -eq 0 ]; then
+                            # Verify DRI drivers were installed
+                            if [ -f "/boot/home/config/non-packaged/lib/dri/r600_dri.so" ] || \
+                               [ -f "/boot/home/config/non-packaged/lib/dri/r600_dri.so.1" ]; then
+                                MESA_PREFIX="/boot/home/config/non-packaged"
+                                DRI_PATH="$MESA_PREFIX/lib/dri"
+                                VULKAN_PATH="$MESA_PREFIX/share/vulkan/icd.d"
+                                echo "✅ Mesa compiled and installed successfully"
+                                echo "✅ R600 DRI driver found: $DRI_PATH/r600_dri.so"
+                                OPENGL_MODE="r600"
+                            else
+                                echo "⚠️  Mesa installed but R600 driver not found"
+                                echo "   Check: ls -la /boot/home/config/non-packaged/lib/dri/"
+                                OPENGL_MODE="software"
+                            fi
                         else
                             echo "❌ Mesa installation failed"
+                            tail -20 /tmp/mesa_install.log | grep -E "error|Error"
                             OPENGL_MODE="software"
                         fi
                     else
                         echo "❌ Mesa build failed"
+                        tail -20 /tmp/mesa_build.log | grep -E "error|Error|FAILED"
                         OPENGL_MODE="software"
                     fi
                 else
                     echo "❌ Mesa configuration failed"
+                    tail -20 /tmp/mesa_config.log | grep -E "ERROR|error"
                     OPENGL_MODE="software"
                 fi
                 
