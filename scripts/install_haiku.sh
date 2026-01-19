@@ -565,5 +565,32 @@ if [ "$(uname -s)" = "Haiku" ]; then
     fi
 fi
 echo ""
+echo "═══════════════════════════════════════════════════════════════"
+echo "🧪 OpenGL Acceleration Test (Optional)"
+echo "═══════════════════════════════════════════════════════════════"
+echo ""
+echo "Want to verify that RMAPI GPU acceleration is working?"
+echo ""
+read -p "Run OpenGL acceleration test? (y/n): " test_choice
+
+if [ "$test_choice" = "y" ] || [ "$test_choice" = "Y" ]; then
+    echo ""
+    echo "Running OpenGL acceleration test..."
+    echo "────────────────────────────────────────────────────────────────"
+    
+    if [ -f "scripts/test_opengl_acceleration.sh" ]; then
+        bash scripts/test_opengl_acceleration.sh
+    else
+        echo "❌ Test script not found: scripts/test_opengl_acceleration.sh"
+        echo "Please run: bash scripts/test_opengl_acceleration.sh"
+    fi
+else
+    echo ""
+    echo "You can test later with:"
+    echo "  bash scripts/test_opengl_acceleration.sh"
+fi
+
+echo ""
+echo "═══════════════════════════════════════════════════════════════"
 echo "🎯 Status: Ready for GPU acceleration!"
 echo "═══════════════════════════════════════════════════════════════"
