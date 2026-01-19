@@ -232,19 +232,28 @@ if [ "$(uname -s)" = "Haiku" ]; then
                 echo "   Configuring Mesa..."
                 meson setup build \
                     -Dprefix=/boot/home/config/non-packaged \
-                    -Ddri-drivers=r600,swrast \
                     -Dgallium-drivers=r600,swrast \
-                    -Dglx=gallium-xlib \
+                    -Dglx=auto \
                     -Dopengl=true \
-                    2>&1 | tail -5
+                    -Dshared-glapi=enabled \
+                    2>&1 | tail -3
                 
                 if [ $? -eq 0 ]; then
                     echo "   Building Mesa (this may take 10+ minutes)..."
-                    ninja -C build 2>&1 | grep -E "(Compiling|Linking|error)"
+                    echo ""
                     
-                    if [ $? -eq 0 ]; then
+                    # Build with progress indicator
+                    ninja -C build 2>&1 | while read line; do
+                        if echo "$line" | grep -qE "\[.*\]"; then
+                            echo "$line"
+                        fi
+                    done
+                    BUILD_RESULT=$?
+                    echo ""
+                    
+                    if [ $BUILD_RESULT -eq 0 ]; then
                         echo "   Installing Mesa..."
-                        ninja -C build install
+                        ninja -C build install 2>&1 | tail -3
                         
                         if [ $? -eq 0 ]; then
                             MESA_PREFIX="/boot/home/config/non-packaged"
