@@ -181,16 +181,32 @@ if [ "$(uname -s)" = "Haiku" ]; then
         echo "   lspci not available (install pciutils)"
     fi
     
-    MESA_PREFIX="/boot/home/config/non-packaged"
-    DRI_PATH="$MESA_PREFIX/lib/dri"
-    VULKAN_PATH="$MESA_PREFIX/share/vulkan/icd.d"
+    # Try multiple Mesa installation paths on Haiku
+    MESA_PREFIX=""
+    DRI_PATH=""
+    VULKAN_PATH=""
+    
+    # Check system-wide Mesa first
+    if [ -d "/boot/system/lib/dri" ]; then
+        MESA_PREFIX="/boot/system"
+        DRI_PATH="/boot/system/lib/dri"
+        VULKAN_PATH="/boot/system/share/vulkan/icd.d"
+        echo "✅ Found Mesa in system path: /boot/system"
+    # Then check user Mesa
+    elif [ -d "/boot/home/config/non-packaged/lib/dri" ]; then
+        MESA_PREFIX="/boot/home/config/non-packaged"
+        DRI_PATH="/boot/home/config/non-packaged/lib/dri"
+        VULKAN_PATH="/boot/home/config/non-packaged/share/vulkan/icd.d"
+        echo "✅ Found Mesa in user path: /boot/home/config/non-packaged"
+    fi
     
     OPENGL_MODE="software"
     
     # Check if Mesa is installed
-    if [ ! -d "$DRI_PATH" ]; then
-        echo "⚠️  Mesa DRI drivers not found at $DRI_PATH"
-        echo "   For modern GPUs (RADV): pkgman install mesa_devel"
+    if [ -z "$DRI_PATH" ] || [ ! -d "$DRI_PATH" ]; then
+        echo "⚠️  Mesa DRI drivers not found"
+        echo "   Searched: /boot/system/lib/dri, /boot/home/config/non-packaged/lib/dri"
+        echo "   Install with: pkgman install mesa_devel"
         echo "   Using software rendering fallback..."
         OPENGL_MODE="software"
     else
@@ -270,7 +286,14 @@ export PATH=\$AMD_GPU_BIN:\$PATH
 
 # Haiku-specific OpenGL configuration
 if [ "\$(uname -s)" = "Haiku" ]; then
-    MESA_PREFIX="/boot/home/config/non-packaged"
+    # Detect Mesa installation path
+    if [ -d "/boot/system/lib/dri" ]; then
+        MESA_PREFIX="/boot/system"
+    elif [ -d "/boot/home/config/non-packaged/lib/dri" ]; then
+        MESA_PREFIX="/boot/home/config/non-packaged"
+    else
+        MESA_PREFIX="/boot/home/config/non-packaged"  # fallback
+    fi
     
     # OpenGL driver search path
     export LIBGL_DRIVERS_PATH="\$MESA_PREFIX/lib/dri"
