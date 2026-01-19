@@ -1,6 +1,9 @@
 #include "../os_interface.h"
 #include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
 #include <drivers/PCI.h>
+#include <drivers/KernelExport.h>
 #include <kernel/OS.h>
 #include <kernel/image.h>
 

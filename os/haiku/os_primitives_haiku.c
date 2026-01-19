@@ -5,7 +5,9 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <string.h>
 #include <drivers/PCI.h>
+#include <drivers/KernelExport.h>
 #include <kernel/OS.h>
 
 // Logging

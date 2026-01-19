@@ -100,9 +100,15 @@ deps = [
 
 # OS-specific dependencies and flags
 if host_os == 'haiku'
-  deps += meson.get_compiler('c').find_library('network', required: true)
+  # Link required Haiku system libraries
+  deps += [
+    meson.get_compiler('c').find_library('network', required: true),
+    meson.get_compiler('c').find_library('device', required: false),  # For device I/O
+    meson.get_compiler('c').find_library('kernel', required: false)   # For kernel functions
+  ]
   # Add Haiku-specific linker flags for proper ELF headers and compatibility
   add_project_link_arguments([
+    '-Wl,--as-needed',
     '-Wl,--no-undefined',
     '-Wl,-z,defs',
     '-no-pie',  # Disable PIE which can cause loader issues on Haiku
