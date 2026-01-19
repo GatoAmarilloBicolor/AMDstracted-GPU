@@ -172,24 +172,39 @@ if [ "$(uname -s)" = "Haiku" ]; then
     DRI_PATH="$MESA_PREFIX/lib/dri"
     VULKAN_PATH="$MESA_PREFIX/share/vulkan/icd.d"
     
+    OPENGL_MODE="software"
+    
     # Check if Mesa is installed
     if [ ! -d "$DRI_PATH" ]; then
         echo "⚠️  Mesa DRI drivers not found at $DRI_PATH"
-        echo "   Install with: pkgman install mesa_devel"
-        echo "   Skipping OpenGL configuration..."
+        echo "   For modern GPUs (RADV): pkgman install mesa_devel"
+        echo "   Using software rendering fallback..."
+        OPENGL_MODE="software"
     else
         echo "✅ Mesa DRI drivers found"
         
-        # Check Vulkan ICD
-        if [ ! -f "$VULKAN_PATH/radeon_icd.x86_64.json" ]; then
-            echo "⚠️  Vulkan ICD not found at $VULKAN_PATH/radeon_icd.x86_64.json"
-            echo "   Make sure RADV ICD is installed with Mesa"
+        # Check for RADV support (modern AMD)
+        if [ -f "$VULKAN_PATH/radeon_icd.x86_64.json" ]; then
+            echo "✅ RADV Vulkan ICD found (modern hardware)"
+            OPENGL_MODE="radv"
+        # Check for legacy r600 driver (older AMD)
+        elif [ -f "$DRI_PATH/r600_dri.so" ] || [ -f "$DRI_PATH/r600_dri.so.1" ]; then
+            echo "✅ R600 DRI driver found (legacy AMD hardware)"
+            OPENGL_MODE="r600"
+        # Check for software rendering
+        elif [ -f "$DRI_PATH/swrast_dri.so" ] || [ -f "$DRI_PATH/swrast_dri.so.1" ]; then
+            echo "✅ Software rendering available"
+            OPENGL_MODE="software"
         else
-            echo "✅ Vulkan ICD found"
+            echo "⚠️  No GPU drivers found, using software rendering"
+            OPENGL_MODE="software"
         fi
-        
-        echo "✅ OpenGL/Zink configuration ready"
     fi
+    
+    echo "🎯 OpenGL Configuration: $OPENGL_MODE"
+    
+    # Create mode detection file for environment script
+    echo "$OPENGL_MODE" > "$HOME/.amd_gpu_opengl_mode"
     echo ""
 fi
 
@@ -215,20 +230,49 @@ if [ "\$(uname -s)" = "Haiku" ]; then
     # OpenGL driver search path
     export LIBGL_DRIVERS_PATH="\$MESA_PREFIX/lib/dri"
     
-    # Force Zink (OpenGL over Vulkan)
-    export MESA_LOADER_DRIVER_OVERRIDE="zink"
-    
-    # Vulkan ICD configuration
-    export VK_ICD_FILENAMES="\$MESA_PREFIX/share/vulkan/icd.d/radeon_icd.x86_64.json"
-    export VK_DRIVER_FILES="\$MESA_PREFIX/share/vulkan/icd.d/radeon_icd*.json"
-    
-    # Library paths for Mesa/Vulkan
+    # Library paths for Mesa
     export LD_LIBRARY_PATH="\$MESA_PREFIX/lib:\$LD_LIBRARY_PATH"
     export LIBRARY_PATH="\$MESA_PREFIX/lib:\$LIBRARY_PATH"
     
-    # Debug flags (optional)
-    export LIBGL_DEBUG="verbose"
-    export VK_LOADER_DEBUG="error"
+    # Detect OpenGL configuration mode
+    if [ -f "\$HOME/.amd_gpu_opengl_mode" ]; then
+        OPENGL_MODE=\$(cat "\$HOME/.amd_gpu_opengl_mode")
+    else
+        OPENGL_MODE="software"
+    fi
+    
+    # Configure based on detected hardware
+    case "\$OPENGL_MODE" in
+        radv)
+            # Modern AMD GPU with RADV + Vulkan support
+            export MESA_LOADER_DRIVER_OVERRIDE="zink"
+            export VK_ICD_FILENAMES="\$MESA_PREFIX/share/vulkan/icd.d/radeon_icd.x86_64.json"
+            export VK_DRIVER_FILES="\$MESA_PREFIX/share/vulkan/icd.d/radeon_icd*.json"
+            export VK_LOADER_DEBUG="error"
+            echo "[AMD GPU] Mode: Modern RADV (OpenGL via Zink + Vulkan)"
+            ;;
+        r600)
+            # Legacy AMD GPU (R600/CAYMAN era)
+            export MESA_LOADER_DRIVER_OVERRIDE="r600"
+            echo "[AMD GPU] Mode: Legacy R600 driver (direct OpenGL)"
+            ;;
+        software)
+            # Software rendering (CPU fallback)
+            export LIBGL_ALWAYS_SOFTWARE=1
+            export GALLIUM_DRIVER="llvmpipe"
+            export MESA_LOADER_DRIVER_OVERRIDE="swrast"
+            echo "[AMD GPU] Mode: Software Rendering (CPU, no GPU acceleration)"
+            ;;
+        *)
+            # Default fallback
+            export LIBGL_ALWAYS_SOFTWARE=1
+            export GALLIUM_DRIVER="llvmpipe"
+            echo "[AMD GPU] Mode: Fallback to Software Rendering"
+            ;;
+    esac
+    
+    # Debug flags (optional, comment out for production)
+    # export LIBGL_DEBUG="verbose"
 fi
 
 echo "AMD GPU environment loaded"
@@ -258,14 +302,44 @@ if [ "\$LIB_COPY" = true ]; then
 fi
 echo ""
 if [ "$(uname -s)" = "Haiku" ]; then
+    # Check which mode was detected
+    if [ -f "$HOME/.amd_gpu_opengl_mode" ]; then
+        MODE=$(cat "$HOME/.amd_gpu_opengl_mode")
+    else
+        MODE="unknown"
+    fi
+    
     echo "📚 Enabled Features:"
-    echo "  ✅ OpenGL/Zink (via Vulkan backend)"
-    echo "  ✅ Vulkan (RADV)"
-    echo "  ✅ RMAPI Server"
+    case "$MODE" in
+        radv)
+            echo "  ✅ OpenGL/Zink (via Vulkan backend)"
+            echo "  ✅ Vulkan (RADV - Modern AMD)"
+            echo "  ✅ RMAPI Server"
+            echo ""
+            echo "🎯 Hardware: Modern AMD GPU (Polaris, Vega, RDNA)"
+            ;;
+        r600)
+            echo "  ✅ OpenGL (R600 legacy driver)"
+            echo "  ✅ RMAPI Server"
+            echo ""
+            echo "🎯 Hardware: Legacy AMD GPU (R600/CAYMAN era)"
+            ;;
+        software)
+            echo "  ✅ OpenGL (Software Rendering - llvmpipe)"
+            echo "  ✅ RMAPI Server"
+            echo ""
+            echo "⚠️  Hardware: No GPU drivers (CPU rendering only)"
+            ;;
+    esac
     echo ""
-    echo "⚠️  Prerequisites for full functionality:"
-    echo "  • pkgman install mesa_devel"
-    echo "  • RMAPI server: amd_rmapi_server &"
+    echo "📋 Post-Installation Notes:"
+    if [ "$MODE" = "radv" ]; then
+        echo "  • For RADV: RMAPI server required"
+        echo "  • Start with: amd_rmapi_server &"
+    elif [ "$MODE" = "software" ]; then
+        echo "  • For better performance: install Mesa drivers"
+        echo "  • Check: pkgman search mesa"
+    fi
 fi
 echo ""
 echo "🎯 Status: Ready for GPU acceleration!"
