@@ -224,8 +224,8 @@ if [ "$(uname -s)" = "Haiku" ]; then
             mkdir -p "$MESA_BUILD_DIR"
             cd "$MESA_BUILD_DIR"
             
-            # Clone Mesa
-            if ! git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git 2>&1 | grep -q "fatal"; then
+            # Clone Mesa stable branch (avoid bleeding-edge Python syntax issues)
+            if ! git clone --depth 1 --branch=24.3 https://gitlab.freedesktop.org/mesa/mesa.git 2>&1 | grep -q "fatal"; then
                 cd mesa
                 
                 # Build Mesa with R600 driver for Wrestler GPU
