@@ -9,8 +9,9 @@
 #define DEVICE_MANAGER_H
 
 #include <stdint.h>
+#include "../../core/hal/hal.h"
 
-typedef struct rmapi_device rmapi_device;
+typedef struct OBJGPU rmapi_device;
 
 /* Initialize device manager */
 int device_manager_init(void);

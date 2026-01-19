@@ -6,8 +6,8 @@
 
 #include "drm_to_rmapi.h"
 #include "device_manager.h"
-#include "../../core/gpu/objgpu.h"
 #include "../../core/hal/hal.h"
+#include "../../core/rmapi/rmapi.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -33,18 +33,19 @@ int drm_alloc_to_rmapi(int drm_fd, uint64_t size,
     printf("[DRM→RMAPI] Allocate: size=%llu\n", size);
     
     /* Allocate via RMAPI GPU object */
-    gpu_object *gpu = (gpu_object *)device_manager_get_gpu(dev);
+    struct OBJGPU *gpu = (struct OBJGPU *)device_manager_get_gpu(dev);
     if (!gpu) return -1;
     
-    /* In a real implementation, would:
-     * 1. Allocate GPU memory via hal_alloc()
-     * 2. Get physical address
-     * 3. Create VA mapping
-     * 4. Return handle and VA to caller
-     */
-    
-    *handle = (uint32_t)(uintptr_t)malloc(size);
-    *va = (uint64_t)(*handle);
+    /* Allocate GPU memory via RMAPI */
+    uint64_t gpu_addr;
+    int ret = rmapi_alloc_memory(gpu, size, &gpu_addr);
+    if (ret != 0) {
+        printf("[DRM→RMAPI] RMAPI alloc failed: %d\n", ret);
+        return -1;
+    }
+
+    *handle = (uint32_t)gpu_addr;  // Simple mapping for stub
+    *va = gpu_addr;
     
     printf("[DRM→RMAPI] ✓ handle=%u va=%llx\n", *handle, *va);
     return 0;
@@ -55,13 +56,17 @@ int drm_free_to_rmapi(int drm_fd, uint32_t handle)
 {
     rmapi_device *dev = drm_fd_to_rmapi_device(drm_fd);
     if (!dev) return -1;
-    
+
+    struct OBJGPU *gpu = (struct OBJGPU *)device_manager_get_gpu(dev);
+    if (!gpu) return -1;
+
     printf("[DRM→RMAPI] Free: handle=%u\n", handle);
-    
+
     if (handle) {
-        free((void *)handle);
+        uint64_t addr = (uint64_t)handle;  // Reverse mapping
+        rmapi_free_memory(gpu, addr);
     }
-    
+
     return 0;
 }
 
@@ -113,10 +118,15 @@ int drm_cs_submit_to_rmapi(int drm_fd, void *cmd_buffer,
     
     printf("[DRM→RMAPI] CS Submit: cmd_size=%u flags=%x\n", cmd_size, flags);
     
-    /* Would submit command buffer to GPU via hal_submit_commands() */
-    gpu_object *gpu = (gpu_object *)device_manager_get_gpu(dev);
+    /* Submit command buffer to GPU via RMAPI */
+    struct OBJGPU *gpu = (struct OBJGPU *)device_manager_get_gpu(dev);
     if (gpu) {
-        /* hal_submit_commands(gpu, cmd_buffer, cmd_size); */
+        struct amdgpu_command_buffer cb = {
+            .gpu = gpu,
+            .cmds = cmd_buffer,
+            .size = cmd_size
+        };
+        rmapi_submit_command(gpu, &cb);
     }
     
     return 0;
@@ -135,17 +145,62 @@ int drm_cs_wait_to_rmapi(int drm_fd, uint64_t timeout_ns)
     return 0;
 }
 
+/* Register read */
+int drm_read_reg_to_rmapi(int drm_fd, uint32_t reg, uint32_t *val)
+{
+    rmapi_device *dev = drm_fd_to_rmapi_device(drm_fd);
+    if (!dev || !val) return -1;
+
+    struct OBJGPU *gpu = (struct OBJGPU *)device_manager_get_gpu(dev);
+    if (!gpu) return -1;
+
+    printf("[DRM→RMAPI] Read reg: 0x%x\n", reg);
+
+    /* Direct MMIO access */
+    if (gpu->mmio_base && reg < gpu->mmio_size) {
+        *val = *(volatile uint32_t *)(gpu->mmio_base + reg);
+    } else {
+        *val = 0;  // Stub
+    }
+
+    return 0;
+}
+
+/* Register write */
+int drm_write_reg_to_rmapi(int drm_fd, uint32_t reg, uint32_t val)
+{
+    rmapi_device *dev = drm_fd_to_rmapi_device(drm_fd);
+    if (!dev) return -1;
+
+    struct OBJGPU *gpu = (struct OBJGPU *)device_manager_get_gpu(dev);
+    if (!gpu) return -1;
+
+    printf("[DRM→RMAPI] Write reg: 0x%x = 0x%x\n", reg, val);
+
+    /* Direct MMIO access */
+    if (gpu->mmio_base && reg < gpu->mmio_size) {
+        *(volatile uint32_t *)(gpu->mmio_base + reg) = val;
+    }  // Else stub, do nothing
+
+    return 0;
+}
+
 /* GPU info queries */
-int drm_query_gpu_info_to_rmapi(int drm_fd, void *info_out, 
-                                size_t info_size)
+int drm_query_gpu_info_to_rmapi(int drm_fd, void *info_out,
+                                 size_t info_size)
 {
     rmapi_device *dev = drm_fd_to_rmapi_device(drm_fd);
     if (!dev || !info_out) return -1;
-    
+
+    struct OBJGPU *gpu = (struct OBJGPU *)device_manager_get_gpu(dev);
+    if (!gpu) return -1;
+
     printf("[DRM→RMAPI] Query GPU Info: size=%zu\n", info_size);
-    
-    /* Would populate info_out with GPU capabilities via hal_query_info() */
-    memset(info_out, 0, info_size);
-    
+
+    /* Populate with GPU info */
+    if (info_size >= sizeof(struct amdgpu_gpu_info)) {
+        memcpy(info_out, &gpu->gpu_info, sizeof(struct amdgpu_gpu_info));
+    }
+
     return 0;
 }

@@ -148,6 +148,33 @@ else
   )
 endif
 
+# DRM Shim library
+drm_shim_sources = files(
+  'drivers/drm_shim/drm_shim.c',
+  'drivers/drm_shim/drm_to_rmapi.c',
+  'drivers/drm_shim/device_manager.c'
+)
+drm_shim_inc = include_directories('drivers/drm_shim')
+
+if host_os == 'haiku'
+  libdrm_shim = static_library('drm_amdgpu_shim',
+    drm_shim_sources,
+    include_directories: inc_dirs + [drm_shim_inc],
+    dependencies: deps,
+    link_with: libamdgpu,
+    install: false
+  )
+else
+  libdrm_shim = shared_library('drm_amdgpu_shim',
+    drm_shim_sources,
+    include_directories: inc_dirs + [drm_shim_inc],
+    dependencies: deps,
+    link_with: libamdgpu,
+    install: true,
+    install_dir: 'lib'
+  )
+endif
+
 # Test framework library
 test_framework = static_library('test_framework',
   'tests/framework/test_framework.c',

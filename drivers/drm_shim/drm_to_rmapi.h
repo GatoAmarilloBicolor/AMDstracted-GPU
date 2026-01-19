@@ -9,10 +9,11 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "../../core/hal/hal.h"
 
 /* Forward declarations */
-typedef struct rmapi_device rmapi_device;
-typedef struct rmapi_bo rmapi_bo;
+typedef struct OBJGPU rmapi_device;
+typedef struct amdgpu_buffer rmapi_bo;
 
 /* Device handle translation */
 rmapi_device *drm_fd_to_rmapi_device(int fd);
@@ -41,8 +42,12 @@ int drm_cs_submit_to_rmapi(int drm_fd, void *cmd_buffer,
 
 int drm_cs_wait_to_rmapi(int drm_fd, uint64_t timeout_ns);
 
+/* Register access */
+int drm_read_reg_to_rmapi(int drm_fd, uint32_t reg, uint32_t *val);
+int drm_write_reg_to_rmapi(int drm_fd, uint32_t reg, uint32_t val);
+
 /* GPU info queries */
-int drm_query_gpu_info_to_rmapi(int drm_fd, void *info_out, 
-                                size_t info_size);
+int drm_query_gpu_info_to_rmapi(int drm_fd, void *info_out,
+                                 size_t info_size);
 
 #endif /* DRM_TO_RMAPI_H */
