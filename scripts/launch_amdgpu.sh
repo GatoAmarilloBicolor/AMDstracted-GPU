@@ -32,15 +32,26 @@ check_server() {
 # Function to start server
 start_server() {
     echo "🚀 Starting AMD RMAPI Server..."
-    "$AMD_GPU_BIN/amd_rmapi_server" &
-    SERVER_PID=$!
-    sleep 2
+    # Run server and capture output for error reporting
+    SERVER_OUTPUT=$("$AMD_GPU_BIN/amd_rmapi_server" 2>&1)
+    SERVER_EXIT_CODE=$?
 
-    if check_server; then
-        echo "✅ Server started successfully (PID: $SERVER_PID)"
-        return 0
+    if [ $SERVER_EXIT_CODE -eq 0 ]; then
+        # If successful, run in background
+        "$AMD_GPU_BIN/amd_rmapi_server" &
+        SERVER_PID=$!
+        sleep 2
+        if check_server; then
+            echo "✅ Server started successfully (PID: $SERVER_PID)"
+            return 0
+        else
+            echo "❌ Server process died after startup"
+            return 1
+        fi
     else
-        echo "❌ Failed to start server"
+        echo "❌ Failed to start server (exit code: $SERVER_EXIT_CODE)"
+        echo "📋 Error details:"
+        echo "$SERVER_OUTPUT" | head -20  # Show first 20 lines of error
         return 1
     fi
 }
