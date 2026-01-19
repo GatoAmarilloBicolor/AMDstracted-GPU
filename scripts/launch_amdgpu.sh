@@ -50,14 +50,24 @@ start_server() {
         fi
     else
         echo "❌ Failed to start server (exit code: $SERVER_EXIT_CODE)"
+        echo "📋 System Information:"
+        echo "   OS: $(uname -s) $(uname -r)"
+        echo "   User: $(whoami)"
+        echo "   Working Dir: $(pwd)"
+        echo "   Binary Path: $AMD_GPU_BIN/amd_rmapi_server"
+        echo "   Library Path: $LD_LIBRARY_PATH"
+        echo ""
         echo "📋 Full error details:"
         echo "----------------------------------------"
         echo "$SERVER_OUTPUT"
         echo "----------------------------------------"
+        echo ""
         echo "💡 Troubleshooting tips:"
-        echo "  - On Haiku: Check MMIO permissions or run with root"
-        echo "  - On Linux: Hardware access requires root privileges"
-        echo "  - Try: ./scripts/launch_amdgpu.sh launch --software <command>"
+        echo "  - On Haiku: MMIO requires special permissions. Try running as root or check kernel driver."
+        echo "  - On Linux: Hardware access needs root. Use 'sudo' or '--software' mode."
+        echo "  - Try software mode: ./scripts/launch_amdgpu.sh launch --software <command>"
+        echo "  - Check libraries: ld $AMD_GPU_BIN/amd_rmapi_server"
+        echo "  - Report issue with this full output at GitHub issues."
         return 1
     fi
 }
