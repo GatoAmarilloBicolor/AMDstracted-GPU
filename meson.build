@@ -51,6 +51,11 @@ ip_block_sources = files(
   'drivers/amdgpu/ip_blocks/dcn_v1_ip_block.c'
 )
 
+# Common stub sources (available on all OSes)
+common_sources = files(
+  'os/common/os_pci_stub.c'
+)
+
 # OS-specific sources
 if host_os == 'linux'
   os_sources = files(
@@ -60,8 +65,7 @@ if host_os == 'linux'
   os_inc = include_directories('os/linux')
 elif host_os == 'haiku'
   os_sources = files(
-    'os/haiku/os_interface_haiku.c',
-    'os/haiku/os_primitives_haiku.c'
+    'os/haiku/os_interface_haiku.c'
   )
   os_inc = include_directories('os/haiku')
 else
@@ -124,7 +128,7 @@ if host_os == 'haiku'
 endif
 
 # All sources combined (for static linking)
-all_sources = core_sources + driver_sources + ip_block_sources
+all_sources = core_sources + driver_sources + ip_block_sources + common_sources
 
 # Library - try static linking for Haiku compatibility
 if host_os == 'haiku'
