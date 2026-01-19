@@ -32,6 +32,20 @@ int rmapi_vk_free_memory(void* device, void* memory);
 int rmapi_vk_create_command_pool(void* device, void* create_info, void** pool);
 int rmapi_vk_submit_queue(void* queue, uint32_t submit_count, void* submits, void* fence);
 
+// OpenGL RMAPI functions (for direct OpenGL support)
+typedef void* rmapi_gl_context;
+
+int rmapi_gl_init(void);
+rmapi_gl_context* rmapi_gl_create_context(void);
+int rmapi_gl_make_current(rmapi_gl_context* ctx);
+int rmapi_gl_swap_buffers(rmapi_gl_context* ctx);
+void rmapi_gl_destroy_context(rmapi_gl_context* ctx);
+int rmapi_gl_create_program(const char* vertex_src, const char* fragment_src, unsigned int* program);
+int rmapi_gl_create_buffer(size_t size, const void* data, unsigned int* buffer);
+int rmapi_gl_create_texture(int width, int height, unsigned int format, const void* data, unsigned int* texture);
+int rmapi_gl_draw_arrays(unsigned int mode, int count);
+void rmapi_gl_fini(void);
+
 // Get current GPU instance
 struct OBJGPU *rmapi_get_gpu(void);
 

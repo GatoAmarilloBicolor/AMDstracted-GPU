@@ -3,6 +3,7 @@
 #include "../ipc/ipc_lib.h"
 #include "../ipc/ipc_protocol.h"
 #include "../hal/hal.h"
+#include "../../drivers/amdgpu/zink_layer/zink_layer.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -247,6 +248,63 @@ int rmapi_vk_submit_queue(void* queue, uint32_t submit_count, void* submits, voi
     (void)queue; (void)submit_count; (void)submits; (void)fence;
   // Stub
   return -1;
+}
+
+// OpenGL RMAPI functions (for direct OpenGL support)
+int rmapi_gl_init(void) {
+    return zink_init();
+}
+
+rmapi_gl_context* rmapi_gl_create_context(void) {
+    zink_context_t *ctx = os_prim_alloc(sizeof(zink_context_t));
+    if (!ctx) return NULL;
+    if (zink_create_context(ctx) != 0) {
+        os_prim_free(ctx);
+        return NULL;
+    }
+    return (rmapi_gl_context*)ctx;
+}
+
+int rmapi_gl_make_current(rmapi_gl_context* ctx) {
+    if (!ctx) return -1;
+    return zink_make_current((zink_context_t*)ctx);
+}
+
+int rmapi_gl_swap_buffers(rmapi_gl_context* ctx) {
+    if (!ctx) return -1;
+    return zink_swap_buffers((zink_context_t*)ctx);
+}
+
+void rmapi_gl_destroy_context(rmapi_gl_context* ctx) {
+    if (!ctx) return;
+    zink_destroy_context((zink_context_t*)ctx);
+    os_prim_free(ctx);
+}
+
+int rmapi_gl_create_program(const char* vertex_src, const char* fragment_src, unsigned int* program) {
+    if (!program) return -1;
+    *program = zink_create_program(vertex_src, fragment_src);
+    return (*program != 0) ? 0 : -1;
+}
+
+int rmapi_gl_create_buffer(size_t size, const void* data, unsigned int* buffer) {
+    if (!buffer) return -1;
+    *buffer = zink_create_buffer(size, data);
+    return (*buffer != 0) ? 0 : -1;
+}
+
+int rmapi_gl_create_texture(int width, int height, unsigned int format, const void* data, unsigned int* texture) {
+    if (!texture) return -1;
+    *texture = zink_create_texture(width, height, format, 0x1401, data);  // GL_UNSIGNED_BYTE
+    return (*texture != 0) ? 0 : -1;
+}
+
+int rmapi_gl_draw_arrays(unsigned int mode, int count) {
+    return zink_draw_arrays(mode, count);
+}
+
+void rmapi_gl_fini(void) {
+    zink_fini();
 }
 
 // Get current GPU instance

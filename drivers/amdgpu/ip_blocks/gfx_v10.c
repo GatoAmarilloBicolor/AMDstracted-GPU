@@ -24,7 +24,7 @@
 /*
  * Early Init: Check if graphics engine responds
  */
-static int gfx_v10_early_init(struct OBJGPU *adev) {
+int gfx_v10_core_early_init(struct OBJGPU *adev) {
     (void)adev;
     // GFX early initialization - called before device probe
     // Placeholder - real implementation would initialize GFX early state
@@ -34,82 +34,88 @@ static int gfx_v10_early_init(struct OBJGPU *adev) {
 /*
  * Software Init: Set up command rings, shaders
  */
-static int gfx_v10_sw_init(struct OBJGPU *adev) {
+int gfx_v10_core_sw_init(struct OBJGPU *adev) {
     (void)adev;
-    // Placeholder - software init
+    // GFX software initialization - set up rings, shaders
+    // Placeholder
     return 0;
 }
 
 /*
- * Hardware Init: Initialize GFX engine
+ * Hardware Init: Power on graphics engine
  */
-static int gfx_v10_hw_init(struct OBJGPU *adev) {
+int gfx_v10_core_hw_init(struct OBJGPU *adev) {
     (void)adev;
-    // Placeholder - hardware init
+    // GFX hardware initialization - power on, set registers
+    // Placeholder
     return 0;
 }
 
 /*
- * Late Init: Final setup after hardware init
+ * Late Init: Final setup
  */
-static int gfx_v10_late_init(struct OBJGPU *adev) {
+int gfx_v10_core_late_init(struct OBJGPU *adev) {
     (void)adev;
-    // Placeholder - late init
+    // GFX late initialization - final setup
+    // Placeholder
     return 0;
 }
 
 /*
- * Hardware Finish: Clean up hardware state
+ * Hardware Fini: Power off
  */
-static int gfx_v10_hw_fini(struct OBJGPU *adev) {
+int gfx_v10_core_hw_fini(struct OBJGPU *adev) {
     (void)adev;
-    // Placeholder - hardware fini
+    // GFX hardware finalization
+    // Placeholder
     return 0;
 }
 
 /*
- * Software Finish: Clean up software state
+ * Is Idle: Check if GFX is idle
  */
-static int gfx_v10_sw_fini(struct OBJGPU *adev) {
+bool gfx_v10_core_is_idle(struct OBJGPU *adev) {
     (void)adev;
-    // Placeholder - software fini
+    // Check if GFX engine is idle
+    return true;  // Placeholder
+}
+
+/*
+ * Wait for Idle: Wait until GFX is idle
+ */
+int gfx_v10_core_wait_for_idle(struct OBJGPU *adev) {
+    (void)adev;
+    // Wait for GFX to become idle
+    // Placeholder
     return 0;
 }
 
 /*
- * Check if GFX engine is idle
+ * Software Fini: Clean up
  */
-static bool gfx_v10_is_idle(struct OBJGPU *adev) {
+int gfx_v10_core_sw_fini(struct OBJGPU *adev) {
     (void)adev;
-    // Placeholder - check if GPU is idle
-    return true;
-}
-
-/*
- * Wait for GFX engine to become idle
- */
-static int gfx_v10_wait_for_idle(struct OBJGPU *adev) {
-    (void)adev;
-    // Placeholder - wait for GPU idle
+    // GFX software finalization
+    // Placeholder
     return 0;
 }
 
 /*
- * Suspend GFX engine
+ * Suspend: Prepare for suspend
  */
-static int gfx_v10_suspend(struct OBJGPU *adev) {
+int gfx_v10_core_suspend(struct OBJGPU *adev) {
     (void)adev;
-    // Placeholder - suspend
+    // GFX suspend
+    // Placeholder
     return 0;
 }
 
 /*
- * Resume GFX engine
+ * Resume: Resume from suspend
  */
-static int gfx_v10_resume(struct OBJGPU *adev) {
+int gfx_v10_core_resume(struct OBJGPU *adev) {
     (void)adev;
-    // Placeholder - resume
+    // GFX resume
+    // Placeholder
     return 0;
 }
-
-
