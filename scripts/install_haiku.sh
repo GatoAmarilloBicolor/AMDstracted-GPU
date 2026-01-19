@@ -168,6 +168,19 @@ if [ "$(uname -s)" = "Haiku" ]; then
     echo "🎨 Step 5: Configuring OpenGL Support"
     echo "────────────────────────────────────────────────────────────────"
     
+    # Detect GPU with lspci
+    echo "🔍 Detecting AMD GPU..."
+    if command -v lspci &> /dev/null; then
+        AMD_GPU=$(lspci -d 1002: -v 2>/dev/null | grep -i "radeon\|amd" | head -1)
+        if [ -n "$AMD_GPU" ]; then
+            echo "   Found: $AMD_GPU"
+        else
+            echo "   No AMD GPU detected via lspci"
+        fi
+    else
+        echo "   lspci not available (install pciutils)"
+    fi
+    
     MESA_PREFIX="/boot/home/config/non-packaged"
     DRI_PATH="$MESA_PREFIX/lib/dri"
     VULKAN_PATH="$MESA_PREFIX/share/vulkan/icd.d"
@@ -210,6 +223,30 @@ if [ "$(uname -s)" = "Haiku" ]; then
     fi
     
     echo "🎯 OpenGL Configuration: $OPENGL_MODE"
+    
+    # Display GPU info based on detected mode
+    case "$OPENGL_MODE" in
+        radv)
+            echo "📊 GPU Info: Modern AMD (Polaris+, Vega, RDNA)"
+            echo "   Using: Vulkan RADV + Zink"
+            ;;
+        r600)
+            echo "📊 GPU Info: R600/R700/Evergreen/Wrestler era"
+            echo "   Using: R600 DRI driver"
+            ;;
+        r300)
+            echo "📊 GPU Info: R300/R400/R500/Radeon HD era"
+            echo "   Using: R300 DRI driver"
+            ;;
+        r100)
+            echo "📊 GPU Info: R100/R200 ancient hardware"
+            echo "   Using: R100 DRI driver"
+            ;;
+        software)
+            echo "📊 GPU Info: No acceleration available"
+            echo "   Using: Software rendering (llvmpipe)"
+            ;;
+    esac
     
     # Create mode detection file for environment script
     echo "$OPENGL_MODE" > "$HOME/.amd_gpu_opengl_mode"
