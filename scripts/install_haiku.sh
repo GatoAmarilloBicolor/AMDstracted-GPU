@@ -410,15 +410,27 @@ if [ "\$(uname -s)" = "Haiku" ]; then
     export LD_LIBRARY_PATH="\$MESA_PREFIX/lib:\$LD_LIBRARY_PATH"
     export LIBRARY_PATH="\$MESA_PREFIX/lib:\$LIBRARY_PATH"
     
-    # Detect OpenGL configuration mode
-    if [ -f "\$HOME/.amd_gpu_opengl_mode" ]; then
-        OPENGL_MODE=\$(cat "\$HOME/.amd_gpu_opengl_mode")
+    # Check for RMAPI Gallium driver first (preferred for GPU acceleration)
+    if [ -f "\$MESA_PREFIX/lib/dri/rmapi_dri.so" ]; then
+        echo "[AMD GPU] Using RMAPI Gallium Driver for GPU acceleration"
+        export GALLIUM_DRIVER="rmapi"
+        export MESA_LOADER_DRIVER_OVERRIDE="rmapi"
+        OPENGL_MODE="rmapi"
     else
-        OPENGL_MODE="software"
+        # Detect OpenGL configuration mode fallback
+        if [ -f "\$HOME/.amd_gpu_opengl_mode" ]; then
+            OPENGL_MODE=\$(cat "\$HOME/.amd_gpu_opengl_mode")
+        else
+            OPENGL_MODE="software"
+        fi
     fi
     
     # Configure based on detected hardware
     case "\$OPENGL_MODE" in
+        rmapi)
+            # RMAPI Gallium driver for direct GPU acceleration
+            echo "[AMD GPU] Mode: RMAPI Gallium (direct GPU acceleration)"
+            ;;
         radv)
             # Modern AMD GPU with RADV + Vulkan support
             export MESA_LOADER_DRIVER_OVERRIDE="zink"
