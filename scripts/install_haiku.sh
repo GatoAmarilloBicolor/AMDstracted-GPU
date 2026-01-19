@@ -230,13 +230,16 @@ if [ "$(uname -s)" = "Haiku" ]; then
             if ! git clone --depth 1 --branch=24.3 https://gitlab.freedesktop.org/mesa/mesa.git 2>&1 | grep -q "fatal"; then
                 cd mesa
                 
-                # Build Mesa with softpipe only (RMAPI provides GPU access)
-                echo "   Configuring Mesa (softpipe renderer)..."
-                echo "   Note: GPU acceleration via RMAPI, not DRM-based drivers"
+                # Build Mesa softpipe for basic OpenGL support
+                # RMAPI provides direct GPU acceleration for apps that use it
+                # Mesa/softpipe is fallback CPU rendering for standard OpenGL apps
+                echo "   Configuring Mesa (softpipe for fallback OpenGL)..."
+                echo "   Note: GPU acceleration via RMAPI directly, not through Mesa"
                 meson setup build \
                     -Dprefix=/boot/home/config/non-packaged \
                     -Dgallium-drivers=softpipe \
                     -Dgallium-radeon=disabled \
+                    -Dvulkan-drivers="" \
                     -Dglx=auto \
                     -Dopengl=true \
                     -Dshared-glapi=enabled \
