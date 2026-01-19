@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 /* Generic stub for PCI device discovery */
 int pci_stub_find_device(uint16_t vendor, uint16_t device, void **handle) {

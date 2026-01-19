@@ -1,6 +1,8 @@
 #include "../os_interface.h"
 #include <kernel/OS.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 /* Forward declarations from generic stub */
 extern int pci_stub_find_device(uint16_t vendor, uint16_t device, void **handle);
