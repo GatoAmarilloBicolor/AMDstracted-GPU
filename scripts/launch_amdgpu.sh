@@ -175,7 +175,13 @@ case "$1" in
     "demo")
         setup_environment
         if ! check_server; then
-            start_server
+            if start_server; then
+                echo "✅ Server started"
+            else
+                echo "⚠️  Server failed, running demo in software mode..."
+                export LIBGL_ALWAYS_SOFTWARE=1
+                export GALLIUM_DRIVER=llvmpipe
+            fi
         fi
         echo "🎮 Running AMD GPU demo..."
         amd_rmapi_client_demo
