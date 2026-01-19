@@ -108,6 +108,7 @@ if host_os == 'haiku'
     '-no-pie',  # Disable PIE which can cause loader issues on Haiku
     '-Wl,--hash-style=sysv',  # Use sysv hash for better compatibility
     '-static-libgcc',  # Link libgcc statically to avoid runtime issues
+    '-static-libstdc++',  # Link libstdc++ statically for C++ symbols
     '-Wl,--build-id=none'  # Remove build-id which can cause loader issues
   ], language: 'c')
   # Also set compiler flags for Haiku
