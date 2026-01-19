@@ -105,16 +105,30 @@ setup_environment() {
 
     # Vulkan configuration
     if [ "$OS" = "Haiku" ]; then
-        export VK_ICD_FILENAMES="/boot/home/config/non-packaged/lib/vulkan/icd.d/radeon_icd.x86_64.json"
+        # Haiku Vulkan paths
+        export VK_ICD_FILENAMES="/boot/home/config/non-packaged/share/vulkan/icd.d/radeon_icd.x86_64.json"
+        export VK_DRIVER_FILES="/boot/home/config/non-packaged/share/vulkan/icd.d/radeon_icd*.json"
         export LIBGL_DRIVERS_PATH="/boot/home/config/non-packaged/lib/dri"
+        
+        # OpenGL configuration for Haiku
+        export MESA_LOADER_DRIVER_OVERRIDE="zink"
+        export LIBGL_DEBUG="verbose"
+        
+        # Add Haiku-specific Mesa libraries
+        export LD_LIBRARY_PATH="/boot/home/config/non-packaged/lib:$LD_LIBRARY_PATH"
+        
     elif [ "$OS" = "Linux" ]; then
+        # Linux Vulkan paths
         export VK_ICD_FILENAMES="$AMD_GPU_LIB/vulkan/icd.d/radeon_icd.x86_64.json"
         export LIBGL_DRIVERS_PATH="$AMD_GPU_LIB/dri"
+        export MESA_LOADER_DRIVER_OVERRIDE="zink"
     fi
+    
     export VK_LOADER_DEBUG="error"
-
-    # OpenGL configuration (if Mesa is available)
+    
+    # OpenGL Zink configuration (GL over Vulkan)
     export MESA_LOADER_DRIVER_OVERRIDE="zink"
+    export LIBGL_ALWAYS_INDIRECT=1
 
     # Add to PATH
     export PATH="$AMD_GPU_BIN:$PATH"
