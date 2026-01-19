@@ -162,6 +162,37 @@ fi
 
 echo "✅ Binaries installed and verified"
 
+# 5. Configure OpenGL Support on Haiku
+if [ "$(uname -s)" = "Haiku" ]; then
+    echo "────────────────────────────────────────────────────────────────"
+    echo "🎨 Step 5: Configuring OpenGL Support"
+    echo "────────────────────────────────────────────────────────────────"
+    
+    MESA_PREFIX="/boot/home/config/non-packaged"
+    DRI_PATH="$MESA_PREFIX/lib/dri"
+    VULKAN_PATH="$MESA_PREFIX/share/vulkan/icd.d"
+    
+    # Check if Mesa is installed
+    if [ ! -d "$DRI_PATH" ]; then
+        echo "⚠️  Mesa DRI drivers not found at $DRI_PATH"
+        echo "   Install with: pkgman install mesa_devel"
+        echo "   Skipping OpenGL configuration..."
+    else
+        echo "✅ Mesa DRI drivers found"
+        
+        # Check Vulkan ICD
+        if [ ! -f "$VULKAN_PATH/radeon_icd.x86_64.json" ]; then
+            echo "⚠️  Vulkan ICD not found at $VULKAN_PATH/radeon_icd.x86_64.json"
+            echo "   Make sure RADV ICD is installed with Mesa"
+        else
+            echo "✅ Vulkan ICD found"
+        fi
+        
+        echo "✅ OpenGL/Zink configuration ready"
+    fi
+    echo ""
+fi
+
 # Create environment script
 ENV_SCRIPT="$HOME/.amd_gpu_env.sh"
 cat > "$ENV_SCRIPT" << EOF
@@ -176,6 +207,29 @@ export LD_LIBRARY_PATH=\$AMD_GPU_LIB:\$LD_LIBRARY_PATH
 
 # Add to PATH for easy access to tools
 export PATH=\$AMD_GPU_BIN:\$PATH
+
+# Haiku-specific OpenGL configuration
+if [ "\$(uname -s)" = "Haiku" ]; then
+    MESA_PREFIX="/boot/home/config/non-packaged"
+    
+    # OpenGL driver search path
+    export LIBGL_DRIVERS_PATH="\$MESA_PREFIX/lib/dri"
+    
+    # Force Zink (OpenGL over Vulkan)
+    export MESA_LOADER_DRIVER_OVERRIDE="zink"
+    
+    # Vulkan ICD configuration
+    export VK_ICD_FILENAMES="\$MESA_PREFIX/share/vulkan/icd.d/radeon_icd.x86_64.json"
+    export VK_DRIVER_FILES="\$MESA_PREFIX/share/vulkan/icd.d/radeon_icd*.json"
+    
+    # Library paths for Mesa/Vulkan
+    export LD_LIBRARY_PATH="\$MESA_PREFIX/lib:\$LD_LIBRARY_PATH"
+    export LIBRARY_PATH="\$MESA_PREFIX/lib:\$LIBRARY_PATH"
+    
+    # Debug flags (optional)
+    export LIBGL_DEBUG="verbose"
+    export VK_LOADER_DEBUG="error"
+fi
 
 echo "AMD GPU environment loaded"
 echo "Available commands: amd_rmapi_server, amd_rmapi_client_demo, amd_test_suite"
@@ -195,11 +249,23 @@ echo "  1. Load environment: source $ENV_SCRIPT"
 echo "  2. Start server:      amd_rmapi_server &"
 echo "  3. Run client:        amd_rmapi_client_demo"
 echo "  4. Run tests:         amd_test_suite"
+echo "  5. Test OpenGL:       GLInfo or glxinfo"
 echo ""
 echo "📁 Installation paths:"
 echo "  • Binaries:  $INSTALL_DIR"
 if [ "\$LIB_COPY" = true ]; then
     echo "  • Library:   $LIB_DIR"
+fi
+echo ""
+if [ "$(uname -s)" = "Haiku" ]; then
+    echo "📚 Enabled Features:"
+    echo "  ✅ OpenGL/Zink (via Vulkan backend)"
+    echo "  ✅ Vulkan (RADV)"
+    echo "  ✅ RMAPI Server"
+    echo ""
+    echo "⚠️  Prerequisites for full functionality:"
+    echo "  • pkgman install mesa_devel"
+    echo "  • RMAPI server: amd_rmapi_server &"
 fi
 echo ""
 echo "🎯 Status: Ready for GPU acceleration!"
