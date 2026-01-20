@@ -1,305 +1,227 @@
 #!/bin/bash
+# Install AMDGPU_Abstracted on Haiku OS
+# Complete installation: build + deploy + verify + configure
+# Recommended: Use this script for one-command installation on Haiku
 
-# 🏁 HIT Edition: Haiku Installer with GPU Acceleration
-# Builds and installs the AMD driver for Haiku OS with R600 GPU support
-# Includes: driver, shared library, tests, Mesa R600, and OpenGL acceleration
+set -euo pipefail
 
-set -e
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-echo "════════════════════════════════════════════════════════════════"
-echo "🚀 HIT Haiku Installation - Complete Build with GPU Acceleration"
-echo "════════════════════════════════════════════════════════════════"
-echo ""
+# Helpers
+log_info() { echo -e "${BLUE}[INFO]${NC} $*"; }
+log_ok() { echo -e "${GREEN}[✓]${NC} $*"; }
+log_error() { echo -e "${RED}[✗]${NC} $*"; }
+log_warn() { echo -e "${YELLOW}[⚠]${NC} $*"; }
+log_header() { echo -e "\n${BLUE}════════════════════════════════════════════════════════════${NC}\n${BLUE}$*${NC}\n${BLUE}════════════════════════════════════════════════════════════${NC}\n"; }
 
+trap 'log_error "Installation failed"; exit 1' ERR
+
+# Configuration
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+INSTALL_PREFIX="${1:-/boot/home/config/non-packaged}"
 
-# Check prerequisites
-echo "📋 Checking prerequisites..."
-if ! command -v gcc &> /dev/null; then
-    echo "❌ GCC not found. Install Haiku development tools."
-    exit 1
-fi
-if ! command -v meson &> /dev/null; then
-    echo "❌ Meson not found. Install with: pkgman install meson"
-    exit 1
-fi
-if ! command -v ninja &> /dev/null; then
-    echo "❌ Ninja not found. Install with: pkgman install ninja"
-    exit 1
-fi
-echo "✅ Prerequisites OK"
-echo ""
+log_header "AMDGPU_ABSTRACTED INSTALLATION FOR HAIKU"
 
-# Clean old build artifacts
-echo "🧹 Cleaning old build artifacts..."
-find "$PROJECT_ROOT" -name "*.o" -type f -delete 2>/dev/null || true
-find "$PROJECT_ROOT" -name "*.so" -type f -delete 2>/dev/null || true
-find "$PROJECT_ROOT" -name "*.a" -type f -delete 2>/dev/null || true
-rm -rf "$PROJECT_ROOT/builddir" 2>/dev/null || true
-echo "✅ Clean complete"
-echo ""
+log_info "Installation prefix: $INSTALL_PREFIX"
 
-# 1. Build main driver for Haiku
-echo "────────────────────────────────────────────────────────────────"
-echo "📦 Step 1: Building Main Driver for Haiku"
-echo "────────────────────────────────────────────────────────────────"
+# ============================================================================
+# Step 1: Verify Prerequisites
+# ============================================================================
 
-echo "Building natively..."
-cd "$PROJECT_ROOT"
-meson setup builddir
+log_header "Step 1: Verify Prerequisites"
 
-if [ $? -ne 0 ]; then
-    echo "❌ Meson setup failed!"
-    exit 1
-fi
-meson compile -C builddir
-if [ $? -ne 0 ]; then
-    echo "❌ Driver build failed!"
-    exit 1
-fi
-echo "✅ Driver built successfully for Haiku"
-echo ""
-
-# 2. Build tests
-echo "────────────────────────────────────────────────────────────────"
-echo "🧪 Step 2: Building Test Suite"
-echo "────────────────────────────────────────────────────────────────"
-meson test -C builddir
-if [ $? -ne 0 ]; then
-    echo "❌ Test build/run failed!"
-    exit 1
-fi
-echo "✅ Tests built and run successfully"
-echo ""
-
-# 3. Tests already run in Step 2
-echo "────────────────────────────────────────────────────────────────"
-echo "🧪 Step 3: Tests Completed"
-echo "────────────────────────────────────────────────────────────────"
-echo "Tests executed via Meson in Step 2"
-echo ""
-
-# 4. Ensure Mesa R600 Driver (Build if needed)
-echo "────────────────────────────────────────────────────────────────"
-echo "🔧 Step 4: Ensure Mesa R600 Driver"
-echo "────────────────────────────────────────────────────────────────"
-
-DRIVER_FOUND=0
-for path in /boot/system/lib/dri /boot/home/config/non-packaged/lib/dri; do
-    if [ -f "$path/r600_dri.so" ] || [ -f "$path/libgallium_dri.so" ]; then
-        echo "✅ Mesa R600 driver found: $path"
-        DRIVER_FOUND=1
-        break
-    fi
-done
-
-# Detect GPU first
-echo "🔍 Detecting AMD GPU..."
-GPU_DETECTION_SCRIPT="$PROJECT_ROOT/scripts/detect_gpu.sh"
-if [ -x "$GPU_DETECTION_SCRIPT" ]; then
-    DETECTED_GPU=$("$GPU_DETECTION_SCRIPT")
-    if [ "$DETECTED_GPU" != "unknown" ]; then
-        echo "✅ Detected: $DETECTED_GPU"
-    else
-        echo "⚠️  GPU detection inconclusive - will use default drivers"
-        DETECTED_GPU="r600"
-    fi
-else
-    echo "⚠️  GPU detection script not found"
-    DETECTED_GPU="r600"
-fi
-echo ""
-
-if [ $DRIVER_FOUND -eq 0 ]; then
-    echo "⚠️  Mesa driver not found - building from stable source..."
-    echo "    GPU: $DETECTED_GPU"
-    echo "    This may take 30-60 minutes..."
-    echo ""
-    
-    if [ -x "$PROJECT_ROOT/scripts/build_mesa_r600.sh" ]; then
-        # Pass detected GPU to build script
-        if "$PROJECT_ROOT/scripts/build_mesa_r600.sh" "$DETECTED_GPU"; then
-            echo "✅ Mesa built and installed for $DETECTED_GPU"
-        else
-            echo "❌ Mesa build failed"
-            exit 1
-        fi
-    else
-        echo "❌ Mesa build script not found"
-        exit 1
-    fi
-else
-    echo "✅ Mesa driver available"
-fi
-echo ""
-
-# 5. Install to Haiku system paths
-echo "────────────────────────────────────────────────────────────────"
-echo "📂 Step 5: Haiku Installation"
-echo "────────────────────────────────────────────────────────────────"
-
-# Check if running on Haiku
-if [ "$(uname -s)" = "Haiku" ] && [ "$EUID" -ne 0 ]; then 
-    echo "⚠️  Note: Some installation paths require root privileges"
-    echo "   To install to system paths, run: sudo $0"
-    echo ""
-fi
-
-# Detect OS and set appropriate paths
-LIB_COPY=false
-if [ "$(uname -s)" = "Haiku" ]; then
-    # Haiku paths
-    HAIKU_COMMON=/boot/home/config/non-packaged
-    INSTALL_DIR="$HAIKU_COMMON/bin"
-    LIB_DIR="$HAIKU_COMMON/lib"
-    echo "Installing to Haiku user paths..."
-else
-    # Linux paths (prefer user directory to avoid permission issues)
-    INSTALL_DIR="$HOME/.local/bin"
-    LIB_DIR="$HOME/.local/lib"
-    LIB_COPY=true  # Copy shared lib on Linux
-    echo "Installing to Linux user paths ($HOME/.local/)..."
-fi
-
-# Use manual copy instead of meson install to avoid binary corruption
-echo "Copying binaries manually to prevent ELF header corruption..."
-
-# Create directories if they don't exist
-if ! mkdir -p "$INSTALL_DIR" 2>/dev/null; then
-    echo "Warning: Could not create $INSTALL_DIR, trying user directory..."
-    INSTALL_DIR="$HOME/.local/bin"
-    LIB_DIR="$HOME/.local/lib"
-    mkdir -p "$INSTALL_DIR" || {
-        echo "Error: Cannot create installation directories"
-        exit 1
-    }
-fi
-mkdir -p "$LIB_DIR" 2>/dev/null || true
-
-# Function to copy files
-copy_file() {
-    local src="$1"
-    local dst="$2"
-    local filename="$3"
-
-    if cp -f "$src" "$dst/"; then
-        echo "✅ Copied $filename"
+check_command() {
+    if command -v "$1" &>/dev/null; then
+        log_ok "$1"
         return 0
     else
-        echo "❌ Failed to copy $filename to $dst/"
+        log_error "$1 not found"
+        log_info "Install with: pkgman install $1"
         return 1
     fi
 }
 
-# Copy binaries manually with verification
-copy_file "$PROJECT_ROOT/builddir/amd_rmapi_server" "$INSTALL_DIR" "amd_rmapi_server" || exit 1
+check_command gcc
+check_command meson
+check_command ninja
+check_command getarch
 
-if [ "$LIB_COPY" = true ]; then
-    copy_file "$PROJECT_ROOT/builddir/libamdgpu.so" "$LIB_DIR" "libamdgpu.so" || exit 1
+log_ok "All prerequisites found"
+
+# ============================================================================
+# Step 2: Build AMDGPU_Abstracted
+# ============================================================================
+
+log_header "Step 2: Build AMDGPU_Abstracted"
+
+log_info "Building AMDGPU_Abstracted core..."
+
+cd "$PROJECT_ROOT"
+./Build.sh
+
+log_ok "Build completed"
+
+# ============================================================================
+# Step 3: Deploy to System
+# ============================================================================
+
+log_header "Step 3: Deploy to Haiku System"
+
+log_info "Deploying to: $INSTALL_PREFIX"
+
+./scripts/deploy_haiku.sh "$INSTALL_PREFIX"
+
+log_ok "Deployment completed"
+
+# ============================================================================
+# Step 4: Verify Installation
+# ============================================================================
+
+log_header "Step 4: Verify Installation"
+
+./scripts/verify_installation.sh "$INSTALL_PREFIX"
+
+VERIFY_RESULT=$?
+
+if [ $VERIFY_RESULT -ne 0 ]; then
+    log_warn "Some components may be missing"
+    log_info "Check the verification output above"
 fi
 
-copy_file "$PROJECT_ROOT/builddir/amd_rmapi_client_demo" "$INSTALL_DIR" "amd_rmapi_client_demo" || exit 1
-copy_file "$PROJECT_ROOT/builddir/amd_test_suite" "$INSTALL_DIR" "amd_test_suite" || exit 1
+# ============================================================================
+# Step 5: Create/Update Environment Script
+# ============================================================================
 
-# Verify installation
-echo "Verifying installation..."
-if [ ! -x "$INSTALL_DIR/amd_rmapi_server" ]; then
-    echo "❌ amd_rmapi_server not found or not executable"
-    exit 1
-fi
-if [ ! -x "$INSTALL_DIR/amd_rmapi_client_demo" ]; then
-    echo "❌ amd_rmapi_client_demo not found or not executable"
-    exit 1
-fi
-if [ ! -x "$INSTALL_DIR/amd_test_suite" ]; then
-    echo "❌ amd_test_suite not found or not executable"
-    exit 1
-fi
+log_header "Step 5: Configure Environment"
 
-echo "✅ Binaries installed and verified"
-echo ""
+log_info "Creating environment configuration..."
 
-# 6. Configure OpenGL Support on Haiku
-if [ "$(uname -s)" = "Haiku" ]; then
-    echo "────────────────────────────────────────────────────────────────"
-    echo "🎨 Step 6: Configuring OpenGL Support"
-    echo "────────────────────────────────────────────────────────────────"
-    
-    # Detect GPU with lspci
-    echo "🔍 Detecting AMD GPU..."
-    if command -v lspci &> /dev/null; then
-        AMD_GPU=$(lspci -d 1002: -v 2>/dev/null | grep -i "radeon\|amd" | head -1)
-        if [ -n "$AMD_GPU" ]; then
-            echo "   Found: $AMD_GPU"
-        else
-            echo "   No AMD GPU detected via lspci"
-        fi
-    else
-        echo "   lspci not available (install pciutils)"
-    fi
-    
-    # Create environment script for GPU acceleration
-    echo "Creating environment script..."
-    HAIKU_COMMON=${HAIKU_COMMON:-/boot/home/config/non-packaged}
-    
-    cat > "$HAIKU_COMMON/.amd_gpu_env.sh" << 'EOF'
+SETUP_SCRIPT="$INSTALL_PREFIX/setup_amd_gpu.sh"
+
+cat > "$SETUP_SCRIPT" << 'EOFENV'
 #!/bin/bash
-# AMD GPU Environment Setup for Haiku
-INSTALL_PREFIX="/boot/home/config/non-packaged"
+# AMDGPU_Abstracted Environment Setup for Haiku
+# Source this script to configure GPU paths and variables
 
-export LIBRARY_PATH="$INSTALL_PREFIX/lib:$LIBRARY_PATH"
-export LD_LIBRARY_PATH="$INSTALL_PREFIX/lib:/boot/system/lib:$LD_LIBRARY_PATH"
-export MESA_LOADER_DRIVER_OVERRIDE="r600"
-export LIBGL_DRIVERS_PATH="$INSTALL_PREFIX/lib/dri:/boot/home/config/non-packaged/lib/dri:/boot/system/lib/dri"
-export MESA_GL_VERSION_OVERRIDE="4.3"
-export MESA_GLSL_VERSION_OVERRIDE="430"
-export MESA_NO_DITHER=1
-export GALLIUM_DRIVER="r600"
-export PATH="$INSTALL_PREFIX/bin:$PATH"
+INSTALL_PREFIX="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 
-if [ -d "$INSTALL_PREFIX/share/vulkan" ]; then
-    export VK_ICD_FILENAMES="$INSTALL_PREFIX/share/vulkan/icd.d/radeon_icd.x86_64.json"
+# Export library paths
+export LD_LIBRARY_PATH="${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH:-}"
+export LIBRARY_PATH="${INSTALL_PREFIX}/lib:${LIBRARY_PATH:-}"
+export PKG_CONFIG_PATH="${INSTALL_PREFIX}/share/pkgconfig:${PKG_CONFIG_PATH:-}"
+
+# Mesa/OpenGL paths
+export LIBGL_DRIVERS_PATH="${INSTALL_PREFIX}/lib/dri"
+export LIBGLVND_ARCH="x86_64"
+
+# Path to binaries
+export PATH="${INSTALL_PREFIX}/bin:${PATH:-}"
+
+# GPU server path
+export RMAPI_SERVER="${INSTALL_PREFIX}/bin/amd_rmapi_server"
+
+echo "════════════════════════════════════════════════════════════"
+echo "AMDGPU_Abstracted Environment Configured"
+echo "════════════════════════════════════════════════════════════"
+echo ""
+echo "Installation: $INSTALL_PREFIX"
+echo ""
+echo "Libraries:       ${INSTALL_PREFIX}/lib"
+echo "Accelerant:      ${INSTALL_PREFIX}/add-ons/accelerants"
+echo "Headers:         ${INSTALL_PREFIX}/include"
+echo "pkg-config:      ${INSTALL_PREFIX}/share/pkgconfig"
+echo ""
+echo "GPU Server:      ${INSTALL_PREFIX}/bin/amd_rmapi_server"
+echo ""
+echo "Ready to use AMDGPU_Abstracted!"
+echo ""
+EOFENV
+
+chmod +x "$SETUP_SCRIPT"
+
+log_ok "Environment script created: $SETUP_SCRIPT"
+
+# Create convenience symlink in home directory
+HOME_LINK="/boot/home/.amd_gpu_env.sh"
+if [ -w "$(dirname "$HOME_LINK")" ]; then
+    ln -sf "$SETUP_SCRIPT" "$HOME_LINK" 2>/dev/null || true
+    log_ok "Symlink created: $HOME_LINK"
 fi
-EOF
+
+# ============================================================================
+# Step 6: GPU Detection
+# ============================================================================
+
+log_header "Step 6: GPU Detection"
+
+if command -v lspci &>/dev/null; then
+    log_info "Scanning for AMD GPUs..."
     
-    chmod +x "$HAIKU_COMMON/.amd_gpu_env.sh"
-    ln -sf "$HAIKU_COMMON/.amd_gpu_env.sh" /boot/home/.amd_gpu_env.sh 2>/dev/null || true
-    echo "✅ Environment script created: $HAIKU_COMMON/.amd_gpu_env.sh"
-    echo ""
-fi
-
-# Summary
-echo "════════════════════════════════════════════════════════════════"
-echo "✅ INSTALLATION COMPLETE - AMDGPU_Abstracted Ready!"
-echo "════════════════════════════════════════════════════════════════"
-echo ""
-
-echo "Quick Start:"
-echo "  1. Load environment: source /boot/home/.amd_gpu_env.sh"
-echo "  2. Start server:      amd_rmapi_server &"
-echo "  3. Run client:        amd_rmapi_client_demo"
-echo "  4. Run tests:         amd_test_suite"
-echo ""
-
-echo "Installation paths:"
-echo "  • Binaries:  $INSTALL_DIR"
-echo "  • Libraries: $LIB_DIR"
-echo ""
-
-if [ "$(uname -s)" = "Haiku" ]; then
-    echo "GPU Status:"
-    if [ -n "$AMD_GPU" ]; then
-        echo "  ✅ AMD GPU: $AMD_GPU"
+    AMD_GPU_COUNT=$(lspci -d 1002: 2>/dev/null | wc -l)
+    
+    if [ "$AMD_GPU_COUNT" -gt 0 ]; then
+        log_ok "Found $AMD_GPU_COUNT AMD GPU(s):"
+        lspci -d 1002: 2>/dev/null | while read -r line; do
+            echo "  • $line"
+        done
     else
-        echo "  ⚠️  No AMD GPU detected"
+        log_warn "No AMD GPUs detected"
+        log_info "Check GPU with: lspci -d 1002:"
     fi
-    echo "  ✅ Mesa R600 Driver"
-    echo "  ✅ GPU Acceleration Ready"
-    echo ""
+else
+    log_warn "lspci not found - cannot detect GPU"
+    log_info "Install pciutils: pkgman install pciutils"
 fi
 
-echo "Enabled Features:"
-echo "  ✅ RMAPI GPU Abstraction"
-echo "  ✅ OpenGL (R600 Driver)"
-echo "  ✅ GPU Acceleration"
+# ============================================================================
+# Step 7: Summary & Next Steps
+# ============================================================================
+
+log_header "✅ INSTALLATION COMPLETE"
+
+echo "Installation Location: $INSTALL_PREFIX"
 echo ""
+echo "Components Installed:"
+echo "  ✓ AMDGPU core library (libamdgpu.so)"
+echo "  ✓ DRM shim (libdrm_amdgpu_shim.so)"
+echo "  ✓ Haiku accelerant (amd_gfx.accelerant)"
+echo "  ✓ RMAPI server (amd_rmapi_server)"
+echo "  ✓ Test suite (amd_test_suite)"
+echo "  ✓ Mesa OpenGL (libGL.so, libEGL.so)"
+echo "  ✓ Development headers"
+echo ""
+echo "Next Steps:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "1. Configure environment:"
+echo "   source $SETUP_SCRIPT"
+echo ""
+echo "   Or add to ~/.bashrc:"
+echo "   source /boot/home/.amd_gpu_env.sh"
+echo ""
+echo "2. Start the RMAPI GPU server:"
+echo "   $INSTALL_PREFIX/bin/amd_rmapi_server &"
+echo ""
+echo "3. Verify GPU detection:"
+echo "   glinfo | grep -i radeon"
+echo ""
+echo "4. Run the test suite:"
+echo "   $INSTALL_PREFIX/bin/amd_test_suite"
+echo ""
+echo "5. Check Haiku Graphics integration:"
+echo "   ls -la $INSTALL_PREFIX/add-ons/accelerants/"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "Troubleshooting:"
+echo "  • Verify installation: ./scripts/verify_installation.sh $INSTALL_PREFIX"
+echo "  • Check GPU: lspci | grep VGA"
+echo "  • Test OpenGL: glxinfo | grep -i renderer"
+echo ""
+
+log_ok "AMDGPU_Abstracted is ready to use on Haiku!"
