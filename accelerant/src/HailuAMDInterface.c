@@ -16,6 +16,15 @@
 #include <sys/un.h>
 #include <pthread.h>
 #include <kernel/OS.h>
+#include <Errors.h>
+
+/* Haiku status constants (may not be in older headers) */
+#ifndef B_CONNECTION_REFUSED
+#define B_CONNECTION_REFUSED ECONNREFUSED
+#endif
+#ifndef B_NOT_INITIALIZED
+#define B_NOT_INITIALIZED ENXIO
+#endif
 
 /* ============================================================================
  * RMAPI Server Communication
