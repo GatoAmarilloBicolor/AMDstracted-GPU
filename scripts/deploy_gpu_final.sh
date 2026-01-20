@@ -65,37 +65,61 @@ else
 fi
 
 # =================================================================
-# PHASE 2: INSTALL MESA (R600 Driver) - REQUIRED
+# PHASE 2: ENSURE MESA R600 DRIVER - BUILD IF NEEDED
 # =================================================================
-log_header "PHASE 2: Mesa R600 Driver Installation (REQUIRED)"
+log_header "PHASE 2: Mesa R600 Driver Setup (REQUIRED)"
 
-log_info "Installing R600 driver support..."
+# Check if Mesa already installed
+check_mesa() {
+    [ -f "/boot/system/lib/dri/r600_dri.so" ] || [ -f "$INSTALL_PREFIX/lib/dri/r600_dri.so" ] || \
+    [ -f "/boot/system/lib/dri/libgallium_dri.so" ] || [ -f "$INSTALL_PREFIX/lib/dri/libgallium_dri.so" ]
+}
+
+# Try package manager first (faster)
+log_info "Checking for pre-built Mesa packages..."
 MESA_OK=0
 
 for pkg in mesa_r600 mesa_devel; do
-    log_info "Checking $pkg..."
     if pkgman search "$pkg" >/dev/null 2>&1; then
+        log_info "Found package: $pkg"
         if pkgman install "$pkg" 2>&1 | tee -a "$LOG_FILE" | grep -qi "installed\|already"; then
-            log_ok "$pkg installed/available"
+            log_ok "$pkg installed"
             MESA_OK=$((MESA_OK + 1))
-        else
-            log_error "Failed to install $pkg"
         fi
-    else
-        log_error "$pkg NOT FOUND in package repository"
     fi
 done
 
-if [ $MESA_OK -lt 2 ]; then
-    log_error "Mesa R600 driver installation failed - cannot proceed without GPU driver"
-    log_error "Install manually: pkgman install mesa_r600 mesa_devel"
-    exit 1
+# If packages installed, verify
+if [ $MESA_OK -gt 0 ] && check_mesa; then
+    log_ok "Mesa R600 driver found from packages"
+else
+    # Package manager failed - build from source
+    log_warn "Pre-built Mesa not available - building from source (this takes time)..."
+    
+    if [ ! -x "$PROJECT_ROOT/scripts/build_mesa_r600.sh" ]; then
+        log_error "Mesa build script not found: $PROJECT_ROOT/scripts/build_mesa_r600.sh"
+        exit 1
+    fi
+    
+    log_info "Starting Mesa build (may take 30+ minutes)..."
+    if ! "$PROJECT_ROOT/scripts/build_mesa_r600.sh" 2>&1 | tee -a "$LOG_FILE"; then
+        log_error "Mesa build failed - see log for details"
+        exit 1
+    fi
+    
+    log_ok "Mesa built successfully from source"
 fi
 
-# Verify r600_dri.so exists
-if ! [ -f "/boot/system/lib/dri/r600_dri.so" ] && ! [ -f "$INSTALL_PREFIX/lib/dri/r600_dri.so" ]; then
-    log_error "r600_dri.so not found after installation"
-    log_error "Searched: /boot/system/lib/dri and $INSTALL_PREFIX/lib/dri"
+# Final verification
+if ! check_mesa; then
+    log_error "r600_dri.so / libgallium_dri.so NOT FOUND after installation/build"
+    log_error "Searched paths:"
+    log_error "  - /boot/system/lib/dri/"
+    log_error "  - $INSTALL_PREFIX/lib/dri/"
+    log_error ""
+    log_error "Options:"
+    log_error "  1. Build from source: $PROJECT_ROOT/scripts/build_mesa_r600.sh"
+    log_error "  2. Install package:  pkgman install mesa_r600 mesa_devel"
     exit 1
 fi
 
@@ -128,7 +152,8 @@ export LD_LIBRARY_PATH="$INSTALL_PREFIX/lib:/boot/system/lib:$LD_LIBRARY_PATH"
 # === MESA CONFIGURATION ===
 # Use R600 driver (Radeon HD 7290/Warrior GPU)
 export MESA_LOADER_DRIVER_OVERRIDE="r600"
-export LIBGL_DRIVERS_PATH="$INSTALL_PREFIX/lib/dri:/boot/system/lib/dri"
+# Search both system and user-installed Mesa DRI drivers
+export LIBGL_DRIVERS_PATH="$INSTALL_PREFIX/lib/dri:/boot/home/config/non-packaged/lib/dri:/boot/system/lib/dri"
 
 # === OPENGL CAPABILITIES ===
 export MESA_GL_VERSION_OVERRIDE="4.3"

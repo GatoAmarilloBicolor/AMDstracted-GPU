@@ -56,23 +56,31 @@ echo "$GPU_INFO" | sed 's/^/  /'
 # TEST 2: MESA R600 DRIVER (REQUIRED)
 log_header "Test 2: Mesa R600 Driver"
 
-R600_FOUND=0
-for path in /boot/system/lib/dri /boot/home/config/non-packaged/lib/dri; do
-    if [ -f "$path/r600_dri.so" ]; then
-        log_ok "Found: $path/r600_dri.so"
-        R600_FOUND=1
-        break
-    fi
+DRIVER_FOUND=0
+DRIVER_PATH=""
+
+# Check for r600_dri.so or libgallium_dri.so
+for path in /boot/system/lib/dri /boot/home/config/non-packaged/lib/dri /boot/home/config/non-packaged/lib; do
+    for driver in r600_dri.so libgallium_dri.so; do
+        if [ -f "$path/$driver" ]; then
+            log_ok "Found: $path/$driver"
+            DRIVER_FOUND=1
+            DRIVER_PATH="$path/$driver"
+            break 2
+        fi
+    done
 done
 
-if [ $R600_FOUND -eq 0 ]; then
-    log_error "r600_dri.so NOT FOUND"
+if [ $DRIVER_FOUND -eq 0 ]; then
+    log_error "Mesa R600/Gallium DRI driver NOT FOUND"
     log_error "Searched paths:"
-    log_error "  - /boot/system/lib/dri/r600_dri.so"
-    log_error "  - /boot/home/config/non-packaged/lib/dri/r600_dri.so"
+    log_error "  - /boot/system/lib/dri/"
+    log_error "  - /boot/home/config/non-packaged/lib/dri/"
+    log_error "  - /boot/home/config/non-packaged/lib/"
     log_error ""
-    log_error "Install Mesa R600 driver:"
-    log_error "  pkgman install mesa_r600 mesa_devel"
+    log_error "Solutions:"
+    log_error "  1. Build Mesa: ./scripts/build_mesa_r600.sh"
+    log_error "  2. Install pkg: pkgman install mesa_r600 mesa_devel"
     exit 1
 fi
 
