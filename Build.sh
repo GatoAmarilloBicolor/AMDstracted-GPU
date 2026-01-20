@@ -96,6 +96,11 @@ fi
 if [ "$ON_HAIKU" = true ]; then
     log_info "Configuring Mesa for Haiku OS..."
     
+    # NOTE: Mesa 26.0.0 on Haiku does NOT support these options:
+    # -Damdgpu=disabled (doesn't exist)
+    # -Dllvm=disabled (causes LLVM to be required instead)
+    # -Dshared-glapi=enabled (deprecated)
+    
     meson setup "$buildDir" \
         -Dprefix="$installDir" \
         -Dbuildtype=release \
