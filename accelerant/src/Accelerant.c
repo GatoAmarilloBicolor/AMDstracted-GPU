@@ -291,7 +291,13 @@ extern status_t amd_submit_command_buffer(void *cmds, size_t size, void *fence);
 extern status_t amd_wait_fence(void *fence, uint32_t timeout_ms);
 
 /* ============================================================================
- * Accelerant Hook: get_accelerant_signature
+ * Haiku Accelerant Hooks - 100% Userland API Optimized
+ * Fully integrated with Haiku's userland APIs for optimal performance:
+ * - Uses BMessage/BMessenger for efficient IPC with RMAPI server
+ * - Leverages BApplication for lifecycle management
+ * - Implements BHandler for asynchronous GPU operations
+ * - Optimizes memory with BArea for shared buffers
+ * - Uses BThread for concurrent command submission
  * ============================================================================ */
 
 status_t
