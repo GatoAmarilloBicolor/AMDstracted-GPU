@@ -65,22 +65,41 @@ else
 fi
 
 # =================================================================
-# PHASE 2: INSTALL MESA (R600 Driver)
+# PHASE 2: INSTALL MESA (R600 Driver) - REQUIRED
 # =================================================================
-log_header "PHASE 2: Mesa Graphics Libraries"
+log_header "PHASE 2: Mesa R600 Driver Installation (REQUIRED)"
 
 log_info "Installing R600 driver support..."
+MESA_OK=0
+
 for pkg in mesa_r600 mesa_devel; do
+    log_info "Checking $pkg..."
     if pkgman search "$pkg" >/dev/null 2>&1; then
         if pkgman install "$pkg" 2>&1 | tee -a "$LOG_FILE" | grep -qi "installed\|already"; then
             log_ok "$pkg installed/available"
+            MESA_OK=$((MESA_OK + 1))
+        else
+            log_error "Failed to install $pkg"
         fi
     else
-        log_warn "$pkg not found in package repository"
+        log_error "$pkg NOT FOUND in package repository"
     fi
 done
 
-log_ok "Mesa installation complete"
+if [ $MESA_OK -lt 2 ]; then
+    log_error "Mesa R600 driver installation failed - cannot proceed without GPU driver"
+    log_error "Install manually: pkgman install mesa_r600 mesa_devel"
+    exit 1
+fi
+
+# Verify r600_dri.so exists
+if ! [ -f "/boot/system/lib/dri/r600_dri.so" ] && ! [ -f "$INSTALL_PREFIX/lib/dri/r600_dri.so" ]; then
+    log_error "r600_dri.so not found after installation"
+    log_error "Searched: /boot/system/lib/dri and $INSTALL_PREFIX/lib/dri"
+    exit 1
+fi
+
+log_ok "Mesa R600 driver verified and ready"
 
 # =================================================================
 # PHASE 3: CREATE ENVIRONMENT CONFIGURATION
@@ -255,89 +274,83 @@ else
 fi
 
 # =================================================================
-# PHASE 6: VERIFY INSTALLATION
+# PHASE 6: VERIFY INSTALLATION - STRICT GPU-ONLY MODE
 # =================================================================
-log_header "PHASE 6: Installation Verification"
+log_header "PHASE 6: Installation Verification (GPU-Required)"
 
-CHECKS_PASSED=0
-CHECKS_TOTAL=0
-
-# Check GPU
-CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
-if lspci 2>/dev/null | grep -qi "radeon.*7290\|warrior"; then
-    log_ok "GPU: Radeon HD 7290 (Warrior) detected"
-    CHECKS_PASSED=$((CHECKS_PASSED + 1))
-elif lspci 2>/dev/null | grep -qi "radeon"; then
-    log_ok "GPU: AMD Radeon detected"
-    CHECKS_PASSED=$((CHECKS_PASSED + 1))
-else
-    log_warn "GPU: Not detected"
+# Check 1: GPU Hardware (REQUIRED)
+log_info "Checking for GPU hardware..."
+if ! lspci 2>/dev/null | grep -qi "radeon"; then
+    log_error "NO AMD GPU DETECTED"
+    log_error "lspci output:"
+    lspci 2>/dev/null | sed 's/^/  /'
+    exit 1
 fi
 
-# Check Mesa
-CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
-if [ -f "/boot/system/lib/dri/r600_dri.so" ] || [ -f "$INSTALL_PREFIX/lib/dri/r600_dri.so" ]; then
-    log_ok "Mesa: R600 driver available"
-    CHECKS_PASSED=$((CHECKS_PASSED + 1))
-else
-    log_warn "Mesa: R600 driver not found"
-fi
+GPU_MODEL=$(lspci 2>/dev/null | grep -i radeon)
+log_ok "GPU detected: $GPU_MODEL"
 
-# Check binaries
-CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
-if [ -x "$INSTALL_PREFIX/bin/amd_rmapi_server" ]; then
-    log_ok "Binaries: RMAPI server deployed"
-    CHECKS_PASSED=$((CHECKS_PASSED + 1))
-else
-    log_error "Binaries: RMAPI server not found"
+# Check 2: Mesa Driver (REQUIRED)
+log_info "Checking Mesa R600 driver..."
+if ! [ -f "/boot/system/lib/dri/r600_dri.so" ] && ! [ -f "$INSTALL_PREFIX/lib/dri/r600_dri.so" ]; then
+    log_error "r600_dri.so driver NOT FOUND"
+    log_error "Searched paths:"
+    log_error "  - /boot/system/lib/dri/r600_dri.so"
+    log_error "  - $INSTALL_PREFIX/lib/dri/r600_dri.so"
+    log_error "Install with: pkgman install mesa_r600"
+    exit 1
 fi
+log_ok "Mesa R600 driver found"
 
-# Check environment
-CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
-if [ -f "$INSTALL_PREFIX/.amd_gpu_env.sh" ]; then
-    log_ok "Environment: Configuration script created"
-    CHECKS_PASSED=$((CHECKS_PASSED + 1))
-else
-    log_error "Environment: Configuration not found"
+# Check 3: RMAPI Binaries (REQUIRED)
+log_info "Checking RMAPI server..."
+if ! [ -x "$INSTALL_PREFIX/bin/amd_rmapi_server" ]; then
+    log_error "amd_rmapi_server NOT FOUND at: $INSTALL_PREFIX/bin/amd_rmapi_server"
+    exit 1
 fi
+log_ok "RMAPI server deployed"
 
-log_info "Verification result: $CHECKS_PASSED/$CHECKS_TOTAL checks passed"
+# Check 4: Environment Config (REQUIRED)
+log_info "Checking environment configuration..."
+if ! [ -f "$INSTALL_PREFIX/.amd_gpu_env.sh" ]; then
+    log_error "Environment script NOT FOUND: $INSTALL_PREFIX/.amd_gpu_env.sh"
+    exit 1
+fi
+log_ok "Environment configuration ready"
+
+log_ok "ALL REQUIRED CHECKS PASSED"
 
 # =================================================================
-# PHASE 7: FINAL INSTRUCTIONS
+# PHASE 7: DEPLOYMENT COMPLETE
 # =================================================================
-log_header "DEPLOYMENT SUMMARY"
+log_header "✅ DEPLOYMENT SUCCESSFUL!"
 
-if [ $CHECKS_PASSED -ge 3 ]; then
-    log_ok "System ready for GPU acceleration!"
-    echo ""
-    echo "Quick Start:"
-    echo "  1. gpu_server &         # Start GPU server"
-    echo "  2. gpu_app glinfo       # Test OpenGL"
-    echo "  3. gpu_app glxgears     # Run benchmark"
-    echo ""
-else
-    log_warn "Some checks failed - GPU acceleration may not work optimally"
-    echo ""
-    echo "Troubleshooting:"
-    echo "  • Install Mesa: pkgman install mesa_r600 mesa_devel"
-    echo "  • Check GPU:    lspci | grep -i radeon"
-    echo "  • Debug mode:   export LIBGL_DEBUG=verbose && glinfo"
-    echo ""
-fi
-
+echo "GPU Acceleration is ready to use."
+echo ""
 echo "Installation Summary:"
 echo "  Location:     $INSTALL_PREFIX"
-echo "  Binaries:     $(ls -1 "$INSTALL_PREFIX/bin/" 2>/dev/null | grep -E "amd_|gpu_" | wc -l) deployed"
+echo "  GPU:          $(lspci 2>/dev/null | grep -i radeon | head -1)"
+echo "  Driver:       R600 Mesa (verified)"
+echo "  RMAPI Server: amd_rmapi_server"
 echo "  Environment:  /boot/home/.amd_gpu_env.sh"
-echo "  Log file:     $LOG_FILE"
 echo ""
-
-if [ $CHECKS_PASSED -eq $CHECKS_TOTAL ]; then
-    log_header "✅ ALL SYSTEMS GO!"
-    echo "GPU acceleration is fully operational and ready to use."
-    echo ""
-fi
+echo "Quick Start:"
+echo "  1. gpu_server &         # Start GPU resource manager"
+echo "  2. gpu_app glinfo       # Verify OpenGL/GPU"
+echo "  3. gpu_app glxgears     # Run 3D benchmark"
+echo ""
+echo "Advanced Usage:"
+echo "  source ~/.amd_gpu_env.sh"
+echo "  gpu_app blender         # Full 3D application"
+echo "  gpu_app glxgears -info  # Performance test"
+echo ""
+echo "Testing:"
+echo "  test_gpu                # Run verification suite"
+echo ""
+echo "Debugging:"
+echo "  export LIBGL_DEBUG=verbose"
+echo "  gpu_app glinfo 2>&1 | head -20"
+echo ""
 
 log_ok "Deployment completed in $SECONDS seconds"
-echo ""
+log_ok "Log file: $LOG_FILE"
