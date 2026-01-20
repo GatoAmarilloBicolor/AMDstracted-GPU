@@ -77,7 +77,11 @@ mkdir -p "$installDir/develop/lib/pkgconfig"
 echo "[INFO] Configuring Mesa with $DRIVER driver..."
 echo ""
 
-meson setup "$buildDir" "$baseDir/mesa_source" \
+# Enter mesa_source directory for meson
+pushd "$baseDir/mesa_source" > /dev/null
+
+# Use meson without specifying source dir (use current dir implicitly)
+meson setup "$buildDir" \
     -Dprefix="$installDir" \
     -Dbuildtype=release \
     -Doptimization=3 \
@@ -90,6 +94,8 @@ meson setup "$buildDir" "$baseDir/mesa_source" \
     -Dshader-cache=enabled \
     -Dvulkan-drivers= \
     -Dllvm=disabled
+
+popd > /dev/null
 
 echo ""
 echo "[INFO] Building Mesa..."
