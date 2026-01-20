@@ -79,52 +79,20 @@ mkdir -p "$installDir/develop/lib/pkgconfig"
 log_info "Building AMDGPU_Abstracted core libraries..."
 buildProjectInPlace AMDGPU_Abstracted
 
-# Build Mesa with empty gallium-drivers (GPU layer provided by AMDGPU_Abstracted)
-log_info "Configuring Mesa for Haiku with AMDGPU_Abstracted..."
-
-if [ ! -d "mesa_source/.git" ]; then
-    log_info "Cloning Mesa repository..."
-    git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa_source
-fi
-
-buildDir="$baseDir/builddir_mesa"
-
-if [ -d "$buildDir" ]; then
-    rm -rf "$buildDir"
-fi
+# Build Mesa with R600 driver (optional, for full GPU acceleration)
+log_info "Mesa GPU acceleration is optional"
+log_info "The Accelerant module is the primary component and is already built"
 
 if [ "$ON_HAIKU" = true ]; then
-    log_info "Configuring Mesa for Haiku OS..."
-    
-    # For AMD R600 (Radeon HD 2000/3000/4000/5000 series)
-    # Build with r600 Gallium driver
-    # Other options: radeonsi (GCN and newer), r300 (R300-R500)
-    
-    cd "$baseDir/mesa_source"
-    
-    meson setup "$buildDir" \
-        -Dprefix="$installDir" \
-        -Dbuildtype=release \
-        -Doptimization=3 \
-        -Dgallium-drivers=r600 \
-        -Dplatforms=haiku \
-        -Dopengl=true \
-        -Dglx=disabled \
-        -Degl=disabled \
-        -Dgles2=enabled \
-        -Dshader-cache=enabled \
-        -Dvulkan-drivers= \
-        -Dllvm=disabled
-
-    ninja -C "$buildDir"
-    ninja -C "$buildDir" install
-    
-    cd "$baseDir"
-    log_ok "Mesa built successfully for Haiku"
+    log_info ""
+    log_info "To build Mesa with R600 GPU driver on Haiku, use:"
+    log_info "  ./build_mesa.sh"
+    log_info ""
+    log_info "Mesa is NOT built by Build.sh due to Meson compatibility on Haiku"
+    log_info "Use build_mesa.sh for independent Mesa compilation"
 else
     log_info "Skipping Mesa build on Linux"
-    log_info "Mesa for GPU acceleration requires Haiku system libraries"
-    log_info "The AMDGPU_Abstracted core components are still available"
+    log_info "Mesa requires Haiku system libraries"
     log_info "To use GPU acceleration, run this build on Haiku OS"
 fi
 
