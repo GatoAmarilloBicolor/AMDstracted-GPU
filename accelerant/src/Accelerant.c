@@ -12,7 +12,7 @@
 #include <kernel/OS.h>
 #include <driver_settings.h>
 #include <accelerant.h>
-#include <GraphicsDefs.h>
+#include <interface/GraphicsDefs.h>
 #include <malloc.h>
 #include <stdio.h>
 #include <string.h>
@@ -29,6 +29,30 @@
 #ifndef B_SET_CURSOR_SHAPE
 #define B_SET_CURSOR_SHAPE 0x08000002
 #endif
+#ifndef B_ACQUIRE_ENGINE
+#define B_ACQUIRE_ENGINE 0x08000010
+#endif
+#ifndef B_RELEASE_ENGINE
+#define B_RELEASE_ENGINE 0x08000011
+#endif
+#ifndef B_WAIT_ENGINE_IDLE
+#define B_WAIT_ENGINE_IDLE 0x08000012
+#endif
+#ifndef B_FILL_RECTANGLE
+#define B_FILL_RECTANGLE 0x08000020
+#endif
+#ifndef B_INVERT_RECTANGLE
+#define B_INVERT_RECTANGLE 0x08000021
+#endif
+#ifndef B_BLIT
+#define B_BLIT 0x08000022
+#endif
+#ifndef B_TRANSPARENT_BLIT
+#define B_TRANSPARENT_BLIT 0x08000023
+#endif
+#ifndef B_SCALE_BLIT
+#define B_SCALE_BLIT 0x08000024
+#endif
 
 /* ============================================================================
  * Type Definitions (Adapted from NVIDIA pattern)
@@ -36,6 +60,31 @@
 
 /* Accelerant signature for device matching */
 #define AMD_ACCELERANT_SIGNATURE 0x414D4447  /* 'AMDG' */
+
+/* Haiku accelerant types (fallback if not in headers) */
+typedef void *engine_token;
+typedef struct {
+    int32_t engine_id;
+    int32_t serial_number;
+} sync_token;
+
+/* Graphics operation structs (fallback) */
+typedef struct {
+    int16_t left, top, right, bottom;
+} fill_rect_params;
+
+typedef struct {
+    int16_t left, top, right, bottom;
+} blit_params;
+
+typedef struct {
+    int16_t left, top, right, bottom;
+    uint32_t color;
+} transparent_blit_params;
+
+typedef struct {
+    int16_t left, top, right, bottom;
+} scaled_blit_params;
 
 /* Maximum supported displays and modes */
 #define MAX_DISPLAYS 4
