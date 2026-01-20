@@ -260,15 +260,38 @@ build_mesa() {
     
     buildDir="$baseDir/builddir_mesa"
     
+    # VERBOSE DEBUG
+    log_info "Mesa Build Configuration:"
+    log_info "  Base dir: $baseDir"
+    log_info "  Build dir: $buildDir"
+    log_info "  Install dir: $installDir"
+    log_info "  Driver: $driver"
+    echo ""
+    
     if [ -d "$buildDir" ]; then
+        log_info "Cleaning old build directory..."
         rm -rf "$buildDir"
     fi
     
     mkdir -p "$buildDir"
     mkdir -p "$installDir/lib/pkgconfig"
     
-    cd "$baseDir/mesa_source"
+    log_info "Entering mesa_source directory..."
+    cd "$baseDir/mesa_source" || {
+        log_error "FAILED: Could not cd to $baseDir/mesa_source"
+        return 1
+    }
     
+    log_info "Current directory: $(pwd)"
+    log_info "Build directory path: $buildDir"
+    echo ""
+    
+    log_info "Running meson setup..."
+    log_info "Command: meson setup \\\"$buildDir\\\" -Dprefix=\\\"$installDir\\\" -Dgallium-drivers=$driver -Dplatforms=haiku ..."
+    echo ""
+    
+    # CRITICAL: Use absolute paths for meson
+    # Haiku's meson MUST be called from source directory
     meson setup "$buildDir" \
         -Dprefix="$installDir" \
         -Dbuildtype=release \
@@ -281,12 +304,39 @@ build_mesa() {
         -Dgles2=enabled \
         -Dshader-cache=enabled \
         -Dvulkan-drivers= \
-        -Dllvm=disabled || return 1
+        -Dllvm=disabled
     
-    ninja -C "$buildDir" || return 1
-    ninja -C "$buildDir" install || return 1
+    if [ $? -ne 0 ]; then
+        log_error "FAILED: meson setup failed"
+        log_error "Try manual build:"
+        log_error "  cd $baseDir/mesa_source"
+        log_error "  meson setup $buildDir -Dprefix=$installDir -Dgallium-drivers=$driver -Dplatforms=haiku"
+        log_error "  ninja -C $buildDir"
+        log_error "  ninja -C $buildDir install"
+        return 1
+    fi
     
-    log_ok "Mesa built"
+    echo ""
+    log_info "Running ninja build..."
+    ninja -C "$buildDir"
+    
+    if [ $? -ne 0 ]; then
+        log_error "FAILED: ninja build failed"
+        log_error "Check: $buildDir/meson-logs/meson-log.txt for details"
+        return 1
+    fi
+    
+    echo ""
+    log_info "Running ninja install..."
+    ninja -C "$buildDir" install
+    
+    if [ $? -ne 0 ]; then
+        log_error "FAILED: ninja install failed"
+        return 1
+    fi
+    
+    cd "$baseDir"
+    log_ok "Mesa built successfully"
 }
 
 # ============================================================================
