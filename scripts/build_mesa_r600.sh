@@ -21,10 +21,16 @@ trap 'log_error "Build failed"; exit 1' ERR
 
 # Paths
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MESA_SOURCE="${PROJECT_ROOT}/mesa_source"
+MESA_BUILD="${PROJECT_ROOT}/mesa_build"
 INSTALL_PREFIX="/boot/home/config/non-packaged"
-MESA_SOURCE="${INSTALL_PREFIX}/mesa_source"
-MESA_BUILD="${INSTALL_PREFIX}/mesa_build"
 LOG_FILE="/tmp/mesa_build_$(date +%s).log"
+
+# Standard Haiku non-packaged structure
+MESA_BIN_DIR="${INSTALL_PREFIX}/bin"
+MESA_LIB_DIR="${INSTALL_PREFIX}/lib"
+MESA_DRI_DIR="${MESA_LIB_DIR}/dri"
+MESA_VK_DIR="${INSTALL_PREFIX}/share/vulkan/icd.d"
 
 # Detect GPU and select driver
 DETECTED_GPU=$("$PROJECT_ROOT/scripts/detect_gpu.sh")
@@ -140,13 +146,16 @@ case "$GPU_DRIVER" in
 esac
 
 # Build meson command with optional vulkan
+# Note: Haiku doesn't have X11, so we disable GLX and use OpenGL through our custom interface
 MESON_CMD="meson setup \"$MESA_BUILD\" \
     -Dprefix=\"$INSTALL_PREFIX\" \
     -Dbuildtype=release \
     -Doptimization=3 \
     -Dgallium-drivers=\"$GALLIUM_DRIVERS\" \
-    -Dglx=dri \
-    -Degl=enabled \
+    -Dglx=disabled \
+    -Dplatforms=haiku \
+    -Dopengl=true \
+    -Degl=disabled \
     -Dgles1=disabled \
     -Dgles2=enabled \
     -Dshared-glapi=enabled"
@@ -211,18 +220,24 @@ log_ok "Build successful (${BUILD_TIME}s)"
 log_header "Step 6: Verify Build"
 
 if [ ! -f "$MESA_BUILD/src/gallium/targets/dri/gallium_dri.so" ]; then
-    log_error "r600_dri.so not found in build output"
+    log_error "gallium_dri.so not found in build output"
     exit 1
 fi
 
 log_ok "DRI driver built: gallium_dri.so"
 
-# Step 7: Install
-log_header "Step 7: Install Mesa"
+# Step 7: Install to standard Haiku paths
+log_header "Step 7: Install Mesa to non-packaged"
 
-mkdir -p "$INSTALL_PREFIX"
+# Create standard directory structure
+log_info "Creating directory structure in $INSTALL_PREFIX..."
+mkdir -p "$MESA_BIN_DIR"
+mkdir -p "$MESA_DRI_DIR"
+mkdir -p "$MESA_VK_DIR"
+mkdir -p "${INSTALL_PREFIX}/include"
+mkdir -p "${INSTALL_PREFIX}/share/pkgconfig"
 
-log_info "Installing with ninja..."
+log_info "Installing with ninja to: $INSTALL_PREFIX"
 if ! ninja -C "$MESA_BUILD" install 2>&1 | tee -a "$LOG_FILE"; then
     log_error "Installation failed"
     exit 1
@@ -231,14 +246,22 @@ fi
 # Step 8: Verify installation
 log_header "Step 8: Verify Installation"
 
-if [ ! -d "$INSTALL_PREFIX/lib" ]; then
-    log_error "Installation directory not found: $INSTALL_PREFIX/lib"
+if [ ! -d "$MESA_LIB_DIR" ]; then
+    log_error "Installation directory not found: $MESA_LIB_DIR"
     exit 1
 fi
 
-log_info "Checking for r600_dri.so..."
-if ! find "$INSTALL_PREFIX" -name "*r600*" -o -name "*gallium*dri*" 2>/dev/null | head -5; then
-    log_error "DRI driver not found in installation"
+log_info "Checking for DRI drivers..."
+DRIVERS_FOUND=0
+for driver in "$MESA_DRI_DIR"/*_dri.so; do
+    if [ -f "$driver" ]; then
+        log_ok "Found: $(basename "$driver")"
+        DRIVERS_FOUND=$((DRIVERS_FOUND + 1))
+    fi
+done
+
+if [ $DRIVERS_FOUND -eq 0 ]; then
+    log_error "No DRI drivers found in $MESA_DRI_DIR"
     exit 1
 fi
 
