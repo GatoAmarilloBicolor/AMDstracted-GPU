@@ -14,10 +14,12 @@
 #include <driver_settings.h>
 #include <accelerant.h>
 #include <GraphicsDefs.h>
+#include <Errors.h>
 #include <malloc.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <fcntl.h>
 
 /* Accelerant hook constants (may not be in older Haiku headers) */
@@ -38,6 +40,27 @@
 #endif
 #ifndef B_WAIT_ENGINE_IDLE
 #define B_WAIT_ENGINE_IDLE 0x08000012
+#endif
+#ifndef B_ALREADY_INITIALIZED
+#define B_ALREADY_INITIALIZED B_BUSY
+#endif
+#ifndef status_t
+#define status_t int
+#endif
+#ifndef B_OK
+#define B_OK 0
+#endif
+#ifndef B_BAD_VALUE
+#define B_BAD_VALUE -1
+#endif
+#ifndef B_BUSY
+#define B_BUSY -2
+#endif
+#ifndef B_NO_MEMORY
+#define B_NO_MEMORY -3
+#endif
+#ifndef B_ACCELERANT_VERSION
+#define B_ACCELERANT_VERSION 1
 #endif
 #ifndef B_FILL_RECTANGLE
 #define B_FILL_RECTANGLE 0x08000020
@@ -68,29 +91,29 @@ typedef void *engine_token;
 #endif
 #ifndef sync_token
 typedef struct {
-    int32 engine_id;
-    int32 serial_number;
+    int engine_id;
+    int serial_number;
 } sync_token;
 #endif
 #ifndef fill_rect_params
 typedef struct {
-    int16 left, top, right, bottom;
+    short left, top, right, bottom;
 } fill_rect_params;
 #endif
 #ifndef blit_params
 typedef struct {
-    int16 left, top, right, bottom;
+    short left, top, right, bottom;
 } blit_params;
 #endif
 #ifndef transparent_blit_params
 typedef struct {
-    int16 left, top, right, bottom;
-    uint32 color;
+    short left, top, right, bottom;
+    unsigned int color;
 } transparent_blit_params;
 #endif
 #ifndef scaled_blit_params
 typedef struct {
-    int16 left, top, right, bottom;
+    short left, top, right, bottom;
 } scaled_blit_params;
 #endif
 
@@ -100,16 +123,16 @@ typedef struct {
 
 /* Display mode timing structure */
 typedef struct {
-    uint32_t pixel_clock;      /* kHz */
-    uint16_t h_display;
-    uint16_t h_sync_start;
-    uint16_t h_sync_end;
-    uint16_t h_total;
-    uint16_t v_display;
-    uint16_t v_sync_start;
-    uint16_t v_sync_end;
-    uint16_t v_total;
-    uint32_t flags;            /* B_TIMING_INTERLACED, B_POSITIVE_HSYNC, etc */
+    unsigned int pixel_clock;      /* kHz */
+    unsigned short h_display;
+    unsigned short h_sync_start;
+    unsigned short h_sync_end;
+    unsigned short h_total;
+    unsigned short v_display;
+    unsigned short v_sync_start;
+    unsigned short v_sync_end;
+    unsigned short v_total;
+    unsigned int flags;            /* B_TIMING_INTERLACED, B_POSITIVE_HSYNC, etc */
 } amd_mode_timing;
 
 /* AMD display mode (equivalent to NvKmsMode) */
