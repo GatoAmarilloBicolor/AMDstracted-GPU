@@ -11,6 +11,12 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
+
+/* Ensure uint8_t, uint16_t, uint32_t are available */
+#ifdef __HAIKU__
+    #include <SupportDefs.h>
+#endif
 
 /* Platform abstraction */
 #include "accelerant_api.h"
