@@ -10,9 +10,10 @@
 
 #include <kernel/image.h>
 #include <kernel/OS.h>
+#include <support/SupportDefs.h>
 #include <driver_settings.h>
 #include <accelerant.h>
-#include <interface/GraphicsDefs.h>
+#include <GraphicsDefs.h>
 #include <malloc.h>
 #include <stdio.h>
 #include <string.h>
@@ -62,29 +63,36 @@
 #define AMD_ACCELERANT_SIGNATURE 0x414D4447  /* 'AMDG' */
 
 /* Haiku accelerant types (fallback if not in headers) */
+#ifndef engine_token
 typedef void *engine_token;
+#endif
+#ifndef sync_token
 typedef struct {
-    int32_t engine_id;
-    int32_t serial_number;
+    int32 engine_id;
+    int32 serial_number;
 } sync_token;
-
-/* Graphics operation structs (fallback) */
+#endif
+#ifndef fill_rect_params
 typedef struct {
-    int16_t left, top, right, bottom;
+    int16 left, top, right, bottom;
 } fill_rect_params;
-
+#endif
+#ifndef blit_params
 typedef struct {
-    int16_t left, top, right, bottom;
+    int16 left, top, right, bottom;
 } blit_params;
-
+#endif
+#ifndef transparent_blit_params
 typedef struct {
-    int16_t left, top, right, bottom;
-    uint32_t color;
+    int16 left, top, right, bottom;
+    uint32 color;
 } transparent_blit_params;
-
+#endif
+#ifndef scaled_blit_params
 typedef struct {
-    int16_t left, top, right, bottom;
+    int16 left, top, right, bottom;
 } scaled_blit_params;
+#endif
 
 /* Maximum supported displays and modes */
 #define MAX_DISPLAYS 4
