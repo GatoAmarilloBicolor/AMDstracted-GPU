@@ -88,12 +88,19 @@ log_ok "Build directory ready: $MESA_BUILD"
 log_header "Step 4: Configure Mesa (R600 + Gallium)"
 
 log_info "Running meson setup..."
+log_info "Configuring Gallium drivers for AMD GPU support:"
+log_info "  - r300 (Radeon R300)"
+log_info "  - r600 (Radeon HD 7290)"
+log_info "  - radeonsi (RDNA/RDNA2)"
+log_info "  - softpipe (software fallback)"
+echo ""
+
 if ! meson setup "$MESA_BUILD" \
     -Dprefix="$INSTALL_PREFIX" \
     -Dbuildtype=release \
     -Doptimization=3 \
     -Dvulkan-drivers=amd \
-    -Dgallium-drivers=r600,swrast \
+    -Dgallium-drivers=r300,r600,radeonsi,softpipe \
     -Dglx=dri \
     -Degl=enabled \
     -Dgles1=disabled \
