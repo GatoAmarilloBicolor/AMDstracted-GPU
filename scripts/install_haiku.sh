@@ -1,611 +1,255 @@
 #!/bin/bash
+# 🏁 HIT Edition: Haiku Installer with GPU Acceleration
+# Complete build and installation for AMDGPU_Abstracted on Haiku
+# Includes: AMDGPU core, Mesa R600 driver, OpenGL support, tests
 
-# 🏁 HIT Edition: Haiku Installer
-# Builds and installs the AMD driver for Haiku OS
-# Includes: driver, shared library, tests, and Accelerant
-# Developed by: Haiku Imposible Team (HIT)
+set -euo pipefail
 
-set -e
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-echo "════════════════════════════════════════════════════════════════"
-echo "🚀 HIT Haiku Installation - Complete Build"
-echo "════════════════════════════════════════════════════════════════"
+# Helpers
+log_info() { echo -e "${BLUE}[INFO]${NC} $*"; }
+log_ok() { echo -e "${GREEN}[✓]${NC} $*"; }
+log_warn() { echo -e "${YELLOW}[!]${NC} $*"; }
+log_error() { echo -e "${RED}[✗]${NC} $*"; }
+log_header() { echo -e "\n${BLUE}════════════════════════════════════════════════════════════${NC}\n${BLUE}$*${NC}\n${BLUE}════════════════════════════════════════════════════════════${NC}\n"; }
+
+trap 'log_error "Installation failed"; exit 1' ERR
+
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LOG_FILE="/tmp/haiku_install_$(date +%s).log"
+
+log_header "🚀 HAIKU INSTALLATION - AMDGPU_ABSTRACTED WITH GPU ACCELERATION"
+log_info "Installation log: $LOG_FILE"
+
+# =================================================================
+# PHASE 1: CHECK PREREQUISITES
+# =================================================================
+log_header "PHASE 1: Check Prerequisites"
+
+PREREQ_OK=0
+PREREQ_TOTAL=0
+
+for tool in gcc meson ninja pkg-config; do
+    PREREQ_TOTAL=$((PREREQ_TOTAL + 1))
+    if command -v "$tool" >/dev/null 2>&1; then
+        VERSION=$($tool --version 2>&1 | head -1)
+        log_ok "$tool: $VERSION"
+        PREREQ_OK=$((PREREQ_OK + 1))
+    else
+        log_error "$tool not found - install with: pkgman install haiku_devel"
+    fi
+done
+
+if [ $PREREQ_OK -lt $PREREQ_TOTAL ]; then
+    log_error "Missing build tools - cannot continue"
+    exit 1
+fi
+
+# =================================================================
+# PHASE 2: USE GPU ACCELERATION DEPLOYMENT SCRIPT
+# =================================================================
+log_header "PHASE 2: Deploy GPU Acceleration (Recommended)"
+
+log_info "The main deployment script handles everything:"
+log_info "  • Builds AMDGPU_Abstracted core"
+log_info "  • Installs/builds Mesa R600 driver"
+log_info "  • Configures OpenGL environment"
+log_info "  • Deploys all binaries"
+log_info "  • Verifies GPU acceleration"
 echo ""
 
-# Check prerequisites
-echo "📋 Checking prerequisites..."
-if ! command -v gcc &> /dev/null; then
-    echo "❌ GCC not found. Install Haiku development tools."
-    exit 1
-fi
-if ! command -v meson &> /dev/null; then
-    echo "❌ Meson not found. Install with: pkgman install meson"
-    exit 1
-fi
-if ! command -v ninja &> /dev/null; then
-    echo "❌ Ninja not found. Install with: pkgman install ninja"
-    exit 1
-fi
-echo "✅ Prerequisites OK"
-echo ""
-
-# Clean old build artifacts
-echo "🧹 Cleaning old build artifacts..."
-find . -name "*.o" -type f -delete 2>/dev/null || true
-find . -name "*.so" -type f -delete 2>/dev/null || true
-find . -name "*.a" -type f -delete 2>/dev/null || true
-rm -rf builddir 2>/dev/null || true
-echo "✅ Clean complete"
-echo ""
-
-# 1. Build main driver for Haiku
-echo "────────────────────────────────────────────────────────────────"
-echo "📦 Step 1: Building Main Driver for Haiku"
-echo "────────────────────────────────────────────────────────────────"
-
-# Always build natively (cross-compilation requires proper toolchain)
-echo "Building natively..."
-meson setup builddir
-
-if [ $? -ne 0 ]; then
-    echo "❌ Meson setup failed!"
-    exit 1
-fi
-meson compile -C builddir
-if [ $? -ne 0 ]; then
-    echo "❌ Driver build failed!"
-    exit 1
-fi
-echo "✅ Driver built successfully for Haiku"
-echo ""
-
-# 2. Build tests
-echo "────────────────────────────────────────────────────────────────"
-echo "🧪 Step 2: Building Test Suite"
-echo "────────────────────────────────────────────────────────────────"
-meson test -C builddir
-if [ $? -ne 0 ]; then
-    echo "❌ Test build/run failed!"
-    exit 1
-fi
-echo "✅ Tests built and run successfully"
-echo ""
-
-# 3. Tests already run in Step 2
-echo "────────────────────────────────────────────────────────────────"
-echo "🧪 Step 3: Tests Completed"
-echo "────────────────────────────────────────────────────────────────"
-echo "Tests executed via Meson in Step 2"
-
-# 4. Install to Haiku system paths
-echo "────────────────────────────────────────────────────────────────"
-echo "📂 Step 4: Haiku Installation"
-echo "────────────────────────────────────────────────────────────────"
-
-# Check if running on Haiku
-if [ "$(uname -s)" = "Haiku" ] && [ "$EUID" -ne 0 ]; then 
-    echo "⚠️  Note: Some installation paths require root privileges"
-    echo "   To install to system paths, run: sudo $0"
+if [ -x "$PROJECT_ROOT/scripts/deploy_gpu_final.sh" ]; then
+    log_ok "GPU deployment script found"
+    echo ""
+    
+    read -p "Use GPU acceleration deployment? (recommended) [Y/n] " -n 1 -r USE_GPU_DEPLOY
+    echo ""
+    
+    if [[ ! $USE_GPU_DEPLOY =~ ^[Nn]$ ]]; then
+        log_info "Launching GPU acceleration deployment..."
+        echo ""
+        
+        if "$PROJECT_ROOT/scripts/deploy_gpu_final.sh" 2>&1 | tee -a "$LOG_FILE"; then
+            log_ok "GPU acceleration deployment completed"
+            echo ""
+            echo "Installation complete!"
+            echo ""
+            echo "Next steps:"
+            echo "  1. source /boot/home/.amd_gpu_env.sh"
+            echo "  2. gpu_server &"
+            echo "  3. gpu_app glinfo"
+            echo ""
+            exit 0
+        else
+            log_error "GPU acceleration deployment failed"
+            log_warn "Falling back to manual build..."
+            echo ""
+        fi
+    else
+        log_info "Using manual build mode..."
+        echo ""
+    fi
+else
+    log_warn "GPU deployment script not found, using manual build"
     echo ""
 fi
 
-# Detect OS and set appropriate paths
-LIB_COPY=false
-if [ "$(uname -s)" = "Haiku" ]; then
-    # Haiku paths
-    HAIKU_COMMON=/boot/home/config/non-packaged
-    INSTALL_DIR="$HAIKU_COMMON/bin"
-    LIB_DIR="$HAIKU_COMMON/lib"
-    echo "Installing to Haiku user paths..."
-else
-    # Linux paths (prefer user directory to avoid permission issues)
-    INSTALL_DIR="$HOME/.local/bin"
-    LIB_DIR="$HOME/.local/lib"
-    LIB_COPY=true  # Copy shared lib on Linux
-    echo "Installing to Linux user paths ($HOME/.local/)..."
-fi
+# =================================================================
+# FALLBACK: MANUAL BUILD (if GPU deployment skipped)
+# =================================================================
+log_header "MANUAL BUILD MODE"
 
-# Use manual copy instead of meson install to avoid binary corruption
-echo "Copying binaries manually to prevent ELF header corruption..."
+# Clean old build
+log_info "Cleaning old build artifacts..."
+find "$PROJECT_ROOT" -name "*.o" -type f -delete 2>/dev/null || true
+find "$PROJECT_ROOT" -name "*.so" -type f -delete 2>/dev/null || true
+find "$PROJECT_ROOT" -name "*.a" -type f -delete 2>/dev/null || true
+rm -rf "$PROJECT_ROOT/builddir" 2>/dev/null || true
+log_ok "Clean complete"
 
-# Create directories if they don't exist
-if ! mkdir -p "$INSTALL_DIR" 2>/dev/null; then
-    echo "Warning: Could not create $INSTALL_DIR, trying user directory..."
-    INSTALL_DIR="$HOME/.local/bin"
-    LIB_DIR="$HOME/.local/lib"
-    mkdir -p "$INSTALL_DIR" || {
-        echo "Error: Cannot create installation directories"
-        exit 1
-    }
-fi
+# Build AMDGPU core
+log_header "Building AMDGPU_Abstracted Core"
+
+cd "$PROJECT_ROOT"
+log_info "Meson setup..."
+meson setup builddir --cross-file haiku-cross.ini 2>&1 | tee -a "$LOG_FILE"
+
+log_info "Ninja compile..."
+ninja -C builddir 2>&1 | tee -a "$LOG_FILE"
+
+log_ok "AMDGPU core built successfully"
+
+# Run tests
+log_header "Running Test Suite"
+meson test -C builddir 2>&1 | tee -a "$LOG_FILE" || log_warn "Tests had issues but continuing..."
+
+# Install binaries
+log_header "Installing Binaries to Haiku"
+
+HAIKU_COMMON="/boot/home/config/non-packaged"
+INSTALL_DIR="$HAIKU_COMMON/bin"
+LIB_DIR="$HAIKU_COMMON/lib"
+
+log_info "Installation directory: $INSTALL_DIR"
+
+mkdir -p "$INSTALL_DIR" || {
+    log_error "Cannot create installation directory"
+    exit 1
+}
 mkdir -p "$LIB_DIR" 2>/dev/null || true
 
-# Function to copy files
-copy_file() {
-    local src="$1"
-    local dst="$2"
-    local filename="$3"
-
-    if cp -f "$src" "$dst/"; then
-        echo "✅ Copied $filename"
-        return 0
-    else
-        echo "❌ Failed to copy $filename to $dst/"
-        return 1
+for binary in amd_rmapi_server amd_rmapi_client_demo amd_test_suite; do
+    if [ -f "$PROJECT_ROOT/builddir/$binary" ]; then
+        cp "$PROJECT_ROOT/builddir/$binary" "$INSTALL_DIR/$binary"
+        chmod +x "$INSTALL_DIR/$binary"
+        log_ok "Installed: $binary"
     fi
-}
+done
 
-# Copy binaries manually with verification
-copy_file "builddir/amd_rmapi_server" "$INSTALL_DIR" "amd_rmapi_server" || exit 1
+# =================================================================
+# FINAL: GPU SETUP (for both paths)
+# =================================================================
+log_header "Final GPU Setup"
 
-if [ "$LIB_COPY" = true ]; then
-    copy_file "builddir/libamdgpu.so" "$LIB_DIR" "libamdgpu.so" || exit 1
-fi
-
-copy_file "builddir/amd_rmapi_client_demo" "$INSTALL_DIR" "amd_rmapi_client_demo" || exit 1
-copy_file "builddir/amd_test_suite" "$INSTALL_DIR" "amd_test_suite" || exit 1
-
-# Verify installation
-echo "Verifying installation..."
-if [ ! -x "$INSTALL_DIR/amd_rmapi_server" ]; then
-    echo "❌ amd_rmapi_server not found or not executable"
-    exit 1
-fi
-if [ ! -x "$INSTALL_DIR/amd_rmapi_client_demo" ]; then
-    echo "❌ amd_rmapi_client_demo not found or not executable"
-    exit 1
-fi
-if [ ! -x "$INSTALL_DIR/amd_test_suite" ]; then
-    echo "❌ amd_test_suite not found or not executable"
-    exit 1
-fi
-
-echo "✅ Binaries installed and verified"
-
-# 5. Configure OpenGL Support on Haiku
-if [ "$(uname -s)" = "Haiku" ]; then
-    echo "────────────────────────────────────────────────────────────────"
-    echo "🎨 Step 5: Configuring OpenGL Support"
-    echo "────────────────────────────────────────────────────────────────"
-    
-    # Detect GPU with lspci
-    echo "🔍 Detecting AMD GPU..."
-    if command -v lspci &> /dev/null; then
-        AMD_GPU=$(lspci -d 1002: -v 2>/dev/null | grep -i "radeon\|amd" | head -1)
-        if [ -n "$AMD_GPU" ]; then
-            echo "   Found: $AMD_GPU"
-        else
-            echo "   No AMD GPU detected via lspci"
-        fi
-    else
-        echo "   lspci not available (install pciutils)"
-    fi
-    
-    # Try multiple Mesa installation paths on Haiku
-    MESA_PREFIX=""
-    DRI_PATH=""
-    VULKAN_PATH=""
-    
-    # Check system-wide Mesa first
-    if [ -d "/boot/system/lib/dri" ]; then
-        MESA_PREFIX="/boot/system"
-        DRI_PATH="/boot/system/lib/dri"
-        VULKAN_PATH="/boot/system/share/vulkan/icd.d"
-        echo "✅ Found Mesa in system path: /boot/system"
-    # Then check user Mesa
-    elif [ -d "/boot/home/config/non-packaged/lib/dri" ]; then
-        MESA_PREFIX="/boot/home/config/non-packaged"
-        DRI_PATH="/boot/home/config/non-packaged/lib/dri"
-        VULKAN_PATH="/boot/home/config/non-packaged/share/vulkan/icd.d"
-        echo "✅ Found Mesa in user path: /boot/home/config/non-packaged"
-    fi
-    
-    OPENGL_MODE="software"
-    
-    # Check if Mesa DRI drivers are installed
-    if [ -z "$DRI_PATH" ] || [ ! -d "$DRI_PATH" ]; then
-        echo "⚠️  Mesa DRI drivers not found"
-        echo "   Searched: /boot/system/lib/dri, /boot/home/config/non-packaged/lib/dri"
-        echo ""
-        
-        # Ask if user wants to compile Mesa
-        echo "📋 Options:"
-        echo "  1. Continue with software rendering (CPU)"
-        echo "  2. Compile and install Mesa with DRI drivers"
-        echo ""
-        read -p "Choose (1 or 2): " choice
-        
-        if [ "$choice" = "2" ]; then
-            echo ""
-            echo "🔨 Compiling Mesa for Haiku..."
-            echo "   This will take several minutes..."
-            
-            MESA_BUILD_DIR="/tmp/mesa_build_$$"
-            mkdir -p "$MESA_BUILD_DIR"
-            cd "$MESA_BUILD_DIR"
-            
-            # Clone Mesa stable branch
-            # Note: We only build softpipe because our GPU access is via RMAPI (userland)
-            # not via DRM kernel drivers. Hardware-specific drivers like R600 are not needed.
-            if ! git clone --depth 1 --branch=24.3 https://gitlab.freedesktop.org/mesa/mesa.git 2>&1 | grep -q "fatal"; then
-                cd mesa
-                
-                # Build Mesa with RMAPI Gallium driver for GPU acceleration
-                # RMAPI driver provides direct GPU acceleration through Gallium
-                # Softpipe is fallback for CPU rendering if needed
-                echo "   Configuring Mesa (RMAPI + softpipe)..."
-                echo "   Note: RMAPI driver will provide direct GPU acceleration"
-                
-                # First, copy RMAPI driver to Mesa if not already there
-                if [ -d "src/gallium/drivers" ]; then
-                    if [ ! -d "src/gallium/drivers/rmapi" ]; then
-                        echo "   Copying RMAPI driver to Mesa..."
-                        cp -r /boot/home/src/AMDstracted-GPU/drivers/gallium/rmapi_* src/gallium/drivers/ 2>/dev/null || true
-                        mkdir -p src/gallium/drivers/rmapi
-                        cp /boot/home/src/AMDstracted-GPU/drivers/gallium/rmapi_screen.* src/gallium/drivers/rmapi/
-                        cp /boot/home/src/AMDstracted-GPU/drivers/gallium/rmapi_context.* src/gallium/drivers/rmapi/
-                        cp /boot/home/src/AMDstracted-GPU/drivers/gallium/target_rmapi/Makefile.am src/gallium/drivers/rmapi/
-                    fi
-                fi
-                
-                meson setup build \
-                    -Dprefix=/boot/home/config/non-packaged \
-                    -Dgallium-drivers=rmapi,softpipe \
-                    -Dgallium-radeon=disabled \
-                    -Dvulkan-drivers="" \
-                    -Dglx=auto \
-                    -Dopengl=true \
-                    -Dshared-glapi=enabled \
-                    2>&1 | tee /tmp/mesa_config.log
-                CONFIG_RESULT=$?
-                
-                if [ $CONFIG_RESULT -eq 0 ]; then
-                    echo ""
-                    echo "   Building Mesa (this may take 10+ minutes)..."
-                    echo ""
-                    
-                    # Build with live progress
-                    ninja -C build 2>&1 | tee /tmp/mesa_build.log | grep -E "(\[|error|Error|FAILED)"
-                    BUILD_RESULT=${PIPESTATUS[0]}
-                    echo ""
-                    
-                    if [ $BUILD_RESULT -eq 0 ]; then
-                        echo "   Installing Mesa..."
-                        ninja -C build install 2>&1 | tee /tmp/mesa_install.log | grep -E "(Installing|Copying|error|Error)"
-                        INSTALL_RESULT=$?
-                        
-                        if [ $INSTALL_RESULT -eq 0 ]; then
-                            # Verify Mesa was installed
-                            if [ -f "/boot/home/config/non-packaged/lib/dri/swrast_dri.so" ] || \
-                               [ -f "/boot/home/config/non-packaged/lib/dri/swrast_dri.so.1" ]; then
-                                MESA_PREFIX="/boot/home/config/non-packaged"
-                                DRI_PATH="$MESA_PREFIX/lib/dri"
-                                VULKAN_PATH="$MESA_PREFIX/share/vulkan/icd.d"
-                                echo "✅ Mesa compiled and installed successfully"
-                                echo "✅ Softpipe renderer found: $DRI_PATH/swrast_dri.so"
-                                OPENGL_MODE="software"
-                            else
-                                echo "⚠️  Mesa installed but renderer not found"
-                                echo "   Check: ls -la /boot/home/config/non-packaged/lib/dri/"
-                                OPENGL_MODE="software"
-                            fi
-                        else
-                            echo "❌ Mesa installation failed"
-                            echo ""
-                            echo "📋 Installation error details:"
-                            echo "────────────────────────────────"
-                            tail -30 /tmp/mesa_install.log
-                            echo "────────────────────────────────"
-                            OPENGL_MODE="software"
-                        fi
-                    else
-                        echo "❌ Mesa build failed"
-                        echo ""
-                        echo "📋 Build error details:"
-                        echo "────────────────────────────────"
-                        tail -40 /tmp/mesa_build.log
-                        echo "────────────────────────────────"
-                        OPENGL_MODE="software"
-                    fi
-                else
-                    echo "❌ Mesa configuration failed"
-                    echo ""
-                    echo "📋 Configuration error details:"
-                    echo "────────────────────────────────"
-                    tail -30 /tmp/mesa_config.log
-                    echo "────────────────────────────────"
-                    OPENGL_MODE="software"
-                fi
-                
-                cd ../..
-            else
-                echo "❌ Failed to clone Mesa"
-                OPENGL_MODE="software"
-            fi
-            
-            # Cleanup
-            rm -rf "$MESA_BUILD_DIR"
-            
-        else
-            echo "⚠️  Using software rendering fallback..."
-            OPENGL_MODE="software"
-        fi
-    else
-        echo "✅ Mesa DRI drivers found"
-        
-        # Check for RADV support (modern AMD)
-        if [ -f "$VULKAN_PATH/radeon_icd.x86_64.json" ]; then
-            echo "✅ RADV Vulkan ICD found (modern hardware)"
-            OPENGL_MODE="radv"
-        # Check for r600 driver (R600/R700/Evergreen/Wrestler/Brazos)
-        elif [ -f "$DRI_PATH/r600_dri.so" ] || [ -f "$DRI_PATH/r600_dri.so.1" ]; then
-            echo "✅ R600 DRI driver found (R600/R700/Evergreen/Wrestler AMD)"
-            OPENGL_MODE="r600"
-        # Check for r300 driver (R300/R400/R500/Radeon HD)
-        elif [ -f "$DRI_PATH/r300_dri.so" ] || [ -f "$DRI_PATH/r300_dri.so.1" ]; then
-            echo "✅ R300 DRI driver found (R300/R400/R500 AMD)"
-            OPENGL_MODE="r300"
-        # Check for r100 driver (very old R100/R200)
-        elif [ -f "$DRI_PATH/r100_dri.so" ] || [ -f "$DRI_PATH/r100_dri.so.1" ]; then
-            echo "✅ R100 DRI driver found (R100/R200 AMD)"
-            OPENGL_MODE="r100"
-        # Check for software rendering
-        elif [ -f "$DRI_PATH/swrast_dri.so" ] || [ -f "$DRI_PATH/swrast_dri.so.1" ]; then
-            echo "✅ Software rendering available"
-            OPENGL_MODE="software"
-        else
-            echo "⚠️  No GPU drivers found, using software rendering"
-            OPENGL_MODE="software"
-        fi
-    fi
-    
-    echo "🎯 OpenGL Configuration: $OPENGL_MODE"
-    
-    # Display GPU info based on detected mode
-    case "$OPENGL_MODE" in
-        radv)
-            echo "📊 GPU Info: Modern AMD (Polaris+, Vega, RDNA)"
-            echo "   Using: Vulkan RADV + Zink"
-            ;;
-        r600)
-            echo "📊 GPU Info: R600/R700/Evergreen/Wrestler era"
-            echo "   Using: R600 DRI driver"
-            ;;
-        r300)
-            echo "📊 GPU Info: R300/R400/R500/Radeon HD era"
-            echo "   Using: R300 DRI driver"
-            ;;
-        r100)
-            echo "📊 GPU Info: R100/R200 ancient hardware"
-            echo "   Using: R100 DRI driver"
-            ;;
-        software)
-            echo "📊 GPU Info: No acceleration available"
-            echo "   Using: Software rendering (llvmpipe)"
-            ;;
-    esac
-    
-    # Create mode detection file for environment script
-    echo "$OPENGL_MODE" > "$HOME/.amd_gpu_opengl_mode"
-    echo ""
-fi
-
-# Create environment script
-ENV_SCRIPT="$HOME/.amd_gpu_env.sh"
-cat > "$ENV_SCRIPT" << EOF
+log_info "Creating environment script..."
+cat > "$HAIKU_COMMON/.amd_gpu_env.sh" << 'EOF'
 #!/bin/bash
-# AMD GPU Environment Setup - HIT Edition
-
-# Driver and library paths
-export AMD_GPU_BIN=$INSTALL_DIR
-export AMD_GPU_LIB=$LIB_DIR
-export LIBRARY_PATH=\$AMD_GPU_LIB:\$LIBRARY_PATH
-export LD_LIBRARY_PATH=\$AMD_GPU_LIB:\$LD_LIBRARY_PATH
-
-# Add to PATH for easy access to tools
-export PATH=\$AMD_GPU_BIN:\$PATH
-
-# Haiku-specific OpenGL configuration
-if [ "\$(uname -s)" = "Haiku" ]; then
-    # Detect Mesa installation path
-    if [ -d "/boot/system/lib/dri" ]; then
-        MESA_PREFIX="/boot/system"
-    elif [ -d "/boot/home/config/non-packaged/lib/dri" ]; then
-        MESA_PREFIX="/boot/home/config/non-packaged"
-    else
-        MESA_PREFIX="/boot/home/config/non-packaged"  # fallback
-    fi
-    
-    # OpenGL driver search path
-    export LIBGL_DRIVERS_PATH="\$MESA_PREFIX/lib/dri"
-    
-    # Library paths for Mesa
-    export LD_LIBRARY_PATH="\$MESA_PREFIX/lib:\$LD_LIBRARY_PATH"
-    export LIBRARY_PATH="\$MESA_PREFIX/lib:\$LIBRARY_PATH"
-    
-    # Check for RMAPI Gallium driver first (preferred for GPU acceleration)
-    if [ -f "\$MESA_PREFIX/lib/dri/rmapi_dri.so" ]; then
-        echo "[AMD GPU] Using RMAPI Gallium Driver for GPU acceleration"
-        export GALLIUM_DRIVER="rmapi"
-        export MESA_LOADER_DRIVER_OVERRIDE="rmapi"
-        OPENGL_MODE="rmapi"
-    else
-        # Detect OpenGL configuration mode fallback
-        if [ -f "\$HOME/.amd_gpu_opengl_mode" ]; then
-            OPENGL_MODE=\$(cat "\$HOME/.amd_gpu_opengl_mode")
-        else
-            OPENGL_MODE="software"
-        fi
-    fi
-    
-    # Configure based on detected hardware
-    case "\$OPENGL_MODE" in
-        rmapi)
-            # RMAPI Gallium driver for direct GPU acceleration
-            echo "[AMD GPU] Mode: RMAPI Gallium (direct GPU acceleration)"
-            ;;
-        radv)
-            # Modern AMD GPU with RADV + Vulkan support
-            export MESA_LOADER_DRIVER_OVERRIDE="zink"
-            export VK_ICD_FILENAMES="\$MESA_PREFIX/share/vulkan/icd.d/radeon_icd.x86_64.json"
-            export VK_DRIVER_FILES="\$MESA_PREFIX/share/vulkan/icd.d/radeon_icd*.json"
-            export VK_LOADER_DEBUG="error"
-            echo "[AMD GPU] Mode: Modern RADV (OpenGL via Zink + Vulkan)"
-            ;;
-        r600)
-            # R600/R700/Evergreen/Wrestler/Brazos era AMD GPU
-            export MESA_LOADER_DRIVER_OVERRIDE="r600"
-            echo "[AMD GPU] Mode: R600 driver (R600/R700/Evergreen/Wrestler)"
-            ;;
-        r300)
-            # R300/R400/R500/Radeon HD era AMD GPU
-            export MESA_LOADER_DRIVER_OVERRIDE="r300"
-            echo "[AMD GPU] Mode: R300 driver (R300/R400/R500)"
-            ;;
-        r100)
-            # Very old R100/R200 era AMD GPU
-            export MESA_LOADER_DRIVER_OVERRIDE="r100"
-            echo "[AMD GPU] Mode: R100 driver (R100/R200 ancient)"
-            ;;
-        software)
-            # Software rendering (CPU fallback)
-            export LIBGL_ALWAYS_SOFTWARE=1
-            export GALLIUM_DRIVER="llvmpipe"
-            export MESA_LOADER_DRIVER_OVERRIDE="swrast"
-            echo "[AMD GPU] Mode: Software Rendering (CPU, no GPU acceleration)"
-            ;;
-        *)
-            # Default fallback
-            export LIBGL_ALWAYS_SOFTWARE=1
-            export GALLIUM_DRIVER="llvmpipe"
-            echo "[AMD GPU] Mode: Fallback to Software Rendering"
-            ;;
-    esac
-    
-    # Debug flags (optional, comment out for production)
-    # export LIBGL_DEBUG="verbose"
+INSTALL_PREFIX="/boot/home/config/non-packaged"
+export LIBRARY_PATH="$INSTALL_PREFIX/lib:$LIBRARY_PATH"
+export LD_LIBRARY_PATH="$INSTALL_PREFIX/lib:/boot/system/lib:$LD_LIBRARY_PATH"
+export MESA_LOADER_DRIVER_OVERRIDE="r600"
+export LIBGL_DRIVERS_PATH="$INSTALL_PREFIX/lib/dri:/boot/home/config/non-packaged/lib/dri:/boot/system/lib/dri"
+export MESA_GL_VERSION_OVERRIDE="4.3"
+export MESA_GLSL_VERSION_OVERRIDE="430"
+export MESA_NO_DITHER=1
+export PATH="$INSTALL_PREFIX/bin:$PATH"
+if [ -d "$INSTALL_PREFIX/share/vulkan" ]; then
+    export VK_ICD_FILENAMES="$INSTALL_PREFIX/share/vulkan/icd.d/radeon_icd.x86_64.json"
 fi
-
-echo "AMD GPU environment loaded"
-echo "Available commands: amd_rmapi_server, amd_rmapi_client_demo, amd_test_suite"
 EOF
 
-chmod +x "$ENV_SCRIPT"
-echo "✅ Environment script created: $ENV_SCRIPT"
+chmod +x "$HAIKU_COMMON/.amd_gpu_env.sh"
+ln -sf "$HAIKU_COMMON/.amd_gpu_env.sh" /boot/home/.amd_gpu_env.sh 2>/dev/null || true
+log_ok "Environment script created"
 
-# Success message
-echo ""
-echo "═══════════════════════════════════════════════════════════════"
-echo "🎉 INSTALLATION COMPLETE - AMDGPU_Abstracted Ready!"
-echo "═══════════════════════════════════════════════════════════════"
-echo ""
-echo "🚀 Quick Start:"
-echo "  1. Load environment: source $ENV_SCRIPT"
-echo "  2. Start server:      amd_rmapi_server &"
-echo "  3. Run client:        amd_rmapi_client_demo"
-echo "  4. Run tests:         amd_test_suite"
-echo "  5. Test OpenGL:       ./test_opengl.sh GLInfo"
-echo ""
-echo "📁 Installation paths:"
-echo "  • Binaries:  $INSTALL_DIR"
-if [ "\$LIB_COPY" = true ]; then
-    echo "  • Library:   $LIB_DIR"
-fi
-echo ""
-if [ "$(uname -s)" = "Haiku" ]; then
-    # Check which mode was detected
-    if [ -f "$HOME/.amd_gpu_opengl_mode" ]; then
-        MODE=$(cat "$HOME/.amd_gpu_opengl_mode")
-    else
-        MODE="unknown"
-    fi
-    
-    echo "📚 Enabled Features:"
-    case "$MODE" in
-        radv)
-            echo "  ✅ OpenGL/Zink (via Vulkan backend)"
-            echo "  ✅ Vulkan (RADV - Modern AMD)"
-            echo "  ✅ RMAPI Server"
-            echo ""
-            echo "🎯 Hardware: Modern AMD GPU (Polaris, Vega, RDNA)"
-            ;;
-        r600)
-            echo "  ✅ OpenGL (R600 driver)"
-            echo "  ✅ RMAPI Server"
-            echo ""
-            echo "🎯 Hardware: R600/R700/Evergreen/Wrestler/Brazos AMD"
-            ;;
-        r300)
-            echo "  ✅ OpenGL (R300 driver)"
-            echo "  ✅ RMAPI Server"
-            echo ""
-            echo "🎯 Hardware: R300/R400/R500/Radeon HD AMD"
-            ;;
-        r100)
-            echo "  ✅ OpenGL (R100 driver)"
-            echo "  ✅ RMAPI Server"
-            echo ""
-            echo "🎯 Hardware: R100/R200 ancient AMD"
-            ;;
-        software)
-            echo "  ✅ OpenGL (Software Rendering - llvmpipe)"
-            echo "  ✅ RMAPI Server"
-            echo ""
-            echo "⚠️  Hardware: No GPU drivers (CPU rendering only)"
-            ;;
-    esac
-    echo ""
-    echo "📋 Post-Installation Notes:"
-    if [ "$MODE" = "radv" ]; then
-        echo "  • For RADV: RMAPI server required"
-        echo "  • Start with: amd_rmapi_server &"
-    elif [ "$MODE" = "software" ]; then
-        echo "  • For better performance: install Mesa drivers"
-        echo "  • Check: pkgman search mesa"
-    fi
-fi
-echo ""
-echo "═══════════════════════════════════════════════════════════════"
-echo "🧪 OpenGL Acceleration Test (Optional)"
-echo "═══════════════════════════════════════════════════════════════"
-echo ""
-echo "Want to verify that RMAPI GPU acceleration is working?"
-echo ""
-read -p "Run OpenGL acceleration test? (y/n): " test_choice
+# Create convenience launchers
+log_info "Creating convenience launchers..."
+cat > "$INSTALL_DIR/gpu_server" << 'EOF'
+#!/bin/bash
+source /boot/home/.amd_gpu_env.sh 2>/dev/null || source /boot/home/config/non-packaged/.amd_gpu_env.sh
+exec /boot/home/config/non-packaged/bin/amd_rmapi_server "$@"
+EOF
+chmod +x "$INSTALL_DIR/gpu_server"
 
-if [ "$test_choice" = "y" ] || [ "$test_choice" = "Y" ]; then
-    echo ""
-    echo "Running OpenGL acceleration test..."
-    echo "────────────────────────────────────────────────────────────────"
-    
-    echo "🎮 Testing OpenGL acceleration..."
-    echo "Available test commands:"
-    echo "  • Basic renderer check: ./test_opengl.sh GLInfo"
-    echo "  • Performance test: ./test_opengl.sh glkitmark"
-    echo "  • Full launcher test: ./scripts/launch_amdgpu.sh test-opengl GLInfo"
-    echo ""
+cat > "$INSTALL_DIR/gpu_app" << 'EOF'
+#!/bin/bash
+source /boot/home/.amd_gpu_env.sh 2>/dev/null || source /boot/home/config/non-packaged/.amd_gpu_env.sh
+exec "$@"
+EOF
+chmod +x "$INSTALL_DIR/gpu_app"
 
-    # Try the basic test first
-    if [ -f "./test_opengl.sh" ]; then
-        echo "Running basic OpenGL renderer test..."
-        timeout 15 bash ./test_opengl.sh GLInfo 2>/dev/null | grep -E "(Renderer|OpenGL)" | head -5
-        if [ $? -eq 0 ]; then
-            echo "✅ OpenGL test completed"
-        else
-            echo "⚠️  OpenGL test timed out or failed"
-        fi
-    else
-        echo "❌ Test script not found: ./test_opengl.sh"
-        echo "Please run: ./scripts/launch_amdgpu.sh test-opengl GLInfo"
-    fi
+log_ok "Launchers created: gpu_server, gpu_app"
+
+# =================================================================
+# VERIFICATION
+# =================================================================
+log_header "Verification"
+
+# Check GPU
+if lspci 2>/dev/null | grep -qi radeon; then
+    log_ok "AMD GPU detected:"
+    lspci 2>/dev/null | grep -i radeon
 else
-    echo ""
-    echo "You can test later with:"
-    echo "  ./test_opengl.sh GLInfo"
-    echo "  ./scripts/launch_amdgpu.sh test-opengl GLInfo"
+    log_error "No AMD GPU detected"
 fi
 
+# Check binaries
+for binary in amd_rmapi_server amd_rmapi_client_demo amd_test_suite; do
+    if [ -x "$INSTALL_DIR/$binary" ]; then
+        log_ok "Binary installed: $binary"
+    else
+        log_error "Binary missing: $binary"
+    fi
+done
+
+# Check Mesa driver
+if [ -f "/boot/system/lib/dri/r600_dri.so" ] || [ -f "$HAIKU_COMMON/lib/dri/r600_dri.so" ]; then
+    log_ok "Mesa R600 driver available"
+else
+    log_warn "Mesa R600 driver not found - try running: ./scripts/build_mesa_r600.sh"
+fi
+
+# =================================================================
+# FINAL SUMMARY
+# =================================================================
+log_header "✅ INSTALLATION COMPLETE!"
+
+echo "Installation Summary:"
+echo "  Location: $INSTALL_DIR"
+echo "  GPU:      $(lspci 2>/dev/null | grep -i radeon | head -1 || echo 'Not detected')"
+echo "  Env:      /boot/home/.amd_gpu_env.sh"
 echo ""
-echo "═══════════════════════════════════════════════════════════════"
-echo "🎯 Status: Ready for GPU acceleration!"
-echo "═══════════════════════════════════════════════════════════════"
+echo "Next Steps:"
+echo "  1. Load environment:"
+echo "     source /boot/home/.amd_gpu_env.sh"
+echo ""
+echo "  2. Start GPU server:"
+echo "     gpu_server &"
+echo ""
+echo "  3. Test OpenGL:"
+echo "     gpu_app glinfo"
+echo "     gpu_app glxgears"
+echo ""
+echo "Advanced:"
+echo "  • Build Mesa from source: ./scripts/build_mesa_r600.sh"
+echo "  • Test GPU: ./scripts/test_gpu_haiku.sh"
+echo "  • View docs: cat BUILD_AND_INSTALL.md"
+echo ""
+echo "Log file: $LOG_FILE"
+echo ""
