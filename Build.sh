@@ -96,23 +96,23 @@ fi
 if [ "$ON_HAIKU" = true ]; then
     log_info "Configuring Mesa for Haiku OS..."
     
-    # NOTE: Mesa 26.0.0 on Haiku does NOT support these options:
-    # -Damdgpu=disabled (doesn't exist)
-    # -Dllvm=disabled (causes LLVM to be required instead)
-    # -Dshared-glapi=enabled (deprecated)
+    # For AMD R600 (Radeon HD 2000/3000/4000/5000 series)
+    # Build with r600 Gallium driver
+    # Other options: radeonsi (GCN and newer), r300 (R300-R500)
     
     meson setup "$buildDir" "$baseDir/mesa_source" \
         -Dprefix="$installDir" \
         -Dbuildtype=release \
         -Doptimization=3 \
-        -Dgallium-drivers= \
+        -Dgallium-drivers=r600 \
         -Dplatforms=haiku \
         -Dopengl=true \
         -Dglx=disabled \
         -Degl=disabled \
         -Dgles2=enabled \
         -Dshader-cache=enabled \
-        -Dvulkan-drivers=
+        -Dvulkan-drivers= \
+        -Dllvm=disabled
 
     ninja -C "$buildDir"
     ninja -C "$buildDir" install
