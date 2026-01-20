@@ -21,9 +21,9 @@ trap 'log_error "Build failed"; exit 1' ERR
 
 # Paths
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MESA_SOURCE="${PROJECT_ROOT}/mesa_source"
-MESA_BUILD="${PROJECT_ROOT}/mesa_build"
 INSTALL_PREFIX="/boot/home/config/non-packaged"
+MESA_SOURCE="${INSTALL_PREFIX}/mesa_source"
+MESA_BUILD="${INSTALL_PREFIX}/mesa_build"
 LOG_FILE="/tmp/mesa_build_$(date +%s).log"
 
 log_header "BUILD MESA R600 DRIVER FOR HAIKU"
