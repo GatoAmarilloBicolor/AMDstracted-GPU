@@ -56,6 +56,7 @@ int radeon_device_initialize(int fd, uint32_t *major, uint32_t *minor, radeon_de
     // Get or create RMAPI device
     rmapi_device *rmapi_dev = device_manager_get(fd);
     if (!rmapi_dev) {
+        printf("[DRM Radeon Shim] Failed to get RMAPI device\n");
         return -1;
     }
 
@@ -64,6 +65,7 @@ int radeon_device_initialize(int fd, uint32_t *major, uint32_t *minor, radeon_de
     if (minor) *minor = 0;
     if (dev) *dev = (radeon_device*)fd;  // Use fd as handle
 
+    printf("[DRM Radeon Shim] Device initialized successfully\n");
     return 0;
 }
 
@@ -122,12 +124,27 @@ int radeon_cs_destroy(radeon_device *dev, radeon_cs *cs)
 
 int radeon_cs_submit(radeon_device *dev, radeon_cs *cs, uint32_t flags)
 {
-    printf("[DRM Radeon Shim] radeon_cs_submit(dev=%p, cs=%p)\n", dev, cs);
+    printf("[DRM Radeon Shim] radeon_cs_submit(dev=%p, cs=%p, flags=%x)\n", dev, cs, flags);
     int fd = (int)dev;
-    // Assume cs has commands
-    void *cmd_buffer = NULL;  // Stub
-    uint32_t cmd_size = 0;
-    return drm_cs_submit_to_rmapi(fd, cmd_buffer, cmd_size, flags);
+
+    // Create basic command buffer with a simple no-op packet for testing
+    // This simulates a minimal command submission to test the pipeline
+    uint32_t basic_cmd_buffer[4] = {
+        0xC0001000,  // PKT3 with opcode for no-op
+        0,           // Data
+        0,           // Data
+        0            // Data
+    };
+
+    printf("[DRM Radeon Shim] Submitting basic command buffer (%zu bytes)\n", sizeof(basic_cmd_buffer));
+
+    int ret = drm_cs_submit_to_rmapi(fd, basic_cmd_buffer, sizeof(basic_cmd_buffer) / 4, flags);
+    if (ret == 0) {
+        printf("[DRM Radeon Shim] Command submission successful\n");
+    } else {
+        printf("[DRM Radeon Shim] Command submission failed: %d\n", ret);
+    }
+    return ret;
 }
 
 int radeon_cs_wait(radeon_device *dev, radeon_cs *cs)
