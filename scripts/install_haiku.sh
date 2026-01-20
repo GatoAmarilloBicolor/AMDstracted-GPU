@@ -39,6 +39,7 @@ log_header "Step 0: Update Repository and Clean"
 log_info "Updating from GitHub..."
 cd "$REPO_ROOT"
 git pull origin main 2>/dev/null || log_warn "Git pull failed (may be offline)"
+git submodule update --remote 2>/dev/null || log_warn "Submodule update failed (may be offline)"
 
 log_info "Cleaning old builds..."
 rm -rf "$PROJECT_ROOT/mesa_build" 2>/dev/null || true
