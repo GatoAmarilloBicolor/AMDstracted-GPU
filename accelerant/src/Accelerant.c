@@ -2,19 +2,12 @@
  * Haiku Accelerant for AMD Graphics
  * Bridges Haiku Graphics Layer with AMDGPU_Abstracted RMAPI
  * 
+ * Platform-agnostic core with Haiku-specific adaptations
  * Pattern adapted from haiku-nvidia/accelerant/Accelerant.cpp
- * Converted to C and specialized for AMD RMAPI architecture
  * 
  * Copyright (c) 2024-2026 AMDGPU_Abstracted Project
  */
 
-#include <kernel/image.h>
-#include <kernel/OS.h>
-#include <support/SupportDefs.h>
-#include <driver_settings.h>
-#include <accelerant.h>
-#include <GraphicsDefs.h>
-#include <Errors.h>
 #include <malloc.h>
 #include <stdio.h>
 #include <string.h>
@@ -22,71 +15,22 @@
 #include <errno.h>
 #include <fcntl.h>
 
-/* Forward declarations for Haiku accelerant types */
-typedef struct {
-    uint32_t space;
-    uint32_t base;
-    uint32_t size;
-} frame_buffer_config;
+/* Platform abstraction headers */
+#include "accelerant_api.h"
+#include "accelerant_haiku.h"
 
-typedef struct {
-    uint16_t width;
-    uint16_t height;
-    float refresh;
-    uint32_t flags;
-} display_mode;
-
-typedef struct {
-    int32_t left;
-    int32_t top;
-    int32_t right;
-    int32_t bottom;
-} fill_rect_params;
-
-typedef struct {
-    int32_t src_left;
-    int32_t src_top;
-    int32_t dest_left;
-    int32_t dest_top;
-    int32_t width;
-    int32_t height;
-} blit_params;
-
-typedef struct {
-    int32_t src_left;
-    int32_t src_top;
-    int32_t dest_left;
-    int32_t dest_top;
-    int32_t width;
-    int32_t height;
-    uint32_t transparent_color;
-} transparent_blit_params;
-
-typedef struct {
-    int32_t src_left;
-    int32_t src_top;
-    int32_t src_width;
-    int32_t src_height;
-    int32_t dest_left;
-    int32_t dest_top;
-    int32_t dest_width;
-    int32_t dest_height;
-} scaled_blit_params;
-
-typedef struct {
-    uint32_t magic;
-} engine_token;
-
-typedef struct {
-    uint32_t magic;
-} sync_token;
-
-typedef struct {
-    uint32_t version;
-    uint32_t dac_version;
-    uint32_t ram;
-    uint32_t tmds_version;
-} accelerant_device_info;
+/* Haiku-specific includes (if on Haiku) */
+#ifdef __HAIKU__
+    #include <kernel/image.h>
+    #include <kernel/OS.h>
+    #include <support/SupportDefs.h>
+    #include <driver_settings.h>
+    #include <accelerant.h>
+    #include <GraphicsDefs.h>
+    #include <Errors.h>
+#else
+    #include <malloc.h>
+#endif
 
 /* Accelerant hook constants (may not be in older Haiku headers) */
 #ifndef B_MOVE_CURSOR
@@ -192,6 +136,27 @@ typedef struct {
 #endif
 #ifndef B_SCALE_BLIT
 #define B_SCALE_BLIT 0x08000024
+#endif
+#ifndef B_INIT_ACCELERANT
+#define B_INIT_ACCELERANT 0x08000003
+#endif
+#ifndef B_UNINIT_ACCELERANT
+#define B_UNINIT_ACCELERANT 0x08000004
+#endif
+#ifndef B_GET_ACCELERANT_DEVICE_INFO
+#define B_GET_ACCELERANT_DEVICE_INFO 0x08000005
+#endif
+#ifndef B_ACCELERANT_MODE_COUNT
+#define B_ACCELERANT_MODE_COUNT 0x08000006
+#endif
+#ifndef B_GET_MODE_LIST
+#define B_GET_MODE_LIST 0x08000007
+#endif
+#ifndef B_SET_DISPLAY_MODE
+#define B_SET_DISPLAY_MODE 0x08000008
+#endif
+#ifndef B_GET_DISPLAY_MODE
+#define B_GET_DISPLAY_MODE 0x08000009
 #endif
 
 /* ============================================================================

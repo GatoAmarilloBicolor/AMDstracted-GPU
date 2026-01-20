@@ -1,8 +1,9 @@
 project('amd_gfx', 'c',
-	default_options: ['c_std=c99']
+	default_options: ['c_std=c99', 'warning_level=3']
 )
 
 # AMD Accelerant for Haiku (like nvidia_gsp.accelerant)
+# Platform-agnostic implementation with Haiku adapters
 # Bridges Haiku Graphics with AMDGPU_Abstracted RMAPI
 
 cc = meson.get_compiler('c')
@@ -11,19 +12,25 @@ cc = meson.get_compiler('c')
 host_os = host_machine.system()
 is_haiku = host_os == 'haiku'
 
-# Required libraries
+# Include directories for platform abstraction
+inc_accelerant = include_directories(
+	'include',
+	'../src',
+	'../core',
+	'../drivers',
+	'../os'
+)
+
+# Common sources used on all platforms (for compilation/testing)
+common_sources = files(
+	'src/Accelerant_v2.c',
+)
+
+# Platform-specific configuration
 if is_haiku
 	# Haiku-specific libraries
 	dep_be = cc.find_library('be', required: true)
 	dep_device = cc.find_library('device', required: false)
-	
-	# Include directories
-	inc_amdgpu = include_directories(
-		'../src',
-		'../core',
-		'../drivers',
-		'../os'
-	)
 	
 	# AMDGPU library - built in parent directory
 	# Convert relative paths to absolute for meson find_library
@@ -46,16 +53,12 @@ if is_haiku
 		error('libamdgpu not found. Please build AMDGPU_Abstracted core first with: cd .. && ./Build.sh')
 	endif
 	
-	accelerant_sources = files(
-		'src/Accelerant.c',
-		'src/HailuAMDInterface.c',
-	)
-	
-	# Build AMD graphics accelerant
+	# Build AMD graphics accelerant for Haiku
 	shared_module('amd_gfx',
-		accelerant_sources,
+		common_sources,
 		dependencies: [dep_be, libamdgpu],
-		include_directories: inc_amdgpu,
+		include_directories: inc_accelerant,
+		c_args: ['-D__HAIKU__'],
 		name_prefix: '',
 		name_suffix: 'accelerant',
 		gnu_symbol_visibility: 'hidden',
@@ -67,11 +70,33 @@ if is_haiku
 	executable('AMD_AccelerantTest',
 		'src/AccelerantTest.c',
 		dependencies: [dep_be],
-		include_directories: inc_amdgpu,
+		include_directories: inc_accelerant,
+		c_args: ['-D__HAIKU__'],
 		gnu_symbol_visibility: 'hidden',
 		install: false
 	)
+	
+	message('Building AMD Accelerant for Haiku OS')
 else
-	message('Accelerant module requires Haiku OS - skipping accelerant build')
-	message('Core AMDGPU_Abstracted libraries are still available')
+	# Non-Haiku platforms: build for compilation testing/validation
+	message('Building AMD Accelerant platform abstraction (non-Haiku validation)')
+	
+	# Create a static library for testing on non-Haiku systems
+	static_library('amd_accelerant_core',
+		common_sources,
+		include_directories: inc_accelerant,
+		gnu_symbol_visibility: 'hidden'
+	)
+	
+	# Test executable to validate compilation
+	executable('amd_accelerant_test',
+		'src/AccelerantTest.c',
+		include_directories: inc_accelerant,
+		gnu_symbol_visibility: 'hidden',
+		install: false
+	)
+	
+	message('Accelerant module compiled for validation on non-Haiku system')
+	message('Core AMDGPU_Abstracted libraries are available')
+	message('To use AMD accelerant, deploy on Haiku OS')
 endif

@@ -17,6 +17,7 @@
 #include <pthread.h>
 #include <kernel/OS.h>
 #include <Errors.h>
+#include <Errors.h>
 
 /* Haiku status constants (may not be in older headers) */
 #ifndef B_CONNECTION_REFUSED
