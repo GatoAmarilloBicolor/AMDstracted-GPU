@@ -165,7 +165,7 @@ log_info "Note: Using empty gallium-drivers to avoid libdrm_amdgpu dependency"
 # Note: Haiku doesn't have X11, so we disable GLX
 # We use empty gallium-drivers (like nvidia-haiku) and rely on AMDGPU_Abstracted for GPU access
 # shared-glapi is deprecated, so we disable it
-MESON_CMD="meson setup \"$MESA_BUILD\" \
+MESON_CMD="meson setup \"$MESA_BUILD\" \"$MESA_SOURCE\" \
     -Dprefix=\"$INSTALL_PREFIX\" \
     -Dbuildtype=release \
     -Doptimization=3 \

@@ -35,12 +35,30 @@ void haiku_log(const char *fmt, ...) {
     va_end(args);
 }
 
+/* Wrapper functions to match interface signatures */
+int haiku_pci_find_device(uint16_t vendor, uint16_t device, os_pci_device *dev) {
+    return os_pci_find_device(vendor, device, &dev->handle);
+}
+
+uint32_t haiku_pci_read_config(os_pci_device *dev, int offset) {
+    return os_pci_read_config(dev->handle, offset);
+}
+
+void haiku_pci_write_config(os_pci_device *dev, int offset, uint32_t val) {
+    os_pci_write_config(dev->handle, offset, val);
+}
+
+void *haiku_pci_map_resource(os_pci_device *dev, int bar, size_t *size) {
+    *size = 4096; // Assume 4KB
+    return os_prim_pci_map_resource(dev->handle, bar);
+}
+
 /* Haiku OS interface - uses generic stubs + Haiku-specific functions */
 struct os_interface haiku_os_interface = {
-    .pci_find_device = os_pci_find_device,
-    .pci_read_config = os_pci_read_config,
-    .pci_write_config = os_pci_write_config,
-    .pci_map_resource = os_prim_pci_map_resource,
+    .pci_find_device = haiku_pci_find_device,
+    .pci_read_config = haiku_pci_read_config,
+    .pci_write_config = haiku_pci_write_config,
+    .pci_map_resource = haiku_pci_map_resource,
     .pci_unmap_resource = os_pci_unmap_resource,
     .register_interrupt = os_register_interrupt,
     .unregister_interrupt = os_unregister_interrupt,

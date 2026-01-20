@@ -1,0 +1,126 @@
+#!/bin/bash
+# Build AMDGPU_Abstracted for Haiku OS
+# Use this if Build.sh fails with meson errors
+# Copy to Build.sh if needed
+
+set -e
+
+baseDir="$PWD"
+ARCH="$(getarch)"
+buildBaseDir="$PWD/build.$ARCH"
+installDir="$PWD/install.$ARCH"
+
+function log_info() {
+    echo "[INFO] $*"
+}
+
+function log_ok() {
+    echo "[✓] $*"
+}
+
+function log_error() {
+    echo "[✗] $*" >&2
+}
+
+# Create install directory
+mkdir -p "$installDir/develop/lib/pkgconfig"
+
+# ============================================================================
+# Step 1: Build AMDGPU_Abstracted core
+# ============================================================================
+
+log_info "Building AMDGPU_Abstracted core..."
+
+cd "$baseDir"
+
+buildDir="$baseDir/builddir_AMDGPU_Abstracted"
+
+if [ -d "$buildDir" ]; then
+    rm -rf "$buildDir"
+fi
+
+meson setup "$buildDir" -Dprefix="$installDir"
+ninja -C "$buildDir"
+ninja -C "$buildDir" install
+
+log_ok "AMDGPU_Abstracted built successfully"
+
+# ============================================================================
+# Step 2: Build Haiku Accelerant (if on Haiku)
+# ============================================================================
+
+log_info "Building Haiku Accelerant..."
+
+cd "$baseDir/accelerant"
+
+accelBuildDir="$baseDir/builddir_accelerant"
+
+if [ -d "$accelBuildDir" ]; then
+    rm -rf "$accelBuildDir"
+fi
+
+meson setup "$accelBuildDir" -Dprefix="$installDir"
+ninja -C "$accelBuildDir"
+ninja -C "$accelBuildDir" install
+
+log_ok "Accelerant module built successfully"
+
+# ============================================================================
+# Step 3: Build Mesa (Haiku version)
+# ============================================================================
+
+log_info "Building Mesa for Haiku..."
+
+cd "$baseDir"
+
+# Clone Mesa if needed
+if [ ! -d "mesa_source/.git" ]; then
+    log_info "Cloning Mesa repository..."
+    git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa_source
+fi
+
+buildDir="$baseDir/mesa_build"
+
+if [ -d "$buildDir" ]; then
+    rm -rf "$buildDir"
+fi
+
+log_info "Configuring Mesa for Haiku..."
+
+# CRITICAL FIX: Use correct meson syntax for Haiku
+# The source directory MUST be last!
+
+meson setup "$buildDir" \
+    -Dprefix="$installDir" \
+    -Dbuildtype=release \
+    -Doptimization=3 \
+    -Dgallium-drivers= \
+    -Dplatforms=haiku \
+    -Dopengl=true \
+    -Dglx=disabled \
+    -Degl=disabled \
+    -Dgles2=enabled \
+    -Dshader-cache=enabled \
+    -Dvulkan-drivers= \
+    mesa_source
+
+ninja -C "$buildDir"
+ninja -C "$buildDir" install
+
+log_ok "Mesa built successfully"
+
+# ============================================================================
+# Summary
+# ============================================================================
+
+echo ""
+echo "════════════════════════════════════════════════════════════"
+echo "Build complete!"
+echo "════════════════════════════════════════════════════════════"
+echo "Installation directory: $installDir"
+echo ""
+echo "Next steps:"
+echo "  1. Deploy: ./scripts/deploy_haiku.sh"
+echo "  2. Verify: ./scripts/verify_installation.sh /boot/home/config/non-packaged"
+echo "  3. Test:   source setup_amd_gpu.sh && glinfo | grep Radeon"
+echo ""

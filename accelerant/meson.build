@@ -27,12 +27,12 @@ if is_haiku
 	
 	# AMDGPU library - built in parent directory
 	# Convert relative paths to absolute for meson find_library
-	parent_dir = run_command('dirname', meson.current_source_dir(), check: true).stdout().strip()
-	
+	parent_dir_abs = run_command('realpath', run_command('dirname', meson.current_source_dir(), check: true).stdout().strip(), check: true).stdout().strip()
+
 	lib_search_dirs = [
-		parent_dir / 'build.x86_64',
-		parent_dir / 'builddir_AMDGPU_Abstracted',
-		parent_dir / 'install.x86_64' / 'lib',
+		parent_dir_abs / 'build.x86_64',
+		parent_dir_abs / 'builddir_AMDGPU_Abstracted',
+		parent_dir_abs / 'install.x86_64' / 'lib',
 	]
 	
 	libamdgpu = cc.find_library('amdgpu', 
