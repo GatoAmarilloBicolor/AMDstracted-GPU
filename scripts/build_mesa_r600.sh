@@ -73,6 +73,27 @@ fi
 
 cd "$MESA_SOURCE"
 
+# Apply patch for Haiku libdrm fix
+log_info "Applying Haiku libdrm patch..."
+cat > haiku_libdrm.patch << 'EOF'
+--- a/meson.build
++++ b/meson.build
+@@ -1767,6 +1767,7 @@ foreach d : _libdrm_checks
+       dependency(
+         'libdrm_' + d[0],
+         version : '>=' + _drm_ver,
++        required : host_machine.system() != 'haiku',
+         allow_fallback: allow_fallback_for_libdrm,
+       )
+     )
+EOF
+if patch -p1 < haiku_libdrm.patch; then
+    log_ok "Patch applied successfully"
+else
+    log_error "Failed to apply patch"
+    exit 1
+fi
+
 # Step 2: Check dependencies
 log_header "Step 2: Check Build Dependencies"
 
@@ -155,7 +176,6 @@ MESON_CMD="meson setup \"$MESA_BUILD\" \
     -Degl=disabled \
     -Dgles1=disabled \
     -Dgles2=enabled \
-    -Dshared-glapi=disabled \
     -Dllvm=disabled \
     -Dshader-cache=enabled"
 
