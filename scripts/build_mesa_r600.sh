@@ -26,6 +26,14 @@ MESA_SOURCE="${INSTALL_PREFIX}/mesa_source"
 MESA_BUILD="${INSTALL_PREFIX}/mesa_build"
 LOG_FILE="/tmp/mesa_build_$(date +%s).log"
 
+# Detect GPU and select driver
+DETECTED_GPU=$("$PROJECT_ROOT/scripts/detect_gpu.sh")
+GPU_DRIVER="${1:-$DETECTED_GPU}"
+
+if [ "$GPU_DRIVER" = "unknown" ]; then
+    GPU_DRIVER="r600"  # Default fallback
+fi
+
 log_header "BUILD MESA R600 DRIVER FOR HAIKU"
 log_info "Source: $MESA_SOURCE"
 log_info "Build:  $MESA_BUILD"
@@ -87,20 +95,45 @@ log_ok "Build directory ready: $MESA_BUILD"
 # Step 4: Configure Meson (R600 driver)
 log_header "Step 4: Configure Mesa (R600 + Gallium)"
 
+# Step 4a: Copy RMAPI Gallium driver to Mesa (integrate AMDGPU_Abstracted)
+log_info "Integrating RMAPI Gallium driver with Mesa..."
+RMAPI_GALLIUM="$PROJECT_ROOT/drivers/gallium"
+if [ -d "$RMAPI_GALLIUM" ]; then
+    MESA_GALLIUM="$MESA_SOURCE/src/gallium/drivers"
+    if [ -d "$MESA_GALLIUM" ]; then
+        log_info "Copying RMAPI driver to Mesa: $MESA_GALLIUM"
+        cp -r "$RMAPI_GALLIUM"/* "$MESA_GALLIUM/rmapi" 2>/dev/null || true
+        log_ok "RMAPI driver integrated"
+    fi
+fi
+
 log_info "Running meson setup..."
-log_info "Configuring Gallium drivers for AMD GPU support:"
-log_info "  - r300 (Radeon R300)"
-log_info "  - r600 (Radeon HD 7290)"
-log_info "  - radeonsi (RDNA/RDNA2)"
-log_info "  - softpipe (software fallback)"
+log_info "GPU Driver: $GPU_DRIVER (detected)"
+log_info "Including: softpipe (fallback)"
 echo ""
+
+# Build gallium drivers based on detected GPU
+case "$GPU_DRIVER" in
+    r300)
+        GALLIUM_DRIVERS="r300,softpipe"
+        log_info "Configuring for: Radeon R300/R400/R500"
+        ;;
+    radeonsi)
+        GALLIUM_DRIVERS="radeonsi,softpipe"
+        log_info "Configuring for: RDNA/RDNA2/RDNA3"
+        ;;
+    r600|*)
+        GALLIUM_DRIVERS="r600,softpipe"
+        log_info "Configuring for: Radeon HD 5000-7000 (R600)"
+        ;;
+esac
 
 if ! meson setup "$MESA_BUILD" \
     -Dprefix="$INSTALL_PREFIX" \
     -Dbuildtype=release \
     -Doptimization=3 \
     -Dvulkan-drivers=amd \
-    -Dgallium-drivers=r300,r600,radeonsi,softpipe \
+    -Dgallium-drivers="$GALLIUM_DRIVERS" \
     -Dglx=dri \
     -Degl=enabled \
     -Dgles1=disabled \

@@ -93,15 +93,33 @@ for path in /boot/system/lib/dri /boot/home/config/non-packaged/lib/dri; do
     fi
 done
 
+# Detect GPU first
+echo "🔍 Detecting AMD GPU..."
+GPU_DETECTION_SCRIPT="$PROJECT_ROOT/scripts/detect_gpu.sh"
+if [ -x "$GPU_DETECTION_SCRIPT" ]; then
+    DETECTED_GPU=$("$GPU_DETECTION_SCRIPT")
+    if [ "$DETECTED_GPU" != "unknown" ]; then
+        echo "✅ Detected: $DETECTED_GPU"
+    else
+        echo "⚠️  GPU detection inconclusive - will use default drivers"
+        DETECTED_GPU="r600"
+    fi
+else
+    echo "⚠️  GPU detection script not found"
+    DETECTED_GPU="r600"
+fi
+echo ""
+
 if [ $DRIVER_FOUND -eq 0 ]; then
-    echo "⚠️  Mesa R600 driver not found - building from stable source..."
+    echo "⚠️  Mesa driver not found - building from stable source..."
+    echo "    GPU: $DETECTED_GPU"
+    echo "    This may take 30-60 minutes..."
     echo ""
     
     if [ -x "$PROJECT_ROOT/scripts/build_mesa_r600.sh" ]; then
-        echo "Building Mesa R600 (this may take 30-60 minutes)..."
-        "$PROJECT_ROOT/scripts/build_mesa_r600.sh"
-        if [ $? -eq 0 ]; then
-            echo "✅ Mesa R600 built and installed"
+        # Pass detected GPU to build script
+        if "$PROJECT_ROOT/scripts/build_mesa_r600.sh" "$DETECTED_GPU"; then
+            echo "✅ Mesa built and installed for $DETECTED_GPU"
         else
             echo "❌ Mesa build failed"
             exit 1
@@ -111,7 +129,7 @@ if [ $DRIVER_FOUND -eq 0 ]; then
         exit 1
     fi
 else
-    echo "✅ Mesa R600 driver available"
+    echo "✅ Mesa driver available"
 fi
 echo ""
 
