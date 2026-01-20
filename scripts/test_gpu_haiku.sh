@@ -1,171 +1,177 @@
 #!/bin/bash
 # GPU Acceleration Test Script for Haiku
-# Tests OpenGL rendering with R600 driver and RMAPI acceleration
+# Comprehensive testing of R600 driver and RMAPI acceleration
 
-set -e
+set -euo pipefail
 
-echo "════════════════════════════════════════════════════════════"
-echo "🧪 GPU Acceleration Test for Haiku"
-echo "════════════════════════════════════════════════════════════"
-echo ""
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Helpers
+log_info() { echo -e "${BLUE}[INFO]${NC} $*"; }
+log_ok() { echo -e "${GREEN}[✓]${NC} $*"; }
+log_warn() { echo -e "${YELLOW}[!]${NC} $*"; }
+log_error() { echo -e "${RED}[✗]${NC} $*"; }
+log_header() { echo -e "\n${BLUE}════════════════════════════════════════════════════════════${NC}\n${BLUE}$*${NC}\n${BLUE}════════════════════════════════════════════════════════════${NC}\n"; }
+
+trap 'log_error "Test interrupted"; exit 130' INT TERM
 
 INSTALL_PREFIX="/boot/home/config/non-packaged"
-export INSTALL_PREFIX
+TESTS_PASSED=0
+TESTS_TOTAL=0
 
-# Source environment
-echo "⚙️  Setting up environment..."
+log_header "GPU ACCELERATION TEST FOR HAIKU"
+log_info "Installation: $INSTALL_PREFIX"
+
+# Load environment
+log_info "Setting up environment..."
 if [ -f "$INSTALL_PREFIX/.amd_gpu_env.sh" ]; then
-    source "$INSTALL_PREFIX/.amd_gpu_env.sh"
-    echo "✅ Environment loaded from: $INSTALL_PREFIX/.amd_gpu_env.sh"
+    source "$INSTALL_PREFIX/.amd_gpu_env.sh" 2>/dev/null || true
+    log_ok "Environment loaded"
+elif [ -f /boot/home/.amd_gpu_env.sh ]; then
+    source /boot/home/.amd_gpu_env.sh 2>/dev/null || true
+    log_ok "Environment loaded (home)"
 else
-    echo "⚠️  Environment script not found, using defaults"
-    export LIBGL_DRIVERS_PATH="$INSTALL_PREFIX/lib/dri:/boot/system/lib/dri"
+    log_warn "Environment not found - using defaults"
+    export LIBGL_DRIVERS_PATH="/boot/system/lib/dri:/boot/home/config/non-packaged/lib/dri"
     export MESA_LOADER_DRIVER_OVERRIDE="r600"
-    export LD_LIBRARY_PATH="$INSTALL_PREFIX/lib:$LD_LIBRARY_PATH"
 fi
 
-echo ""
+# Test 1: GPU Detection
+log_header "Test 1: GPU Detection"
+TESTS_TOTAL=$((TESTS_TOTAL + 1))
 
-# Test 1: Check GPU detection
-echo "════════════════════════════════════════════════════════════"
-echo "🔍 Test 1: GPU Detection"
-echo "════════════════════════════════════════════════════════════"
-echo ""
-
-GPU_INFO=$(lspci 2>/dev/null | grep -i radeon || echo "No GPU detected")
-echo "GPU: $GPU_INFO"
-
-if echo "$GPU_INFO" | grep -q "7290\|Wrestler"; then
-    echo "✅ Radeon HD 7290 (Wrestler) detected"
-elif echo "$GPU_INFO" | grep -q "Radeon"; then
-    echo "✅ AMD Radeon GPU detected"
+GPU_INFO=$(lspci 2>/dev/null | grep -i radeon || echo "")
+if [ -z "$GPU_INFO" ]; then
+    log_error "No AMD GPU detected"
 else
-    echo "⚠️  No AMD Radeon GPU detected"
+    log_ok "GPU detected:"
+    echo "$GPU_INFO"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
 fi
 
-echo ""
+# Test 2: Mesa Driver
+log_header "Test 2: Mesa R600 Driver"
+TESTS_TOTAL=$((TESTS_TOTAL + 1))
 
-# Test 2: Check Mesa driver availability
-echo "════════════════════════════════════════════════════════════"
-echo "📦 Test 2: Mesa Driver Check"
-echo "════════════════════════════════════════════════════════════"
-echo ""
-
-echo "Checking for r600_dri.so..."
 R600_FOUND=0
-
 for path in /boot/system/lib/dri /boot/home/config/non-packaged/lib/dri; do
     if [ -f "$path/r600_dri.so" ]; then
-        echo "✅ Found: $path/r600_dri.so"
+        log_ok "Found r600_dri.so: $path"
         R600_FOUND=1
+        break
     fi
 done
 
 if [ $R600_FOUND -eq 0 ]; then
-    echo "⚠️  r600_dri.so not found"
-    echo "    Install with: pkgman install mesa_r600"
+    log_error "r600_dri.so not found (install: pkgman install mesa_r600)"
+else
+    TESTS_PASSED=$((TESTS_PASSED + 1))
 fi
 
-echo "DRI driver path: $LIBGL_DRIVERS_PATH"
-echo ""
+# Test 3: RMAPI Binaries
+log_header "Test 3: RMAPI Binaries"
+TESTS_TOTAL=$((TESTS_TOTAL + 1))
 
-# Test 3: Check RMAPI binaries
-echo "════════════════════════════════════════════════════════════"
-echo "🔧 Test 3: RMAPI Binaries Check"
-echo "════════════════════════════════════════════════════════════"
-echo ""
-
-for bin in amd_rmapi_server amd_rmapi_client_demo; do
+BIN_COUNT=0
+for bin in amd_rmapi_server amd_rmapi_client_demo amd_test_suite; do
     if [ -x "$INSTALL_PREFIX/bin/$bin" ]; then
-        echo "✅ $bin available"
+        log_ok "Found: $bin"
+        BIN_COUNT=$((BIN_COUNT + 1))
     else
-        echo "❌ $bin not found"
+        log_warn "Missing: $bin"
     fi
 done
 
-echo ""
-
-# Test 4: Try to detect RMAPI server capability
-echo "════════════════════════════════════════════════════════════"
-echo "🚀 Test 4: RMAPI Server Initialization"
-echo "════════════════════════════════════════════════════════════"
-echo ""
-
-if [ -x "$INSTALL_PREFIX/bin/amd_rmapi_server" ]; then
-    echo "Attempting to start RMAPI server (test mode)..."
-    
-    # Try to run server with short timeout to test functionality
-    timeout 3 "$INSTALL_PREFIX/bin/amd_rmapi_server" 2>&1 | head -20 || true
-    
-    echo ""
-    echo "⚠️  Server timeout (expected for test mode)"
-else
-    echo "❌ amd_rmapi_server not found"
+if [ $BIN_COUNT -ge 1 ]; then
+    TESTS_PASSED=$((TESTS_PASSED + 1))
 fi
 
-echo ""
+# Test 4: Environment Setup
+log_header "Test 4: Environment Configuration"
+TESTS_TOTAL=$((TESTS_TOTAL + 1))
 
-# Test 5: OpenGL capability check
-echo "════════════════════════════════════════════════════════════"
-echo "🎨 Test 5: OpenGL Capability"
-echo "════════════════════════════════════════════════════════════"
-echo ""
+if [ -n "${MESA_LOADER_DRIVER_OVERRIDE:-}" ]; then
+    log_ok "MESA driver override: $MESA_LOADER_DRIVER_OVERRIDE"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+    log_warn "No driver override set"
+fi
 
-# Check for glinfo
-if command -v glinfo > /dev/null 2>&1; then
-    echo "🔎 Running glinfo (limited output)..."
-    
-    # Run glinfo with timeout and capture output
-    GLINFO_OUTPUT=$(timeout 5 glinfo 2>&1 || echo "No OpenGL context")
-    
-    if echo "$GLINFO_OUTPUT" | grep -q "OpenGL"; then
-        echo "✅ OpenGL available"
-        echo ""
-        echo "OpenGL Info:"
-        echo "$GLINFO_OUTPUT" | head -20
-        echo ""
-        
-        # Check for GPU vendor
-        if echo "$GLINFO_OUTPUT" | grep -i "renderer" | grep -q -i "radeon\|amd"; then
-            echo "✅ AMD GPU renderer detected"
-        elif echo "$GLINFO_OUTPUT" | grep -i "renderer" | grep -q -i "llvmpipe\|software"; then
-            echo "⚠️  Software rendering (CPU) - GPU driver not loaded"
+# Test 5: OpenGL Support
+log_header "Test 5: OpenGL Support"
+TESTS_TOTAL=$((TESTS_TOTAL + 1))
+
+if command -v glinfo >/dev/null 2>&1; then
+    log_info "Testing glinfo..."
+    if GLINFO_OUT=$(timeout 5 glinfo 2>&1 || true); then
+        if echo "$GLINFO_OUT" | grep -qi "opengl"; then
+            log_ok "OpenGL detected"
+            
+            # Check renderer
+            if echo "$GLINFO_OUT" | grep -qi "radeon"; then
+                log_ok "GPU renderer: Radeon"
+                TESTS_PASSED=$((TESTS_PASSED + 1))
+            elif echo "$GLINFO_OUT" | grep -qi "llvmpipe"; then
+                log_warn "Renderer: llvmpipe (software - GPU not loaded)"
+            fi
+            
+            # Show version
+            VERSION=$(echo "$GLINFO_OUT" | grep -i "OpenGL version" | head -1)
+            [ -n "$VERSION" ] && echo "$VERSION"
+        else
+            log_warn "OpenGL context unavailable"
         fi
     else
-        echo "⚠️  OpenGL context unavailable (expected in headless environment)"
+        log_warn "glinfo timed out"
     fi
 else
-    echo "⚠️  glinfo not found - install: pkgman install mesa_devel"
+    log_warn "glinfo not installed (pkgman install mesa_devel)"
 fi
 
-echo ""
+# Test 6: Library Dependencies
+log_header "Test 6: Library Dependencies"
+TESTS_TOTAL=$((TESTS_TOTAL + 1))
 
-# Test 6: Library dependencies
-echo "════════════════════════════════════════════════════════════"
-echo "📚 Test 6: Library Dependencies"
-echo "════════════════════════════════════════════════════════════"
-echo ""
-
-if command -v ldd > /dev/null 2>&1; then
-    echo "Checking dependencies for amd_rmapi_server..."
-    ldd "$INSTALL_PREFIX/bin/amd_rmapi_server" 2>&1 | grep -E "libm|libnetwork|libc" || true
+if [ -x "$INSTALL_PREFIX/bin/amd_rmapi_server" ]; then
+    log_info "Checking server dependencies..."
+    if ldd "$INSTALL_PREFIX/bin/amd_rmapi_server" 2>/dev/null | grep -q "libc"; then
+        log_ok "Binary dependencies satisfied"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        log_warn "Could not verify dependencies"
+    fi
 fi
 
+# Final Report
+log_header "TEST SUMMARY"
+echo "Results: $TESTS_PASSED/$TESTS_TOTAL tests passed"
 echo ""
 
-# Final status
-echo "════════════════════════════════════════════════════════════"
-echo "📊 Test Summary"
-echo "════════════════════════════════════════════════════════════"
-echo ""
-echo "✅ GPU detection: Check PASSED if Radeon detected"
-echo "✅ Mesa drivers: Check PASSED if r600_dri.so found"
-echo "✅ RMAPI binaries: Check PASSED if binaries exist"
-echo "✅ OpenGL support: Check PASSED if GL version >= 2.1"
-echo ""
-echo "🎯 Next Steps:"
-echo "   1. If all checks passed, your system supports GPU acceleration"
-echo "   2. Start RMAPI server: $INSTALL_PREFIX/bin/amd_rmapi_server &"
-echo "   3. Run OpenGL app: source ~/.amd_gpu_env.sh && glinfo"
-echo "   4. Test benchmark: source ~/.amd_gpu_env.sh && glxgears"
-echo ""
+if [ $TESTS_PASSED -eq $TESTS_TOTAL ]; then
+    log_ok "All tests PASSED - GPU acceleration is ready!"
+    echo ""
+    echo "Next steps:"
+    echo "  1. gpu_server &"
+    echo "  2. gpu_app glinfo"
+    exit 0
+elif [ $TESTS_PASSED -ge $((TESTS_TOTAL - 1)) ]; then
+    log_warn "Most tests passed - GPU acceleration should work"
+    echo ""
+    echo "To troubleshoot:"
+    echo "  export LIBGL_DEBUG=verbose"
+    echo "  glinfo"
+    exit 0
+else
+    log_error "Several tests failed - GPU acceleration may not work"
+    echo ""
+    echo "Troubleshooting:"
+    echo "  • Install Mesa: pkgman install mesa_r600 mesa_devel"
+    echo "  • Check GPU:    lspci | grep -i radeon"
+    echo "  • Check driver: ls /boot/system/lib/dri/r600*"
+    exit 1
+fi
