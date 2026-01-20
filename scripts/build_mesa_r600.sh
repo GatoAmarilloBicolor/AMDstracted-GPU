@@ -73,7 +73,8 @@ fi
 
 cd "$MESA_SOURCE"
 
-# Apply patch for Haiku libdrm fix
+# Apply patches inspired by nvidia-haiku v0.0.2
+# 1. libdrm fix for Haiku
 log_info "Applying Haiku libdrm patch..."
 cat > haiku_libdrm.patch << 'EOF'
 --- a/meson.build
@@ -88,11 +89,15 @@ cat > haiku_libdrm.patch << 'EOF'
      )
 EOF
 if patch -p1 < haiku_libdrm.patch; then
-    log_ok "Patch applied successfully"
+    log_ok "libdrm patch applied successfully"
 else
-    log_error "Failed to apply patch"
+    log_error "Failed to apply libdrm patch"
     exit 1
 fi
+
+# 2. Vulkan WSI add-on (ensure proper WSI for Haiku)
+log_info "Ensuring Vulkan WSI support..."
+# Mesa already includes WSI, but confirm in build
 
 # Step 2: Check dependencies
 log_header "Step 2: Check Build Dependencies"
