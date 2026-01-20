@@ -26,20 +26,22 @@ if is_haiku
 	)
 	
 	# AMDGPU library - built in parent directory
-	# Search for libamdgpu in standard build directories
+	# Convert relative paths to absolute for meson find_library
+	parent_dir = run_command('dirname', meson.current_source_dir(), check: true).stdout().strip()
+	
+	lib_search_dirs = [
+		parent_dir / 'build.x86_64',
+		parent_dir / 'builddir_AMDGPU_Abstracted',
+		parent_dir / 'install.x86_64' / 'lib',
+	]
+	
 	libamdgpu = cc.find_library('amdgpu', 
-		dirs: [
-			'../build.x86_64',
-			'../builddir_AMDGPU_Abstracted',
-			'../install.x86_64/lib',
-			'/boot/home/src/AMDstracted-GPU/build.x86_64',
-			'/boot/home/src/AMDstracted-GPU/builddir_AMDGPU_Abstracted',
-		],
+		dirs: lib_search_dirs,
 		required: false
 	)
 	
 	if libamdgpu.found()
-		message('Found libamdgpu: ' + libamdgpu.get_variable(pkgconfig: 'libdir'))
+		message('Found libamdgpu')
 	else
 		error('libamdgpu not found. Please build AMDGPU_Abstracted core first with: cd .. && ./Build.sh')
 	endif
