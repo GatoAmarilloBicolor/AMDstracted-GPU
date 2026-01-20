@@ -17,6 +17,17 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+/* Accelerant hook constants (may not be in older Haiku headers) */
+#ifndef B_MOVE_CURSOR
+#define B_MOVE_CURSOR 0x08000000
+#endif
+#ifndef B_SHOW_CURSOR
+#define B_SHOW_CURSOR 0x08000001
+#endif
+#ifndef B_SET_CURSOR_SHAPE
+#define B_SET_CURSOR_SHAPE 0x08000002
+#endif
+
 /* ============================================================================
  * Type Definitions (Adapted from NVIDIA pattern)
  * ============================================================================ */
