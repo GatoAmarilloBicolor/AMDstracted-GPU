@@ -25,8 +25,16 @@ if is_haiku
 		'../os'
 	)
 	
-	# AMDGPU libraries (prebuilt or from parent)
-	libamdgpu = cc.find_library('amdgpu', required: true)
+	# AMDGPU library - built in parent directory
+	# First check if libamdgpu.a exists in build directory
+	libamdgpu_path = run_command('find', '..', '-name', 'libamdgpu.a', '-o', '-name', 'libamdgpu.so', check: false).stdout().strip().split('\n')[0]
+	
+	if libamdgpu_path == ''
+		error('libamdgpu not found. Please build AMDGPU_Abstracted core first.')
+	endif
+	
+	# Create library dependency from found file
+	libamdgpu = cc.find_library('amdgpu', dirs: [fs.parent(libamdgpu_path)], required: true)
 	
 	accelerant_sources = files(
 		'src/Accelerant.c',
