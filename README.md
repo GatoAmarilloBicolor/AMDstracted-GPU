@@ -4,9 +4,28 @@ Complete GPU acceleration driver for AMD graphics hardware on Haiku OS.
 
 ## Quick Start
 
-### Haiku OS
+### Haiku OS (From Fresh Install)
 
 ```bash
+# 1. Create directory
+mkdir -p ~/src
+cd ~/src
+
+# 2. Run setup.sh (downloads code automatically)
+bash <(curl -s https://raw.githubusercontent.com/GatoAmarilloBicolor/AMDstracted-GPU/main/setup.sh) full
+
+# 3. Install system-wide
+sudo ./AMDstracted-GPU/setup.sh install
+
+# 4. Restart graphics
+pkill -9 app_server
+```
+
+### Haiku OS (Already Have Code)
+
+```bash
+cd ~/src/AMDstracted-GPU
+
 # Full build and installation
 ./setup.sh full
 
@@ -20,6 +39,10 @@ pkill -9 app_server
 ### Linux
 
 ```bash
+# Clone code
+git clone https://github.com/GatoAmarilloBicolor/AMDstracted-GPU.git
+cd AMDstracted-GPU
+
 # Build core and accelerant only
 ./setup.sh full
 

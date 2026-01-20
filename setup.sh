@@ -8,7 +8,7 @@ set -e
 baseDir="$PWD"
 
 # ============================================================================
-# DETECT PLATFORM
+# DETECT PLATFORM & SETUP
 # ============================================================================
 
 if command -v getarch &> /dev/null; then
@@ -23,6 +23,34 @@ fi
 
 buildBaseDir="$baseDir/build.$ARCH"
 installDir="$baseDir/install.$ARCH"
+
+# ============================================================================
+# DOWNLOAD CODE IF NEEDED
+# ============================================================================
+
+ensure_source() {
+    # Check if we're in the project directory
+    if [ ! -f "setup.sh" ] || [ ! -d "accelerant" ]; then
+        log_info "Downloading AMD GPU driver source code..."
+        
+        if [ -d "AMDstracted-GPU" ]; then
+            log_info "Source already exists, skipping download"
+            cd AMDstracted-GPU
+            baseDir="$PWD"
+        else
+            # Clone the repository
+            git clone https://github.com/GatoAmarilloBicolor/AMDstracted-GPU.git || {
+                log_error "Failed to clone repository"
+                log_error "Ensure git is installed and internet is available"
+                return 1
+            }
+            cd AMDstracted-GPU
+            baseDir="$PWD"
+        fi
+        
+        log_ok "Source code ready at: $baseDir"
+    fi
+}
 
 # ============================================================================
 # FUNCTIONS
@@ -310,6 +338,11 @@ install_system() {
 echo "════════════════════════════════════════════════════════════"
 echo "AMD GPU Driver Setup - $OS_NAME"
 echo "════════════════════════════════════════════════════════════"
+echo ""
+
+# Ensure source code is available
+ensure_source || exit 1
+
 echo ""
 
 case "${1:-full}" in
