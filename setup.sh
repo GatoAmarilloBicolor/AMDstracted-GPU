@@ -32,6 +32,58 @@ log_info() { echo "[INFO] $*"; }
 log_ok() { echo "[✓] $*"; }
 log_error() { echo "[✗] $*" >&2; }
 
+# ============================================================================
+# GPU DETECTION
+# ============================================================================
+
+detect_gpu() {
+    local gpu_model=""
+    
+    if [ "$ON_HAIKU" = true ]; then
+        # Haiku GPU detection
+        gpu_model=$(lspci 2>/dev/null | grep -i "amd\|radeon" | head -1 || echo "")
+    else
+        # Linux GPU detection
+        gpu_model=$(lspci 2>/dev/null | grep -i "amd\|radeon" | head -1 || \
+                   lsusb 2>/dev/null | grep -i "amd\|radeon" | head -1 || echo "")
+    fi
+    
+    echo "$gpu_model"
+}
+
+# Determine Mesa driver based on GPU family
+determine_mesa_driver() {
+    local gpu="$1"
+    local driver="r600"  # default
+    
+    if [ -z "$gpu" ]; then
+        log_info "GPU detection failed, using default driver: r600"
+        echo "$driver"
+        return
+    fi
+    
+    log_info "Detected GPU: $gpu"
+    
+    # GCN architecture (Radeon RX series, R9/R7)
+    if echo "$gpu" | grep -qi "rx\|r9\|r7\|polaris\|vega\|navi\|rdna"; then
+        driver="radeonsi"
+        log_info "GPU family: GCN/RDNA → Using radeonsi driver"
+    # R600 architecture (Radeon HD 2000-5000)
+    elif echo "$gpu" | grep -qi "hd.*[2345][0-9][0-9][0-9]"; then
+        driver="r600"
+        log_info "GPU family: VLIW (HD 2000-5000) → Using r600 driver"
+    # R300 architecture (ancient)
+    elif echo "$gpu" | grep -qi "radeon.*[89]\|radeon.*x[0-9]"; then
+        driver="r300"
+        log_info "GPU family: Ancient → Using r300 driver"
+    else
+        log_info "GPU family unclear, using r600 as fallback"
+        driver="r600"
+    fi
+    
+    echo "$driver"
+}
+
 show_usage() {
     cat << EOF
 AMD GPU Driver Setup - Universal Build Script
@@ -39,22 +91,28 @@ AMD GPU Driver Setup - Universal Build Script
 Usage: $0 [COMMAND] [OPTIONS]
 
 Commands:
-  prepare-mesa      Prepare Mesa source (Haiku only)
+  full              Complete build (auto-detects GPU on Haiku)
+  prepare-mesa      Download Mesa source (one-time setup)
   build-core        Build AMDGPU_Abstracted core
   build-accelerant  Build AMD Accelerant for Haiku
-  build-mesa        Build Mesa with GPU driver
-  install           Install system-wide (Haiku only, requires sudo)
-  full              All steps (prepare → build → install)
+  build-mesa [GPU]  Build Mesa (auto-detects if no GPU specified)
+  install           Install system-wide (Haiku, requires sudo)
 
-Options for build-mesa:
-  r600        AMD Radeon HD 2000-5000 (default)
-  radeonsi    AMD Radeon RX (GCN+, modern)
-  r300        Ancient AMD Radeon
+GPU Options (optional for build-mesa):
+  (auto)          Auto-detect GPU family (default)
+  r600            AMD Radeon HD 2000-5000
+  radeonsi        AMD Radeon RX (GCN+, modern)
+  r300            Ancient AMD Radeon
 
 Examples:
-  $0 full              # Complete build
-  $0 build-mesa r600   # Build Mesa with R600 driver
-  $0 install           # Install (Haiku, requires sudo)
+  $0 full                 # Complete build (auto-detects GPU)
+  $0 build-mesa           # Build Mesa (auto-detects GPU)
+  $0 build-mesa radeonsi  # Build Mesa (force radeonsi driver)
+  sudo $0 install         # Install system-wide (Haiku only)
+
+GPU Auto-Detection:
+  The script automatically detects your GPU and selects the correct
+  Mesa driver. Manual override available if needed.
 
 EOF
 }
@@ -152,7 +210,13 @@ build_accelerant() {
 # ============================================================================
 
 build_mesa() {
-    local driver="${1:-r600}"
+    # Auto-detect GPU if no driver specified
+    local driver="$1"
+    
+    if [ -z "$driver" ]; then
+        local gpu=$(detect_gpu)
+        driver=$(determine_mesa_driver "$gpu")
+    fi
     
     log_info "Building Mesa with $driver driver"
     
@@ -268,6 +332,15 @@ case "${1:-full}" in
         log_info "Starting full build sequence..."
         echo ""
         
+        # Auto-detect GPU and driver on Haiku
+        local mesa_driver=""
+        if [ "$ON_HAIKU" = true ]; then
+            echo "[*] Detecting GPU..."
+            local gpu=$(detect_gpu)
+            mesa_driver=$(determine_mesa_driver "$gpu")
+            echo ""
+        fi
+        
         if [ "$ON_HAIKU" = true ]; then
             prepare_mesa || exit 1
             echo ""
@@ -279,7 +352,7 @@ case "${1:-full}" in
         if [ "$ON_HAIKU" = true ]; then
             build_accelerant || exit 1
             echo ""
-            build_mesa "${2:-r600}" || exit 1
+            build_mesa "$mesa_driver" || exit 1
             echo ""
             
             log_info "Build complete. To install, run:"
