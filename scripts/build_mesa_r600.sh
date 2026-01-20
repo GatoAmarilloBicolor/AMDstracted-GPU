@@ -107,9 +107,20 @@ if [ -d "$RMAPI_GALLIUM" ]; then
     fi
 fi
 
+# Step 4b: Detect Vulkan support (compile RADV if available)
+log_info "Detecting Vulkan support..."
+VULKAN_DRIVERS=""
+if pkg-config --exists vulkan 2>/dev/null; then
+    VULKAN_DRIVERS="amd"
+    log_ok "Vulkan detected - including RADV AMD driver"
+else
+    log_info "Vulkan not available - skipping RADV"
+fi
+
 log_info "Running meson setup..."
 log_info "GPU Driver: $GPU_DRIVER (detected)"
 log_info "Including: softpipe (fallback)"
+[ -n "$VULKAN_DRIVERS" ] && log_info "Vulkan: RADV (AMD)"
 echo ""
 
 # Build gallium drivers based on detected GPU
@@ -128,38 +139,71 @@ case "$GPU_DRIVER" in
         ;;
 esac
 
-if ! meson setup "$MESA_BUILD" \
-    -Dprefix="$INSTALL_PREFIX" \
+# Build meson command with optional vulkan
+MESON_CMD="meson setup \"$MESA_BUILD\" \
+    -Dprefix=\"$INSTALL_PREFIX\" \
     -Dbuildtype=release \
     -Doptimization=3 \
-    -Dvulkan-drivers=amd \
-    -Dgallium-drivers="$GALLIUM_DRIVERS" \
+    -Dgallium-drivers=\"$GALLIUM_DRIVERS\" \
     -Dglx=dri \
     -Degl=enabled \
     -Dgles1=disabled \
     -Dgles2=enabled \
-    -Dshared-glapi=enabled \
-    -Dosmesa=true \
-    2>&1 | tee -a "$LOG_FILE"; then
+    -Dshared-glapi=enabled"
+
+# Add vulkan only if available
+if [ -n "$VULKAN_DRIVERS" ]; then
+    MESON_CMD="$MESON_CMD -Dvulkan-drivers=$VULKAN_DRIVERS"
+fi
+
+log_info "Starting Mesa compilation (watch log progress)..."
+echo ""
+
+eval "$MESON_CMD" 2>&1 | tee -a "$LOG_FILE"
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
     log_error "Meson configuration failed"
+    log_error "Last 20 lines of build log:"
+    tail -20 "$LOG_FILE"
     exit 1
 fi
 
 log_ok "Meson configuration complete"
 
-# Step 5: Compile
+# Step 5: Compile with progress monitoring
 log_header "Step 5: Compile Mesa (this may take 30+ minutes)"
 
 log_info "Starting build with Ninja..."
+log_info "Progress (watch last 10 lines of build):"
+echo ""
+
 BUILD_START=$(date +%s)
 
-if ! ninja -C "$MESA_BUILD" 2>&1 | tee -a "$LOG_FILE"; then
-    log_error "Build failed - see $LOG_FILE for details"
-    exit 1
-fi
+# Run ninja and monitor log in parallel
+ninja -C "$MESA_BUILD" 2>&1 | tee -a "$LOG_FILE" &
+NINJA_PID=$!
+
+# Monitor log progress while ninja runs
+while kill -0 $NINJA_PID 2>/dev/null; do
+    if [ -f "$LOG_FILE" ]; then
+        # Show last 3 lines every 5 seconds to avoid clutter
+        sleep 5
+        tail -3 "$LOG_FILE" | sed 's/^/  /'
+    fi
+done
+
+# Wait for ninja to finish and capture exit code
+wait $NINJA_PID
+NINJA_EXIT=$?
 
 BUILD_END=$(date +%s)
 BUILD_TIME=$((BUILD_END - BUILD_START))
+
+if [ $NINJA_EXIT -ne 0 ]; then
+    log_error "Build failed - see details below:"
+    log_error "Last 30 lines of build log:"
+    tail -30 "$LOG_FILE" | sed 's/^/  /'
+    exit 1
+fi
 
 log_ok "Build successful (${BUILD_TIME}s)"
 
