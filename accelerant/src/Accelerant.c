@@ -11,6 +11,8 @@
 #include <kernel/image.h>
 #include <kernel/OS.h>
 #include <driver_settings.h>
+#include <accelerant.h>
+#include <GraphicsDefs.h>
 #include <malloc.h>
 #include <stdio.h>
 #include <string.h>
