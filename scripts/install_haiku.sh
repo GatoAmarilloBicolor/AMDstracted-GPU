@@ -67,9 +67,9 @@ log_ok "AMD GPU detected:"
 echo "$GPU" | sed 's/^/  /'
 
 # =================================================================
-# PHASE 3: VERIFY MESA R600 DRIVER (REQUIRED)
+# PHASE 3: ENSURE MESA R600 DRIVER (AUTO-INSTALL IF NEEDED)
 # =================================================================
-log_header "PHASE 3: Verify Mesa R600 Driver (REQUIRED)"
+log_header "PHASE 3: Ensure Mesa R600 Driver"
 
 DRIVER_FOUND=0
 for path in /boot/system/lib/dri /boot/home/config/non-packaged/lib/dri; do
@@ -81,17 +81,45 @@ for path in /boot/system/lib/dri /boot/home/config/non-packaged/lib/dri; do
 done
 
 if [ $DRIVER_FOUND -eq 0 ]; then
-    log_error "❌ MESA R600 DRIVER NOT FOUND"
-    log_error ""
-    log_error "GPU driver is REQUIRED to continue"
-    log_error ""
-    log_error "Install options:"
-    log_error "  1. Package manager: pkgman install mesa_r600 mesa_devel"
-    log_error "  2. Build from source: ./scripts/build_mesa_r600.sh"
+    log_info "Mesa R600 driver not found - installing automatically..."
+    echo ""
+    
+    # Try package manager first
+    log_info "Attempting package manager install..."
+    if pkgman search mesa_r600 >/dev/null 2>&1; then
+        if pkgman install mesa_r600 mesa_devel 2>&1 | tee -a "$LOG_FILE"; then
+            log_ok "Mesa installed from package manager"
+            DRIVER_FOUND=1
+        fi
+    fi
+    
+    # If package manager failed, build from source
+    if [ $DRIVER_FOUND -eq 0 ]; then
+        log_warn "Package manager install failed - building from source (30-60 min)..."
+        echo ""
+        
+        if [ ! -x "$PROJECT_ROOT/scripts/build_mesa_r600.sh" ]; then
+            log_error "Mesa build script not found"
+            exit 1
+        fi
+        
+        log_info "Building Mesa R600 from source..."
+        if "$PROJECT_ROOT/scripts/build_mesa_r600.sh" 2>&1 | tee -a "$LOG_FILE"; then
+            log_ok "Mesa built and installed successfully"
+            DRIVER_FOUND=1
+        else
+            log_error "Mesa build failed"
+            exit 1
+        fi
+    fi
+fi
+
+if [ $DRIVER_FOUND -eq 0 ]; then
+    log_error "Could not install Mesa R600 driver"
     exit 1
 fi
 
-log_ok "Mesa R600 driver verified"
+log_ok "Mesa R600 driver available"
 
 # =================================================================
 # PHASE 4: RUN GPU ACCELERATION DEPLOYMENT
