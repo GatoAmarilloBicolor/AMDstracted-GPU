@@ -22,11 +22,31 @@ log_header() { echo -e "\n${BLUE}═══════════════�
 trap 'log_error "Installation failed"; exit 1' ERR
 
 # Configuration
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 INSTALL_PREFIX="${1:-/boot/home/config/non-packaged}"
 
 log_header "AMDGPU_ABSTRACTED INSTALLATION FOR HAIKU"
 log_info "Installation prefix: $INSTALL_PREFIX"
+
+# ============================================================================
+# Step 0: Update from GitHub and Clean Old Builds
+# ============================================================================
+
+log_header "Step 0: Update Repository and Clean"
+
+log_info "Updating from GitHub..."
+cd "$REPO_ROOT"
+git pull origin main 2>/dev/null || log_warn "Git pull failed (may be offline)"
+
+log_info "Cleaning old builds..."
+rm -rf "$PROJECT_ROOT/mesa_build" 2>/dev/null || true
+rm -rf "$PROJECT_ROOT/builddir_mesa" 2>/dev/null || true
+rm -rf "$PROJECT_ROOT/builddir_accelerant" 2>/dev/null || true
+rm -rf "$PROJECT_ROOT/builddir_AMDGPU_Abstracted" 2>/dev/null || true
+
+log_ok "Repository updated and cleaned"
 
 # ============================================================================
 # Step 1: Verify Prerequisites
