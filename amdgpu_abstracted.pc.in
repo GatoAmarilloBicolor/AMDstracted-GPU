@@ -1,0 +1,11 @@
+prefix=@INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: AMDGPU_Abstracted
+Description: AMD GPU Hardware Abstraction Layer (RMAPI)
+Version: @VERSION@
+Requires: 
+Libs: -L${libdir} -lamdgpu
+Cflags: -I${includedir}

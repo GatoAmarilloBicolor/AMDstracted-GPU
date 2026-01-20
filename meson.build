@@ -4,7 +4,8 @@ project('AMDGPU_Abstracted', 'c',
     'c_std=c99',
     'warning_level=2',
     'buildtype=debugoptimized'
-  ]
+  ],
+  meson_version: '>=0.59.0'
 )
 
 # Detect OS
