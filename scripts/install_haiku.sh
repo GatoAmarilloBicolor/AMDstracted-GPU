@@ -49,17 +49,98 @@ rm -rf "$PROJECT_ROOT/builddir_AMDGPU_Abstracted" 2>/dev/null || true
 log_ok "Repository updated and cleaned"
 
 # ============================================================================
-# Verify Build.sh is correct (has correct meson syntax)
+# Fix Build.sh if needed (common issue on Haiku)
 # ============================================================================
 
-log_info "Verifying Build.sh has correct meson syntax..."
+log_info "Ensuring Build.sh has correct meson syntax..."
 
-if ! grep -q "mesa_source$" "$PROJECT_ROOT/Build.sh"; then
-    log_error "Build.sh has incorrect meson syntax"
-    log_info "Restoring from GitHub..."
-    cd "$REPO_ROOT"
-    git checkout origin/main -- AMDGPU_Abstracted/Build.sh
-    log_ok "Build.sh restored to correct version"
+# Check if Build.sh has the bug (meson options AFTER mesa_source)
+if grep -q "mesa_source$" "$PROJECT_ROOT/Build.sh" && grep -q "meson setup.*buildDir" "$PROJECT_ROOT/Build.sh"; then
+    log_ok "Build.sh syntax is correct"
+else
+    log_warn "Build.sh has incorrect syntax, repairing..."
+    
+    cat > "$PROJECT_ROOT/Build.sh" << 'EOFBUILD'
+#!/bin/bash
+set -e
+
+baseDir="$PWD"
+
+# Detect OS
+if command -v getarch &> /dev/null; then
+    ARCH="$(getarch)"
+    ON_HAIKU=true
+else
+    ARCH="$(uname -m)"
+    ON_HAIKU=false
+fi
+
+buildBaseDir="$PWD/build.$ARCH"
+installDir="$PWD/install.$ARCH"
+
+function log_info() { echo "[INFO] $*"; }
+function log_ok() { echo "[✓] $*"; }
+function log_error() { echo "[✗] $*" >&2; }
+
+mkdir -p "$installDir/develop/lib/pkgconfig"
+
+log_info "Building AMDGPU_Abstracted core..."
+cd "$baseDir"
+buildDir="$baseDir/builddir_AMDGPU_Abstracted"
+[ -d "$buildDir" ] && rm -rf "$buildDir"
+meson setup "$buildDir" -Dprefix="$installDir"
+ninja -C "$buildDir"
+ninja -C "$buildDir" install
+log_ok "AMDGPU_Abstracted built successfully"
+
+if [ "$ON_HAIKU" = true ]; then
+    log_info "Building Haiku Accelerant..."
+    cd "$baseDir/accelerant"
+    accelBuildDir="$baseDir/builddir_accelerant"
+    [ -d "$accelBuildDir" ] && rm -rf "$accelBuildDir"
+    meson setup "$accelBuildDir" -Dprefix="$installDir"
+    ninja -C "$accelBuildDir"
+    ninja -C "$accelBuildDir" install
+    log_ok "Accelerant module built successfully"
+fi
+
+if [ "$ON_HAIKU" = true ]; then
+    log_info "Building Mesa for Haiku..."
+    cd "$baseDir"
+    [ ! -d "mesa_source/.git" ] && git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa_source
+    buildDir="$baseDir/builddir_mesa"
+    [ -d "$buildDir" ] && rm -rf "$buildDir"
+    log_info "Configuring Mesa for Haiku OS..."
+    
+    meson setup "$buildDir" \
+        -Dprefix="$installDir" \
+        -Dbuildtype=release \
+        -Doptimization=3 \
+        -Dgallium-drivers= \
+        -Dplatforms=haiku \
+        -Dopengl=true \
+        -Dglx=disabled \
+        -Degl=disabled \
+        -Dgles2=enabled \
+        -Dshader-cache=enabled \
+        -Dvulkan-drivers= \
+        mesa_source
+    
+    ninja -C "$buildDir"
+    ninja -C "$buildDir" install
+    log_ok "Mesa built successfully for Haiku"
+else
+    log_info "Skipping Mesa build on Linux"
+fi
+
+echo ""
+echo "════════════════════════════════════════════════════════════"
+echo "Build complete!"
+echo "════════════════════════════════════════════════════════════"
+EOFBUILD
+    
+    chmod +x "$PROJECT_ROOT/Build.sh"
+    log_ok "Build.sh repaired with correct syntax"
 fi
 
 # ============================================================================
