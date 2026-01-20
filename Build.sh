@@ -100,8 +100,9 @@ if [ "$ON_HAIKU" = true ]; then
     # Build with r600 Gallium driver
     # Other options: radeonsi (GCN and newer), r300 (R300-R500)
     
-    cd "$baseDir"
-    meson setup "$buildDir" "mesa_source" \
+    cd "$baseDir/mesa_source"
+    
+    meson setup "$buildDir" \
         -Dprefix="$installDir" \
         -Dbuildtype=release \
         -Doptimization=3 \
@@ -114,11 +115,11 @@ if [ "$ON_HAIKU" = true ]; then
         -Dshader-cache=enabled \
         -Dvulkan-drivers= \
         -Dllvm=disabled
-    cd "$baseDir"
 
     ninja -C "$buildDir"
     ninja -C "$buildDir" install
     
+    cd "$baseDir"
     log_ok "Mesa built successfully for Haiku"
 else
     log_info "Skipping Mesa build on Linux"
