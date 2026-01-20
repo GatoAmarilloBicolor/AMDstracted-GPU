@@ -166,6 +166,7 @@ struct amdgpu_buffer {
   void *cpu_addr;    // Where the CPU sees it
   uint64_t gpu_addr; // Where the GPU sees it
   size_t size;       // How big is it?
+  uint32_t handle;   // GEM handle for real DRM
 };
 
 struct amdgpu_command_buffer {
