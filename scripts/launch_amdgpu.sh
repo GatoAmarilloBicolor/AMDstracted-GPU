@@ -110,8 +110,16 @@ setup_environment() {
         export VK_DRIVER_FILES="/boot/home/config/non-packaged/share/vulkan/icd.d/radeon_icd*.json"
         export LIBGL_DRIVERS_PATH="/boot/home/config/non-packaged/lib/dri"
         
-        # OpenGL configuration for Haiku
-        export MESA_LOADER_DRIVER_OVERRIDE="zink"
+        # OpenGL configuration for Haiku - detect GPU type
+        if lspci | grep -i "radeon" | grep -q "7290\|R600\|R700"; then
+            # R600 series - use direct OpenGL driver
+            export MESA_LOADER_DRIVER_OVERRIDE="r600"
+            echo "🔧 R600 GPU detected - using direct OpenGL driver"
+        else
+            # GCN/RDNA series - use Zink (OpenGL over Vulkan)
+            export MESA_LOADER_DRIVER_OVERRIDE="zink"
+            echo "🔧 GCN/RDNA GPU detected - using Zink (OpenGL over Vulkan)"
+        fi
         export LIBGL_DEBUG="verbose"
         
         # Add Haiku-specific Mesa libraries
@@ -148,10 +156,14 @@ launch_app() {
 
     echo "🎮 Launching: $app_command"
 
-    # Pre-load DRM shim if available
-    if [ -f "$AMD_GPU_LIB/libdrm_amdgpu.so" ]; then
-        export LD_PRELOAD="$AMD_GPU_LIB/libdrm_amdgpu.so:$LD_PRELOAD"
-        echo "🔌 DRM shim loaded"
+    # Pre-load DRM shim based on GPU type
+    # Try radeon shim first (for R600/R300 GPUs), fallback to amdgpu shim
+    if [ -f "$AMD_GPU_LIB/libdrm_radeon_shim.so" ]; then
+        export LD_PRELOAD="$AMD_GPU_LIB/libdrm_radeon_shim.so:$LD_PRELOAD"
+        echo "🔌 Radeon DRM shim loaded (R600/R300 support)"
+    elif [ -f "$AMD_GPU_LIB/libdrm_amdgpu_shim.so" ]; then
+        export LD_PRELOAD="$AMD_GPU_LIB/libdrm_amdgpu_shim.so:$LD_PRELOAD"
+        echo "🔌 AMDGPU DRM shim loaded (GCN/RDNA support)"
     fi
 
     # Launch the application
@@ -219,9 +231,18 @@ case "$1" in
                 echo "🚀 RMAPI Gallium driver detected - GPU acceleration enabled"
                 export GALLIUM_DRIVER=rmapi
                 export MESA_LOADER_DRIVER_OVERRIDE=rmapi
+            elif lspci | grep -i "radeon" | grep -q "7290\|R600\|R700"; then
+                # R600 detected - use r600 driver if available, otherwise fallback
+                if [ -f "/boot/system/lib/dri/r600_dri.so" ] || [ -f "/boot/home/config/non-packaged/lib/dri/r600_dri.so" ]; then
+                    echo "🚀 R600 Mesa driver detected - hardware acceleration enabled"
+                    export MESA_LOADER_DRIVER_OVERRIDE="r600"
+                else
+                    echo "⚠️  R600 GPU detected but Mesa r600 driver not found"
+                    echo "💡 Install Mesa with r600 support: pkgman install mesa_r600"
+                fi
             else
                 # Try other drivers or fallback to software
-                echo "ℹ️  RMAPI driver not found, using default renderer"
+                echo "ℹ️  Using default renderer (may fallback to software)"
             fi
         fi
         
@@ -273,6 +294,28 @@ case "$1" in
         echo "🎮 Running AMD GPU demo..."
         amd_rmapi_client_demo
         ;;
+    "test-opengl")
+        shift  # Remove 'test-opengl' from args
+        app="${1:-GLInfo}"
+        setup_environment
+
+        # Ensure server is running
+        if ! check_server; then
+            if start_server; then
+                echo "✅ Server started"
+            else
+                echo "⚠️  Server failed to start - OpenGL test may use software fallback"
+            fi
+        fi
+
+        echo "🧪 Running OpenGL acceleration test..."
+        if [ -f "./test_opengl.sh" ]; then
+            ./test_opengl.sh "$app"
+        else
+            echo "❌ test_opengl.sh not found in current directory"
+            echo "💡 Make sure you're running from AMDGPU_Abstracted/ directory"
+        fi
+        ;;
     "help"|*)
         echo "🎯 AMDGPU_Abstracted Launcher for Haiku"
         echo ""
@@ -287,18 +330,22 @@ case "$1" in
         echo "  $0 env             Setup environment variables only"
         echo "  $0 test            Run the test suite"
         echo "  $0 demo            Run the demo client"
+        echo "  $0 test-opengl [app] Run OpenGL acceleration test (default: GLInfo)"
         echo "  $0 help            Show this help"
         echo ""
         echo "EXAMPLES:"
         echo "  $0 start"
         echo "  $0 launch 'glinfo'"
         echo "  $0 launch --software 'glinfo'  # Force software rendering"
+        echo "  $0 test-opengl GLInfo          # Test OpenGL acceleration"
+        echo "  $0 test-opengl glkitmark       # Test with benchmark"
         echo "  $0 launch 'vulkaninfo'"
         echo ""
         echo "REQUIREMENTS:"
-        echo "  - Mesa with Zink and RADV: pkgman install mesa_devel"
-        echo "  - Vulkan ICD: Ensure /boot/home/config/non-packaged/lib/vulkan/icd.d/radeon_icd.x86_64.json exists"
-        echo "  - DRM library: libdrm_amdgpu.so in /boot/home/config/non-packaged/lib/"
+        echo "  - For R600 GPUs (like Wrestler): pkgman install mesa_r600 mesa_devel"
+        echo "  - For GCN/RDNA GPUs: pkgman install mesa_devel mesa_vulkan_radv"
+        echo "  - Vulkan ICD: Ensure RADV ICD exists in /boot/home/config/non-packaged/share/vulkan/icd.d/"
+        echo "  - DRM libraries: libdrm_radeon_shim.so or libdrm_amdgpu_shim.so in lib/"
         echo ""
         echo "TROUBLESHOOTING:"
         echo "  - If MMIO fails: Check PCI access permissions"

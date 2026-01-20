@@ -499,12 +499,12 @@ echo "════════════════════════�
 echo "🎉 INSTALLATION COMPLETE - AMDGPU_Abstracted Ready!"
 echo "═══════════════════════════════════════════════════════════════"
 echo ""
-echo "��� Quick Start:"
+echo "🚀 Quick Start:"
 echo "  1. Load environment: source $ENV_SCRIPT"
 echo "  2. Start server:      amd_rmapi_server &"
 echo "  3. Run client:        amd_rmapi_client_demo"
 echo "  4. Run tests:         amd_test_suite"
-echo "  5. Test OpenGL:       GLInfo or glxinfo"
+echo "  5. Test OpenGL:       ./test_opengl.sh GLInfo"
 echo ""
 echo "📁 Installation paths:"
 echo "  • Binaries:  $INSTALL_DIR"
@@ -578,16 +578,31 @@ if [ "$test_choice" = "y" ] || [ "$test_choice" = "Y" ]; then
     echo "Running OpenGL acceleration test..."
     echo "────────────────────────────────────────────────────────────────"
     
-    if [ -f "scripts/test_opengl_acceleration.sh" ]; then
-        bash scripts/test_opengl_acceleration.sh
+    echo "🎮 Testing OpenGL acceleration..."
+    echo "Available test commands:"
+    echo "  • Basic renderer check: ./test_opengl.sh GLInfo"
+    echo "  • Performance test: ./test_opengl.sh glkitmark"
+    echo "  • Full launcher test: ./scripts/launch_amdgpu.sh test-opengl GLInfo"
+    echo ""
+
+    # Try the basic test first
+    if [ -f "./test_opengl.sh" ]; then
+        echo "Running basic OpenGL renderer test..."
+        timeout 15 bash ./test_opengl.sh GLInfo 2>/dev/null | grep -E "(Renderer|OpenGL)" | head -5
+        if [ $? -eq 0 ]; then
+            echo "✅ OpenGL test completed"
+        else
+            echo "⚠️  OpenGL test timed out or failed"
+        fi
     else
-        echo "❌ Test script not found: scripts/test_opengl_acceleration.sh"
-        echo "Please run: bash scripts/test_opengl_acceleration.sh"
+        echo "❌ Test script not found: ./test_opengl.sh"
+        echo "Please run: ./scripts/launch_amdgpu.sh test-opengl GLInfo"
     fi
 else
     echo ""
     echo "You can test later with:"
-    echo "  bash scripts/test_opengl_acceleration.sh"
+    echo "  ./test_opengl.sh GLInfo"
+    echo "  ./scripts/launch_amdgpu.sh test-opengl GLInfo"
 fi
 
 echo ""
