@@ -101,7 +101,7 @@ if [ "$ON_HAIKU" = true ]; then
     # -Dllvm=disabled (causes LLVM to be required instead)
     # -Dshared-glapi=enabled (deprecated)
     
-    meson setup "$buildDir" \
+    meson setup "$buildDir" "$baseDir/mesa_source" \
         -Dprefix="$installDir" \
         -Dbuildtype=release \
         -Doptimization=3 \
@@ -112,8 +112,7 @@ if [ "$ON_HAIKU" = true ]; then
         -Degl=disabled \
         -Dgles2=enabled \
         -Dshader-cache=enabled \
-        -Dvulkan-drivers= \
-        mesa_source
+        -Dvulkan-drivers=
 
     ninja -C "$buildDir"
     ninja -C "$buildDir" install
