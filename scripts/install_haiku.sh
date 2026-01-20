@@ -49,18 +49,13 @@ rm -rf "$PROJECT_ROOT/builddir_AMDGPU_Abstracted" 2>/dev/null || true
 log_ok "Repository updated and cleaned"
 
 # ============================================================================
-# Fix Build.sh if needed (common issue on Haiku)
+# Ensure Build.sh has correct meson syntax (always replace to be safe)
 # ============================================================================
 
-log_info "Ensuring Build.sh has correct meson syntax..."
+log_info "Preparing Build.sh with correct meson syntax..."
 
-# Check if Build.sh has the bug (meson options AFTER mesa_source)
-if grep -q "mesa_source$" "$PROJECT_ROOT/Build.sh" && grep -q "meson setup.*buildDir" "$PROJECT_ROOT/Build.sh"; then
-    log_ok "Build.sh syntax is correct"
-else
-    log_warn "Build.sh has incorrect syntax, repairing..."
-    
-    cat > "$PROJECT_ROOT/Build.sh" << 'EOFBUILD'
+# ALWAYS replace Build.sh to ensure correct syntax
+cat > "$PROJECT_ROOT/Build.sh" << 'EOFBUILD'
 #!/bin/bash
 set -e
 
@@ -138,10 +133,9 @@ echo "════════════════════════�
 echo "Build complete!"
 echo "════════════════════════════════════════════════════════════"
 EOFBUILD
-    
-    chmod +x "$PROJECT_ROOT/Build.sh"
-    log_ok "Build.sh repaired with correct syntax"
-fi
+
+chmod +x "$PROJECT_ROOT/Build.sh"
+log_ok "Build.sh prepared with correct meson syntax"
 
 # ============================================================================
 # Step 1: Verify Prerequisites
