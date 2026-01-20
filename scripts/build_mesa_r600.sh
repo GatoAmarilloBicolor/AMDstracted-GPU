@@ -129,29 +129,20 @@ log_info "Including: softpipe (fallback)"
 [ -n "$VULKAN_DRIVERS" ] && log_info "Vulkan: RADV (AMD)"
 echo ""
 
-# Build gallium drivers based on detected GPU
-case "$GPU_DRIVER" in
-    r300)
-        GALLIUM_DRIVERS="r300,softpipe"
-        log_info "Configuring for: Radeon R300/R400/R500"
-        ;;
-    radeonsi)
-        GALLIUM_DRIVERS="radeonsi,softpipe"
-        log_info "Configuring for: RDNA/RDNA2/RDNA3"
-        ;;
-    r600|*)
-        GALLIUM_DRIVERS="r600,softpipe"
-        log_info "Configuring for: Radeon HD 5000-7000 (R600)"
-        ;;
-esac
+# For Haiku compatibility without libdrm_amdgpu dependency
+# Use software rendering fallback (like haiku-nvidia does with NVK)
+# AMDGPU_Abstracted provides the GPU driver layer directly
+log_info "Configuring for: Software rendering fallback (AMDGPU_Abstracted provides GPU layer)"
+log_info "Note: Using empty gallium-drivers to avoid libdrm_amdgpu dependency"
 
 # Build meson command with optional vulkan
-# Note: Haiku doesn't have X11, so we disable GLX and use OpenGL through our custom interface
+# Note: Haiku doesn't have X11, so we disable GLX
+# We use empty gallium-drivers (like nvidia-haiku) and rely on AMDGPU_Abstracted for GPU access
 MESON_CMD="meson setup \"$MESA_BUILD\" \
     -Dprefix=\"$INSTALL_PREFIX\" \
     -Dbuildtype=release \
     -Doptimization=3 \
-    -Dgallium-drivers=\"$GALLIUM_DRIVERS\" \
+    -Dgallium-drivers= \
     -Dglx=disabled \
     -Dplatforms=haiku \
     -Dopengl=true \
