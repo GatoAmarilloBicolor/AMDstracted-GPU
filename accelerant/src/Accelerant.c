@@ -85,65 +85,12 @@ static amd_accelerant_context *g_accelerant = NULL;
  * Helper Functions - Mode Timing Conversion
  * ============================================================================ */
 
-/*
- * CalcRefreshRate - Calculate refresh rate from timing parameters
- * Pattern from: haiku-nvidia/accelerant/Accelerant.cpp:29
+/* Note: Helper functions for mode conversion kept for future use
+ * Pattern from: haiku-nvidia/accelerant/Accelerant.cpp
+ * - CalcRefreshRate
+ * - to_display_mode
+ * - from_display_mode
  */
-static uint32_t calc_refresh_rate(const amd_mode_timing *timings)
-{
-    uint64_t multiplier = (timings->flags & B_TIMING_INTERLACED) ? 2000000LL : 1000000LL;
-    return (uint32_t)(multiplier * timings->pixel_clock / 
-                     ((uint64_t)timings->h_total * timings->v_total));
-}
-
-/*
- * to_display_mode - Convert internal AMD timing to Haiku display_mode
- * Pattern from: haiku-nvidia/accelerant/Accelerant.cpp:75
- */
-static display_mode to_display_mode(const amd_display_mode *amd_mode)
-{
-    display_mode hm = {
-        .timing = {
-            .pixel_clock  = amd_mode->timings.pixel_clock,
-            .h_display    = amd_mode->timings.h_display,
-            .h_sync_start = amd_mode->timings.h_sync_start,
-            .h_sync_end   = amd_mode->timings.h_sync_end,
-            .h_total      = amd_mode->timings.h_total,
-            .v_display    = amd_mode->timings.v_display,
-            .v_sync_start = amd_mode->timings.v_sync_start,
-            .v_sync_end   = amd_mode->timings.v_sync_end,
-            .v_total      = amd_mode->timings.v_total,
-            .flags        = amd_mode->timings.flags,
-        },
-        .space = B_RGB32,
-        .virtual_width = amd_mode->timings.h_display,
-        .virtual_height = amd_mode->timings.v_display,
-    };
-    return hm;
-}
-
-/*
- * from_display_mode - Convert Haiku display_mode to internal AMD timing
- * Pattern from: haiku-nvidia/accelerant/Accelerant.cpp:85
- */
-static amd_display_mode from_display_mode(const display_mode *hm)
-{
-    amd_display_mode am = {
-        .timings = {
-            .pixel_clock  = hm->timing.pixel_clock,
-            .h_display    = hm->timing.h_display,
-            .h_sync_start = hm->timing.h_sync_start,
-            .h_sync_end   = hm->timing.h_sync_end,
-            .h_total      = hm->timing.h_total,
-            .v_display    = hm->timing.v_display,
-            .v_sync_start = hm->timing.v_sync_start,
-            .v_sync_end   = hm->timing.v_sync_end,
-            .v_total      = hm->timing.v_total,
-            .flags        = hm->timing.flags,
-        },
-    };
-    return am;
-}
 
 /* ============================================================================
  * Default Display Modes
