@@ -22,6 +22,72 @@
 #include <errno.h>
 #include <fcntl.h>
 
+/* Forward declarations for Haiku accelerant types */
+typedef struct {
+    uint32_t space;
+    uint32_t base;
+    uint32_t size;
+} frame_buffer_config;
+
+typedef struct {
+    uint16_t width;
+    uint16_t height;
+    float refresh;
+    uint32_t flags;
+} display_mode;
+
+typedef struct {
+    int32_t left;
+    int32_t top;
+    int32_t right;
+    int32_t bottom;
+} fill_rect_params;
+
+typedef struct {
+    int32_t src_left;
+    int32_t src_top;
+    int32_t dest_left;
+    int32_t dest_top;
+    int32_t width;
+    int32_t height;
+} blit_params;
+
+typedef struct {
+    int32_t src_left;
+    int32_t src_top;
+    int32_t dest_left;
+    int32_t dest_top;
+    int32_t width;
+    int32_t height;
+    uint32_t transparent_color;
+} transparent_blit_params;
+
+typedef struct {
+    int32_t src_left;
+    int32_t src_top;
+    int32_t src_width;
+    int32_t src_height;
+    int32_t dest_left;
+    int32_t dest_top;
+    int32_t dest_width;
+    int32_t dest_height;
+} scaled_blit_params;
+
+typedef struct {
+    uint32_t magic;
+} engine_token;
+
+typedef struct {
+    uint32_t magic;
+} sync_token;
+
+typedef struct {
+    uint32_t version;
+    uint32_t dac_version;
+    uint32_t ram;
+    uint32_t tmds_version;
+} accelerant_device_info;
+
 /* Accelerant hook constants (may not be in older Haiku headers) */
 #ifndef B_MOVE_CURSOR
 #define B_MOVE_CURSOR 0x08000000
@@ -41,6 +107,30 @@
 #ifndef B_WAIT_ENGINE_IDLE
 #define B_WAIT_ENGINE_IDLE 0x08000012
 #endif
+#ifndef B_ACCELERANT_ENGINE_COUNT
+#define B_ACCELERANT_ENGINE_COUNT 0x08000013
+#endif
+#ifndef B_GET_PIXEL_CLOCK_LIMITS
+#define B_GET_PIXEL_CLOCK_LIMITS 0x08000014
+#endif
+#ifndef B_GET_FRAME_BUFFER_CONFIG
+#define B_GET_FRAME_BUFFER_CONFIG 0x08000015
+#endif
+#ifndef B_FILL_RECTANGLE
+#define B_FILL_RECTANGLE 0x08000020
+#endif
+#ifndef B_INVERT_RECTANGLE
+#define B_INVERT_RECTANGLE 0x08000021
+#endif
+#ifndef B_BLIT
+#define B_BLIT 0x08000022
+#endif
+#ifndef B_TRANSPARENT_BLIT
+#define B_TRANSPARENT_BLIT 0x08000023
+#endif
+#ifndef B_SCALE_BLIT
+#define B_SCALE_BLIT 0x08000024
+#endif
 #ifndef B_ALREADY_INITIALIZED
 #define B_ALREADY_INITIALIZED B_BUSY
 #endif
@@ -52,6 +142,32 @@
 #endif
 #ifndef B_BAD_VALUE
 #define B_BAD_VALUE -1
+#endif
+#ifndef display_mode
+typedef struct {
+    unsigned int space;
+    unsigned short virtual_width, virtual_height;
+    unsigned short h_display, h_sync_start, h_sync_end, h_total;
+    unsigned short v_display, v_sync_start, v_sync_end, v_total;
+    unsigned int flags;
+} display_mode;
+#endif
+#ifndef frame_buffer_config
+typedef struct {
+    void *frame_buffer;
+    void *frame_buffer_dma;
+    unsigned int bytes_per_row;
+} frame_buffer_config;
+#endif
+#ifndef accelerant_device_info
+typedef struct {
+    unsigned int version;
+    char name[32];
+    char chipset[32];
+    char serial_no[32];
+    unsigned int memory;
+    unsigned int dac_speed;
+} accelerant_device_info;
 #endif
 #ifndef B_BUSY
 #define B_BUSY -2
