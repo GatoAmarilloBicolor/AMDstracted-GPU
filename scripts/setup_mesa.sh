@@ -29,15 +29,20 @@ cd mesa
 # Create build directory
 mkdir -p build
 
-# Configure with Meson
+# Configure with Meson, inspired by nvidia-haiku mesa-zink build
 meson setup build \
     --prefix=/boot/home/config/non-packaged \
     -Dvulkan-drivers=amd \
     -Dgallium-drivers=zink \
+    -Dplatforms=haiku \
     -Dglx=disabled \
     -Degl=enabled \
     -Dgles1=disabled \
     -Dgles2=enabled \
+    -Dgallium-opencl=disabled \
+    -Dgallium-rusticl=false \
+    -Dllvm=disabled \
+    -Dshader-cache=enabled \
     -Dbuildtype=release
 
 echo "[4/5] Building Mesa (this will take several minutes)..."

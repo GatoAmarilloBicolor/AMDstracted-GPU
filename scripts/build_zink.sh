@@ -24,10 +24,15 @@ meson setup build \
     --prefix=/boot/home/config/non-packaged \
     -Dvulkan-drivers=amd \
     -Dgallium-drivers=zink \
+    -Dplatforms=haiku \
     -Dglx=disabled \
     -Degl=enabled \
     -Dgles1=disabled \
     -Dgles2=enabled \
+    -Dgallium-opencl=disabled \
+    -Dgallium-rusticl=false \
+    -Dllvm=disabled \
+    -Dshader-cache=enabled \
     -Dbuildtype=release
 
 echo "[3/4] Building Mesa (this takes ~10 minutes)..."
