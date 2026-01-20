@@ -7,37 +7,53 @@ project('amd_gfx', 'c',
 
 cc = meson.get_compiler('c')
 
-# Required Haiku libraries
-dep_be = cc.find_library('be', required: true)
-dep_device = cc.find_library('device', required: false)
+# Detect OS
+host_os = host_machine.system()
+is_haiku = host_os == 'haiku'
 
-# AMDGPU_Abstracted library
-subdir('..')
-dep_amdgpu = declare_dependency(
-	link_with: [libamdgpu],
-	include_directories: inc_dirs
-)
+# Required libraries
+if is_haiku
+	# Haiku-specific libraries
+	dep_be = cc.find_library('be', required: true)
+	dep_device = cc.find_library('device', required: false)
+	
+	# Include directories
+	inc_amdgpu = include_directories(
+		'../src',
+		'../core',
+		'../drivers',
+		'../os'
+	)
+	
+	# AMDGPU libraries (prebuilt or from parent)
+	libamdgpu = cc.find_library('amdgpu', required: true)
+	
+	accelerant_sources = files(
+		'src/Accelerant.c',
+		'src/HailuAMDInterface.c',
+	)
+	
+	# Build AMD graphics accelerant
+	shared_module('amd_gfx',
+		accelerant_sources,
+		dependencies: [dep_be, libamdgpu],
+		include_directories: inc_amdgpu,
+		name_prefix: '',
+		name_suffix: 'accelerant',
+		gnu_symbol_visibility: 'hidden',
+		install: true,
+		install_dir: 'add-ons/accelerants'
+	)
 
-accelerant_sources = files(
-	'src/Accelerant.c',
-	'src/HailuAMDInterface.c',
-)
-
-# Build AMD graphics accelerant
-shared_module('amd_gfx',
-	accelerant_sources,
-	dependencies: [dep_amdgpu, dep_be],
-	name_prefix: '',
-	name_suffix: 'accelerant',
-	gnu_symbol_visibility: 'hidden',
-	install: true,
-	install_dir: 'add-ons/accelerants'
-)
-
-# Optional: Test utilities
-executable('AMD_AccelerantTest',
-	'src/AccelerantTest.c',
-	dependencies: [dep_be],
-	gnu_symbol_visibility: 'hidden',
-	install: false
-)
+	# Optional: Test utilities
+	executable('AMD_AccelerantTest',
+		'src/AccelerantTest.c',
+		dependencies: [dep_be],
+		include_directories: inc_amdgpu,
+		gnu_symbol_visibility: 'hidden',
+		install: false
+	)
+else
+	message('Accelerant module requires Haiku OS - skipping accelerant build')
+	message('Core AMDGPU_Abstracted libraries are still available')
+endif
