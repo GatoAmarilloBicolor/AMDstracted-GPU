@@ -1,7 +1,7 @@
 #!/bin/bash
-# 🏁 HIT Edition: Haiku Installer with GPU Acceleration
-# Complete build and installation for AMDGPU_Abstracted on Haiku
-# Includes: AMDGPU core, Mesa R600 driver, OpenGL support, tests
+# 🚀 HAIKU INSTALLER - AMDGPU_ABSTRACTED WITH GPU ACCELERATION
+# GPU-ONLY MODE - NO CPU FALLBACK
+# Complete automated installation for Haiku with AMD GPU support
 
 set -euo pipefail
 
@@ -15,7 +15,6 @@ NC='\033[0m'
 # Helpers
 log_info() { echo -e "${BLUE}[INFO]${NC} $*"; }
 log_ok() { echo -e "${GREEN}[✓]${NC} $*"; }
-log_warn() { echo -e "${YELLOW}[!]${NC} $*"; }
 log_error() { echo -e "${RED}[✗]${NC} $*"; }
 log_header() { echo -e "\n${BLUE}════════════════════════════════════════════════════════════${NC}\n${BLUE}$*${NC}\n${BLUE}════════════════════════════════════════════════════════════${NC}\n"; }
 
@@ -24,216 +23,162 @@ trap 'log_error "Installation failed"; exit 1' ERR
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_FILE="/tmp/haiku_install_$(date +%s).log"
 
-log_header "🚀 HAIKU INSTALLATION - AMDGPU_ABSTRACTED WITH GPU ACCELERATION"
-log_info "Installation log: $LOG_FILE"
+log_header "🚀 HAIKU INSTALLATION - AMDGPU_ABSTRACTED GPU ACCELERATION"
+log_info "Log: $LOG_FILE"
+log_info "Mode: GPU-ONLY (no CPU fallback)"
 
 # =================================================================
 # PHASE 1: CHECK PREREQUISITES
 # =================================================================
-log_header "PHASE 1: Check Prerequisites"
-
-PREREQ_OK=0
-PREREQ_TOTAL=0
+log_header "PHASE 1: Check Build Prerequisites"
 
 for tool in gcc meson ninja pkg-config; do
-    PREREQ_TOTAL=$((PREREQ_TOTAL + 1))
-    if command -v "$tool" >/dev/null 2>&1; then
-        VERSION=$($tool --version 2>&1 | head -1)
-        log_ok "$tool: $VERSION"
-        PREREQ_OK=$((PREREQ_OK + 1))
-    else
-        log_error "$tool not found - install with: pkgman install haiku_devel"
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        log_error "$tool not found"
+        log_error "Install: pkgman install haiku_devel"
+        exit 1
     fi
+    log_ok "$tool available"
 done
 
-if [ $PREREQ_OK -lt $PREREQ_TOTAL ]; then
-    log_error "Missing build tools - cannot continue"
+# =================================================================
+# PHASE 2: VERIFY GPU HARDWARE (REQUIRED)
+# =================================================================
+log_header "PHASE 2: Verify AMD GPU Hardware (REQUIRED)"
+
+if ! command -v lspci >/dev/null 2>&1; then
+    log_error "lspci not found - cannot verify GPU"
+    log_error "Install: pkgman install pciutils"
     exit 1
 fi
 
-# =================================================================
-# PHASE 2: USE GPU ACCELERATION DEPLOYMENT SCRIPT
-# =================================================================
-log_header "PHASE 2: Deploy GPU Acceleration (Recommended)"
+if ! GPU=$(lspci 2>/dev/null | grep -i "radeon\|amd.*vga"); then
+    log_error "❌ NO AMD GPU DETECTED"
+    log_error ""
+    log_error "This system does not have an AMD GPU"
+    log_error "Available hardware:"
+    lspci 2>/dev/null | grep -i "vga\|display\|3d" | sed 's/^/  /'
+    log_error ""
+    log_error "GPU is REQUIRED - installation cannot continue"
+    exit 1
+fi
 
-log_info "The main deployment script handles everything:"
-log_info "  • Builds AMDGPU_Abstracted core"
-log_info "  • Installs/builds Mesa R600 driver"
-log_info "  • Configures OpenGL environment"
-log_info "  • Deploys all binaries"
-log_info "  • Verifies GPU acceleration"
+log_ok "AMD GPU detected:"
+echo "$GPU" | sed 's/^/  /'
+
+# =================================================================
+# PHASE 3: VERIFY MESA R600 DRIVER (REQUIRED)
+# =================================================================
+log_header "PHASE 3: Verify Mesa R600 Driver (REQUIRED)"
+
+DRIVER_FOUND=0
+for path in /boot/system/lib/dri /boot/home/config/non-packaged/lib/dri; do
+    if [ -f "$path/r600_dri.so" ] || [ -f "$path/libgallium_dri.so" ]; then
+        log_ok "Driver found: $path"
+        DRIVER_FOUND=1
+        break
+    fi
+done
+
+if [ $DRIVER_FOUND -eq 0 ]; then
+    log_error "❌ MESA R600 DRIVER NOT FOUND"
+    log_error ""
+    log_error "GPU driver is REQUIRED to continue"
+    log_error ""
+    log_error "Install options:"
+    log_error "  1. Package manager: pkgman install mesa_r600 mesa_devel"
+    log_error "  2. Build from source: ./scripts/build_mesa_r600.sh"
+    exit 1
+fi
+
+log_ok "Mesa R600 driver verified"
+
+# =================================================================
+# PHASE 4: RUN GPU ACCELERATION DEPLOYMENT
+# =================================================================
+log_header "PHASE 4: Deploy GPU Acceleration"
+
+if [ ! -x "$PROJECT_ROOT/scripts/deploy_gpu_final.sh" ]; then
+    log_error "Deployment script not found: $PROJECT_ROOT/scripts/deploy_gpu_final.sh"
+    exit 1
+fi
+
+log_info "Running: deploy_gpu_final.sh"
 echo ""
 
-if [ -x "$PROJECT_ROOT/scripts/deploy_gpu_final.sh" ]; then
-    log_ok "GPU deployment script found"
-    echo ""
-    
-    read -p "Use GPU acceleration deployment? (recommended) [Y/n] " -n 1 -r USE_GPU_DEPLOY
-    echo ""
-    
-    if [[ ! $USE_GPU_DEPLOY =~ ^[Nn]$ ]]; then
-        log_info "Launching GPU acceleration deployment..."
-        echo ""
-        
-        if "$PROJECT_ROOT/scripts/deploy_gpu_final.sh" 2>&1 | tee -a "$LOG_FILE"; then
-            log_ok "GPU acceleration deployment completed"
-            echo ""
-            echo "Installation complete!"
-            echo ""
-            echo "Next steps:"
-            echo "  1. source /boot/home/.amd_gpu_env.sh"
-            echo "  2. gpu_server &"
-            echo "  3. gpu_app glinfo"
-            echo ""
-            exit 0
-        else
-            log_error "GPU acceleration deployment failed"
-            log_warn "Falling back to manual build..."
-            echo ""
-        fi
-    else
-        log_info "Using manual build mode..."
-        echo ""
-    fi
-else
-    log_warn "GPU deployment script not found, using manual build"
-    echo ""
-fi
-
-# =================================================================
-# FALLBACK: MANUAL BUILD (if GPU deployment skipped)
-# =================================================================
-log_header "MANUAL BUILD MODE"
-
-# Clean old build
-log_info "Cleaning old build artifacts..."
-find "$PROJECT_ROOT" -name "*.o" -type f -delete 2>/dev/null || true
-find "$PROJECT_ROOT" -name "*.so" -type f -delete 2>/dev/null || true
-find "$PROJECT_ROOT" -name "*.a" -type f -delete 2>/dev/null || true
-rm -rf "$PROJECT_ROOT/builddir" 2>/dev/null || true
-log_ok "Clean complete"
-
-# Build AMDGPU core
-log_header "Building AMDGPU_Abstracted Core"
-
-cd "$PROJECT_ROOT"
-log_info "Meson setup..."
-meson setup builddir --cross-file haiku-cross.ini 2>&1 | tee -a "$LOG_FILE"
-
-log_info "Ninja compile..."
-ninja -C builddir 2>&1 | tee -a "$LOG_FILE"
-
-log_ok "AMDGPU core built successfully"
-
-# Run tests
-log_header "Running Test Suite"
-meson test -C builddir 2>&1 | tee -a "$LOG_FILE" || log_warn "Tests had issues but continuing..."
-
-# Install binaries
-log_header "Installing Binaries to Haiku"
-
-HAIKU_COMMON="/boot/home/config/non-packaged"
-INSTALL_DIR="$HAIKU_COMMON/bin"
-LIB_DIR="$HAIKU_COMMON/lib"
-
-log_info "Installation directory: $INSTALL_DIR"
-
-mkdir -p "$INSTALL_DIR" || {
-    log_error "Cannot create installation directory"
+if ! "$PROJECT_ROOT/scripts/deploy_gpu_final.sh" 2>&1 | tee -a "$LOG_FILE"; then
+    log_error "GPU acceleration deployment failed"
     exit 1
-}
-mkdir -p "$LIB_DIR" 2>/dev/null || true
-
-for binary in amd_rmapi_server amd_rmapi_client_demo amd_test_suite; do
-    if [ -f "$PROJECT_ROOT/builddir/$binary" ]; then
-        cp "$PROJECT_ROOT/builddir/$binary" "$INSTALL_DIR/$binary"
-        chmod +x "$INSTALL_DIR/$binary"
-        log_ok "Installed: $binary"
-    fi
-done
+fi
 
 # =================================================================
-# FINAL: GPU SETUP (for both paths)
+# PHASE 5: VERIFY GPU ACCELERATION WORKS
 # =================================================================
-log_header "Final GPU Setup"
+log_header "PHASE 5: Verify GPU Acceleration (REQUIRED)"
 
-log_info "Creating environment script..."
-cat > "$HAIKU_COMMON/.amd_gpu_env.sh" << 'EOF'
-#!/bin/bash
 INSTALL_PREFIX="/boot/home/config/non-packaged"
-export LIBRARY_PATH="$INSTALL_PREFIX/lib:$LIBRARY_PATH"
-export LD_LIBRARY_PATH="$INSTALL_PREFIX/lib:/boot/system/lib:$LD_LIBRARY_PATH"
-export MESA_LOADER_DRIVER_OVERRIDE="r600"
-export LIBGL_DRIVERS_PATH="$INSTALL_PREFIX/lib/dri:/boot/home/config/non-packaged/lib/dri:/boot/system/lib/dri"
-export MESA_GL_VERSION_OVERRIDE="4.3"
-export MESA_GLSL_VERSION_OVERRIDE="430"
-export MESA_NO_DITHER=1
-export PATH="$INSTALL_PREFIX/bin:$PATH"
-if [ -d "$INSTALL_PREFIX/share/vulkan" ]; then
-    export VK_ICD_FILENAMES="$INSTALL_PREFIX/share/vulkan/icd.d/radeon_icd.x86_64.json"
-fi
-EOF
-
-chmod +x "$HAIKU_COMMON/.amd_gpu_env.sh"
-ln -sf "$HAIKU_COMMON/.amd_gpu_env.sh" /boot/home/.amd_gpu_env.sh 2>/dev/null || true
-log_ok "Environment script created"
-
-# Create convenience launchers
-log_info "Creating convenience launchers..."
-cat > "$INSTALL_DIR/gpu_server" << 'EOF'
-#!/bin/bash
-source /boot/home/.amd_gpu_env.sh 2>/dev/null || source /boot/home/config/non-packaged/.amd_gpu_env.sh
-exec /boot/home/config/non-packaged/bin/amd_rmapi_server "$@"
-EOF
-chmod +x "$INSTALL_DIR/gpu_server"
-
-cat > "$INSTALL_DIR/gpu_app" << 'EOF'
-#!/bin/bash
-source /boot/home/.amd_gpu_env.sh 2>/dev/null || source /boot/home/config/non-packaged/.amd_gpu_env.sh
-exec "$@"
-EOF
-chmod +x "$INSTALL_DIR/gpu_app"
-
-log_ok "Launchers created: gpu_server, gpu_app"
-
-# =================================================================
-# VERIFICATION
-# =================================================================
-log_header "Verification"
-
-# Check GPU
-if lspci 2>/dev/null | grep -qi radeon; then
-    log_ok "AMD GPU detected:"
-    lspci 2>/dev/null | grep -i radeon
-else
-    log_error "No AMD GPU detected"
-fi
 
 # Check binaries
-for binary in amd_rmapi_server amd_rmapi_client_demo amd_test_suite; do
-    if [ -x "$INSTALL_DIR/$binary" ]; then
-        log_ok "Binary installed: $binary"
-    else
-        log_error "Binary missing: $binary"
+for binary in amd_rmapi_server amd_rmapi_client_demo; do
+    if [ ! -x "$INSTALL_PREFIX/bin/$binary" ]; then
+        log_error "Binary not found: $binary"
+        exit 1
     fi
+    log_ok "$binary deployed"
 done
 
-# Check Mesa driver
-if [ -f "/boot/system/lib/dri/r600_dri.so" ] || [ -f "$HAIKU_COMMON/lib/dri/r600_dri.so" ]; then
-    log_ok "Mesa R600 driver available"
-else
-    log_warn "Mesa R600 driver not found - try running: ./scripts/build_mesa_r600.sh"
+# Check environment
+if [ ! -f "$INSTALL_PREFIX/.amd_gpu_env.sh" ]; then
+    log_error "Environment script not found"
+    exit 1
+fi
+log_ok "Environment configured"
+
+# Test OpenGL if glinfo available
+if command -v glinfo >/dev/null 2>&1; then
+    log_info "Testing OpenGL with GPU..."
+    
+    source "$INSTALL_PREFIX/.amd_gpu_env.sh" 2>/dev/null || true
+    
+    if GLINFO_OUT=$(timeout 5 glinfo 2>&1 || true); then
+        if echo "$GLINFO_OUT" | grep -qi "opengl"; then
+            # Check for software rendering (NOT allowed)
+            if echo "$GLINFO_OUT" | grep -qi "llvmpipe\|softpipe\|swrast"; then
+                log_error "❌ SOFTWARE RENDERING DETECTED"
+                log_error ""
+                log_error "glinfo shows:"
+                echo "$GLINFO_OUT" | grep -i "renderer" | sed 's/^/  /'
+                log_error ""
+                log_error "GPU acceleration NOT working - software rendering detected"
+                log_error "This indicates Mesa driver not properly loaded"
+                exit 1
+            elif echo "$GLINFO_OUT" | grep -qi "radeon"; then
+                log_ok "GPU rendering active:"
+                echo "$GLINFO_OUT" | grep -E "renderer|version|vendor" | head -3 | sed 's/^/  /'
+            else
+                log_error "OpenGL renderer not identified"
+                exit 1
+            fi
+        fi
+    fi
 fi
 
 # =================================================================
-# FINAL SUMMARY
+# SUCCESS
 # =================================================================
 log_header "✅ INSTALLATION COMPLETE!"
 
-echo "Installation Summary:"
-echo "  Location: $INSTALL_DIR"
-echo "  GPU:      $(lspci 2>/dev/null | grep -i radeon | head -1 || echo 'Not detected')"
-echo "  Env:      /boot/home/.amd_gpu_env.sh"
+echo ""
+echo "System Configuration:"
+echo "  GPU:           $(echo "$GPU" | head -1 | sed 's/^[^:]*: //')"
+echo "  Driver:        Mesa R600 (Gallium)"
+echo "  Mode:          GPU Acceleration (Hardware)"
+echo "  Installation:  $INSTALL_PREFIX"
+echo ""
+echo "Installation Paths:"
+echo "  Binaries:      $INSTALL_PREFIX/bin"
+echo "  Environment:   /boot/home/.amd_gpu_env.sh"
+echo "  Config:        $INSTALL_PREFIX/.amd_gpu_env.sh"
 echo ""
 echo "Next Steps:"
 echo "  1. Load environment:"
@@ -242,14 +187,13 @@ echo ""
 echo "  2. Start GPU server:"
 echo "     gpu_server &"
 echo ""
-echo "  3. Test OpenGL:"
+echo "  3. Test GPU acceleration:"
 echo "     gpu_app glinfo"
 echo "     gpu_app glxgears"
 echo ""
-echo "Advanced:"
-echo "  • Build Mesa from source: ./scripts/build_mesa_r600.sh"
-echo "  • Test GPU: ./scripts/test_gpu_haiku.sh"
-echo "  • View docs: cat BUILD_AND_INSTALL.md"
+echo "Verify GPU is working:"
+echo "  glinfo | grep -i renderer"
+echo "  Should show: Radeon (NOT llvmpipe)"
 echo ""
-echo "Log file: $LOG_FILE"
+echo "Installation log: $LOG_FILE"
 echo ""
