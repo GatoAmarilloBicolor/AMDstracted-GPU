@@ -54,6 +54,36 @@ cd AMDGPU_Abstracted
 
 ### Installation Scripts
 
+#### `install_haiku.sh` (Haiku One-Command Installer)
+**Purpose**: Complete installation in one command (build + deploy + verify)  
+**Works on**: Haiku only  
+**Usage**:
+```bash
+./scripts/install_haiku.sh [PREFIX]
+```
+
+**What it does**:
+1. Verifies all prerequisites (gcc, meson, ninja, getarch)
+2. Runs `./Build.sh` to compile everything
+3. Runs `deploy_haiku.sh` to install to system
+4. Runs `verify_installation.sh` to check everything
+5. Creates environment setup script
+6. Detects and reports GPU information
+7. Provides next steps guidance
+
+**Example**:
+```bash
+./scripts/install_haiku.sh
+# Uses default: /boot/home/config/non-packaged
+
+./scripts/install_haiku.sh /custom/path
+# Uses custom installation path
+```
+
+**Time**: ~1 hour (includes full build)
+
+---
+
 #### `install.sh` (Universal Installer)
 **Purpose**: Unified installation for all platforms  
 **Works on**: Linux, Haiku, FreeBSD (partial)  
