@@ -1,6 +1,11 @@
 #!/bin/bash
-# Build and Install Mesa with R600 Driver for Haiku
-# Compiles Mesa from source for guaranteed GPU driver availability
+# Build Mesa for Haiku with AMDGPU_Abstracted Integration
+# Following haiku-nvidia pattern: empty gallium-drivers + RMAPI GPU layer
+# NOTE: This script is now superseded by ../Build.sh which handles both
+#       AMDGPU_Abstracted and Mesa in a unified way.
+# Legacy note: Previous attempts tried to compile r600 driver which requires
+#              libdrm_amdgpu (not available on Haiku). Now we use empty
+#              gallium-drivers and rely on AMDGPU_Abstracted RMAPI layer.
 
 set -euo pipefail
 
