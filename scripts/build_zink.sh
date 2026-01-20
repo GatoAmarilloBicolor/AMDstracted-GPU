@@ -28,7 +28,7 @@ meson setup build \
     -Degl=enabled \
     -Dgles1=disabled \
     -Dgles2=enabled \
-    -Dshared-glapi=enabled \
+    -Dshared-glapi=disabled \
     -Dbuildtype=release
 
 echo "[3/4] Building Mesa (this takes ~10 minutes)..."
