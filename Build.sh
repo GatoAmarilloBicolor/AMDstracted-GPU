@@ -1,12 +1,26 @@
 #!/bin/bash
-# Build and install AMDGPU_Abstracted with Mesa integration for Haiku
+# Build and install AMDGPU_Abstracted with Mesa integration
+# Supports Haiku and Linux
 # Follows the same pattern as haiku-nvidia
 
 set -e
 
 baseDir="$PWD"
-buildBaseDir="$PWD/build.$(getarch)"
-installDir="$PWD/install.$(getarch)"
+
+# Detect OS
+OS_NAME=$(uname -s)
+if command -v getarch &> /dev/null; then
+    # Running on Haiku
+    ARCH="$(getarch)"
+    ON_HAIKU=true
+else
+    # Running on Linux or other Unix-like
+    ARCH="$(uname -m)"
+    ON_HAIKU=false
+fi
+
+buildBaseDir="$PWD/build.$ARCH"
+installDir="$PWD/install.$ARCH"
 
 function log_info() {
     echo "[INFO] $*"
@@ -79,29 +93,33 @@ if [ -d "$buildDir" ]; then
     rm -rf "$buildDir"
 fi
 
-log_info "Configuring Mesa (empty gallium-drivers, using AMDGPU_Abstracted)..."
+if [ "$ON_HAIKU" = true ]; then
+    log_info "Configuring Mesa for Haiku OS..."
+    
+    meson setup "$buildDir" \
+        -Dprefix="$installDir" \
+        -Dbuildtype=release \
+        -Doptimization=3 \
+        -Dgallium-drivers= \
+        -Dplatforms=haiku \
+        -Dopengl=true \
+        -Dglx=disabled \
+        -Degl=disabled \
+        -Dgles2=enabled \
+        -Dshader-cache=enabled \
+        -Dvulkan-drivers= \
+        mesa_source
 
-meson setup "$buildDir" \
-    -Dprefix="$installDir" \
-    -Dbuildtype=release \
-    -Doptimization=3 \
-    -Dgallium-drivers= \
-    -Dplatforms=haiku \
-    -Dopengl=true \
-    -Dglx=disabled \
-    -Degl=disabled \
-    -Dgles1=disabled \
-    -Dgles2=enabled \
-    -Dshared-glapi=enabled \
-    -Damdgpu=disabled \
-    -Dllvm=disabled \
-    -Dshader-cache=enabled \
-    mesa_source
-
-ninja -C "$buildDir"
-ninja -C "$buildDir" install
-
-log_ok "Mesa built successfully"
+    ninja -C "$buildDir"
+    ninja -C "$buildDir" install
+    
+    log_ok "Mesa built successfully for Haiku"
+else
+    log_info "Skipping Mesa build on Linux"
+    log_info "Mesa for GPU acceleration requires Haiku system libraries"
+    log_info "The AMDGPU_Abstracted core components are still available"
+    log_info "To use GPU acceleration, run this build on Haiku OS"
+fi
 
 # Summary
 echo ""
