@@ -1,170 +1,239 @@
-# AMDGPU_Abstracted - GPU Driver v0.9
+# AMD GPU Driver - Haiku & Linux
 
-**A cross-platform, userland GPU driver for AMD Radeon cards with modular architecture, supporting Linux and Haiku.**
+Complete GPU acceleration driver for AMD graphics hardware on Haiku OS.
 
-## 📁 Project Structure
+## Quick Start
 
-```
-AMDGPU_Abstracted/
-├── core/                    # Core components (HAL, RMAPI, IPC, GPU)
-├── os/                      # OS abstractions (linux/haiku/interface)
-├── drivers/                 # Driver implementations (AMDGPU, plugins)
-├── tests/                   # Testing framework and mocks
-├── docs/                    # Documentation and guides
-├── scripts/                 # Build and install scripts
-├── docker/                  # Container configurations
-├── meson.build              # Meson build system
-├── meson_options.txt        # Build options
-├── conanfile.py             # Conan package management
-└── README.md                # This file
-```
+### Haiku OS
 
-## 🚀 Quick Start
-
-### Build with Meson
 ```bash
-meson setup builddir
-meson compile -C builddir
+# Full build and installation
+./setup.sh full
+
+# Then install system-wide
+sudo ./setup.sh install
+
+# Restart graphics
+pkill -9 app_server
 ```
 
-### Test
+### Linux
+
 ```bash
-meson test -C builddir       # Run all tests
+# Build core and accelerant only
+./setup.sh full
+
+# Libraries installed to: ./install.x86_64/
 ```
 
-### Run
+## Setup Commands
+
+Single unified script with subcommands:
+
 ```bash
-./builddir/rmapi_server &   # Start GPU server
-./builddir/rmapi_client_demo # Run test client
+./setup.sh [command] [options]
 ```
 
-### Install
-```bash
-# Linux
-./scripts/install_linux.sh
+### Commands
 
+| Command | Purpose | Platform |
+|---------|---------|----------|
+| `full` | Complete build sequence | Both |
+| `prepare-mesa` | Download Mesa 21.1.9 | Haiku |
+| `build-core` | AMDGPU_Abstracted core | Both |
+| `build-accelerant` | AMD Accelerant for Haiku | Haiku |
+| `build-mesa [driver]` | Build Mesa with GPU driver | Haiku |
+| `install` | Install to system directories | Haiku |
+| `help` | Show usage | Both |
+
+### Mesa Drivers
+
+For `build-mesa` command:
+
+| Driver | GPU Type | Command |
+|--------|----------|---------|
+| `r600` (default) | Radeon HD 2000-5000 | `./setup.sh build-mesa r600` |
+| `radeonsi` | Radeon RX (GCN+) | `./setup.sh build-mesa radeonsi` |
+| `r300` | Ancient Radeon | `./setup.sh build-mesa r300` |
+
+## Complete Workflow
+
+### On Haiku OS
+
+```bash
+# 1. Build everything
+./setup.sh full
+
+# 2. Install system-wide
+sudo ./setup.sh install
+
+# 3. Restart graphics
+pkill -9 app_server
+
+# 4. Test
+open /boot/system/apps/WebPositive
+```
+
+### On Linux
+
+```bash
+# 1. Build (accelerant not usable on Linux, core only)
+./setup.sh build-core
+
+# 2. Libraries available at: ./install.x86_64/lib/
+```
+
+## Prerequisites
+
+### Haiku OS
+
+```bash
+pkgman install meson ninja gcc git
+pkgman install python3
+```
+
+Optional:
+```bash
+pkgman install libdrm_devel
+```
+
+### Linux
+
+Standard build tools:
+- GCC/Clang
+- Meson + Ninja
+- Git
+- Python3
+
+## Directory Structure
+
+After build:
+
+```
+./
+├── setup.sh                 ← Main script
+├── Build.sh                 ← Alternative (core only)
+├── install_haiku.sh         ← Alternative (manual install)
+├── prepare_mesa_haiku.sh    ← Alternative (manual Mesa prep)
+├── HAIKU_BUILD_GUIDE.md     ← Detailed guide
+├── builddir_AMDGPU_Abstracted/
+├── builddir_mesa/
+└── install.x86_64/
+    ├── add-ons/accelerants/amd_gfx.accelerant
+    ├── lib/
+    │   ├── libGL.so*
+    │   └── ...
+    └── develop/
+```
+
+## Features
+
+✓ Platform-agnostic accelerant code  
+✓ Compiles on Haiku and Linux  
+✓ OpenGL acceleration via Mesa  
+✓ Multiple GPU driver support (r600, radeonsi, r300)  
+✓ System-wide installation (Haiku)  
+✓ Single unified build script  
+
+## Troubleshooting
+
+### "Command not found"
+```bash
+# Make script executable
+chmod +x setup.sh
+
+# Run from project directory
+cd ~/src/AMDstracted-GPU
+./setup.sh full
+```
+
+### "Meson not found"
+Install meson:
+```bash
 # Haiku
-./scripts/install_haiku.sh
+pkgman install meson
+
+# Linux
+sudo apt install meson  # or your package manager
 ```
 
-## 📚 Documentation
-
-- **docs/QUICK_START.md** - Getting started guide
-- **docs/ARCHITECTURE_STEP_BY_STEP.md** - Architecture overview
-- **docs/REDESIGN_ARCHITECTURE_PROPOSAL.md** - Design decisions
-- **docs/CHANGELOG.md** - Version history
-- **docs/USAGE_GUIDE.md** - API usage examples
-
-## 🏗️ Source Code Organization
-
-### core/
-Core components:
-
-- **gpu/** - GPU object management and interfaces
-- **hal/** - Hardware abstraction layer with IP block registry
-- **rmapi/** - Resource manager API and server
-- **ipc/** - Inter-process communication
-- **resource/** - Resource tracking (RESSERV)
-
-### os/
-OS abstractions:
-
-- **interface/** - Common OS interfaces and primitives
-- **linux/** - Linux implementations
-- **haiku/** - Haiku implementations
-
-### drivers/
-Driver implementations:
-
-- **interface/** - Driver and MMIO interfaces
-- **amdgpu/** - AMD GPU drivers (HAL, IP blocks, backends)
-
-### tests/
-Testing framework:
-
-- **framework/** - Test framework and mocks
-- **mocks/** - OS and hardware mocks
-
-### drm/
-DRM compatibility layer for bridging apps to the driver.
-
-### tests/
-Comprehensive test suite:
-
-- **unit/** - Component unit tests
-- **integration/** - End-to-end integration tests
-- **test_components.c** - Consolidated test suite (70 tests)
-
-### examples/
-Sample applications demonstrating driver usage:
-
-- **opengl_app/** - OpenGL 4.6 example
-- **vulkan_app/** - Vulkan example (TODO)
-
-## 📊 Key Metrics
-
-| Metric | Value |
-|--------|-------|
-| Version | 0.9.0 |
-| Lines of Code | ~15,000 |
-| Tests | 11/11 PASSING ✓ |
-| OS Support | Linux/Haiku |
-| Build System | Meson + Conan |
-| Architecture | Modular with plugins |
-
-## ✨ Features Implemented
-
-✅ **Modular Architecture**: Core, OS, Drivers separation  
-✅ **IP Block Registry**: Dynamic registration of GMC/GFX/DCE/DCN  
-✅ **OS Abstraction Layer**: Pluggable Linux/Haiku interfaces  
-✅ **MMIO Access Layer**: Safe memory-mapped register access  
-✅ **Driver Plugins**: Extensible AMD driver framework  
-✅ **Testing Framework**: Mocks, asserts, performance timing  
-✅ **Build System**: Meson with Docker and Conan support  
-✅ **IPC & RMAPI**: Client-server GPU resource management  
-
-## 🔄 Architecture
-
-```
-Applications (OpenGL/Vulkan)
-      ↓
-RMAPI Client (IPC)
-      ↓ (UNIX socket)
-RMAPI Server (Resource Management)
-      ↓
-HAL (Hardware Abstraction Layer)
-      ↓
-IP Blocks Registry (GMC/GFX/DCE/DCN)
-      ↓
-MMIO Access Layer
-      ↓
-OS Abstraction (Linux/Haiku)
-      ↓
-GPU Hardware
+### "Permission denied (install)"
+Use sudo:
+```bash
+sudo ./setup.sh install
 ```
 
-## 🎯 Current Status
+### Build hangs
+Mesa can take 30+ minutes. Check progress:
+```bash
+# In another terminal
+top
+ps aux | grep ninja
+```
 
-**Version 0.8**: Modular architecture with IP block registry, OS abstraction, testing framework, and Meson build system. Ready for hardware integration and display support.
+To retry:
+```bash
+pkill ninja
+./setup.sh build-mesa
+```
 
-**Supported IP Blocks**: GMC v10.0, GFX v10.0, DCE v10.0, DCN v1.0  
-**OS Support**: Linux (complete), Haiku (interfaces ready)  
-**Build System**: Meson with Docker containers and Conan
+## What Gets Built
 
-## 🔗 Repository
+### Core (`build-core`)
+- AMDGPU_Abstracted library
+- GPU command abstraction
+- Hardware interface
 
-**GitHub**: https://github.com/GatoAmarilloBicolor/AMDstracted-GPU  
-**Branch**: main  
-**Version**: 0.8.0  
+### Accelerant (`build-accelerant`, Haiku only)
+- Haiku graphics system bridge
+- Hardware-independent driver module
 
-## 📝 License
+### Mesa (`build-mesa`, Haiku only)
+- OpenGL implementation
+- GPU-family-specific driver (r600/radeonsi/r300)
+- Graphics rendering pipeline
 
-MIT License
+## Testing
 
-## 👥 Authors
+After installation on Haiku:
 
-Haiku Imposible Team (HIT)
+```bash
+# Restart graphics first
+pkill -9 app_server
 
----
+# Open graphics app
+open /boot/system/apps/WebPositive
 
-**Status**: v0.9 - Complete hardware acceleration support, DRM integration, ring management, shader compilation, display engines. Production-ready driver.
+# Check if rendering is smooth
+# Check if scrolling is fluid
+# Verify no visual artifacts
+```
+
+## Performance
+
+First build: 30-60 minutes (Mesa compilation)  
+Subsequent builds: 5-10 minutes  
+Installation: < 1 minute  
+
+## Documentation
+
+- **HAIKU_BUILD_GUIDE.md** - Detailed step-by-step guide
+- **accelerant/ARCHITECTURE.md** - Accelerant design
+- **accelerant/include/accelerant_api.h** - API reference
+
+## Support
+
+For issues:
+1. Check build logs
+2. Review HAIKU_BUILD_GUIDE.md
+3. Verify prerequisites installed
+
+## License
+
+See LICENSE file
+
+## Acknowledgments
+
+- Haiku OS project
+- Mesa 3D project
+- AMD documentation
