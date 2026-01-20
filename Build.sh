@@ -93,6 +93,9 @@ meson setup "$buildDir" \
     -Dgles1=disabled \
     -Dgles2=enabled \
     -Dshared-glapi=enabled \
+    -Damdgpu=disabled \
+    -Dllvm=disabled \
+    -Dshader-cache=enabled \
     mesa_source
 
 ninja -C "$buildDir"

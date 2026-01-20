@@ -143,6 +143,7 @@ log_info "Note: Using empty gallium-drivers to avoid libdrm_amdgpu dependency"
 # Build meson command with optional vulkan
 # Note: Haiku doesn't have X11, so we disable GLX
 # We use empty gallium-drivers (like nvidia-haiku) and rely on AMDGPU_Abstracted for GPU access
+# IMPORTANT: Must explicitly disable amdgpu to avoid libdrm_amdgpu dependency
 MESON_CMD="meson setup \"$MESA_BUILD\" \
     -Dprefix=\"$INSTALL_PREFIX\" \
     -Dbuildtype=release \
@@ -154,7 +155,10 @@ MESON_CMD="meson setup \"$MESA_BUILD\" \
     -Degl=disabled \
     -Dgles1=disabled \
     -Dgles2=enabled \
-    -Dshared-glapi=enabled"
+    -Dshared-glapi=enabled \
+    -Damdgpu=disabled \
+    -Dllvm=disabled \
+    -Dshader-cache=enabled"
 
 # Add vulkan only if available
 if [ -n "$VULKAN_DRIVERS" ]; then
