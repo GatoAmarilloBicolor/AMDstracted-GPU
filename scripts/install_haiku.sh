@@ -49,6 +49,20 @@ rm -rf "$PROJECT_ROOT/builddir_AMDGPU_Abstracted" 2>/dev/null || true
 log_ok "Repository updated and cleaned"
 
 # ============================================================================
+# Verify Build.sh is correct (has correct meson syntax)
+# ============================================================================
+
+log_info "Verifying Build.sh has correct meson syntax..."
+
+if ! grep -q "mesa_source$" "$PROJECT_ROOT/Build.sh"; then
+    log_error "Build.sh has incorrect meson syntax"
+    log_info "Restoring from GitHub..."
+    cd "$REPO_ROOT"
+    git checkout origin/main -- AMDGPU_Abstracted/Build.sh
+    log_ok "Build.sh restored to correct version"
+fi
+
+# ============================================================================
 # Step 1: Verify Prerequisites
 # ============================================================================
 
