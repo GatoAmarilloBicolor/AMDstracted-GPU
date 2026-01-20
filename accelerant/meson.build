@@ -26,15 +26,23 @@ if is_haiku
 	)
 	
 	# AMDGPU library - built in parent directory
-	# First check if libamdgpu.a exists in build directory
-	libamdgpu_path = run_command('find', '..', '-name', 'libamdgpu.a', '-o', '-name', 'libamdgpu.so', check: false).stdout().strip().split('\n')[0]
+	# Search for libamdgpu in standard build directories
+	libamdgpu = cc.find_library('amdgpu', 
+		dirs: [
+			'../build.x86_64',
+			'../builddir_AMDGPU_Abstracted',
+			'../install.x86_64/lib',
+			'/boot/home/src/AMDstracted-GPU/build.x86_64',
+			'/boot/home/src/AMDstracted-GPU/builddir_AMDGPU_Abstracted',
+		],
+		required: false
+	)
 	
-	if libamdgpu_path == ''
-		error('libamdgpu not found. Please build AMDGPU_Abstracted core first.')
+	if libamdgpu.found()
+		message('Found libamdgpu: ' + libamdgpu.get_variable(pkgconfig: 'libdir'))
+	else
+		error('libamdgpu not found. Please build AMDGPU_Abstracted core first with: cd .. && ./Build.sh')
 	endif
-	
-	# Create library dependency from found file
-	libamdgpu = cc.find_library('amdgpu', dirs: [fs.parent(libamdgpu_path)], required: true)
 	
 	accelerant_sources = files(
 		'src/Accelerant.c',
