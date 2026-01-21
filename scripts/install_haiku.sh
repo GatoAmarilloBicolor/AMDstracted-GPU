@@ -70,7 +70,7 @@ log_ok "AMDGPU_Abstracted built successfully"
 
 if [ "$ON_HAIKU" = true ]; then
     log_info "Building Haiku Accelerant..."
-    cd "$PROJECT_ROOT/AMDGPU_Abstracted/accelerant"
+    cd "$PROJECT_ROOT/accelerant"
     accelBuildDir="$PROJECT_ROOT/builddir_accelerant"
     [ -d "$accelBuildDir" ] && rm -rf "$accelBuildDir"
     meson setup "$accelBuildDir" -Dprefix="$INSTALL_DIR"
@@ -81,7 +81,7 @@ fi
 
 if [ "$ON_HAIKU" = true ]; then
     log_info "Building libdrm for Haiku..."
-    cd "$PROJECT_ROOT/AMDGPU_Abstracted/libdrm"
+    cd "$PROJECT_ROOT/libdrm"
     buildDir="$PROJECT_ROOT/builddir_libdrm"
     [ -d "$buildDir" ] && rm -rf "$buildDir"
     meson setup "$buildDir" . -Dprefix="$INSTALL_DIR" -Ddefault_library=shared
@@ -90,7 +90,7 @@ if [ "$ON_HAIKU" = true ]; then
     log_ok "libdrm built successfully"
 
     log_info "Building Mesa for Haiku with GPU acceleration..."
-    cd "$PROJECT_ROOT/AMDGPU_Abstracted"
+    cd "$PROJECT_ROOT"
     [ ! -d "mesa_source/.git" ] && git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa_source
     [ -d "builddir_mesa" ] && rm -rf "builddir_mesa"
     log_info "Configuring Mesa for Haiku OS with HW acceleration..."
