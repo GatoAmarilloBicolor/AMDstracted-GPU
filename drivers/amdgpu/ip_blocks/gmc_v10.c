@@ -13,9 +13,15 @@
 #define mmVM_INVALIDATE_REQUEST 0x110
 
 /*
- * GMC v10.0 (Graphics Memory Controller)
- * Handles virtual memory, page tables, and memory protection
+ * GMC v10 - Graphics Memory Controller for AMD GPUs
+ *
+ * Handles memory management, address translation, and VM setup
+ * for RDNA1/RDNA2 GPUs in userland AMDGPU_Abstracted
+ *
+ * Copyright (c) 2024-2026 AMDGPU_Abstracted Project
  */
+
+#pragma GCC diagnostic ignored "-Wunused-function"
 
 /*
  * Early Init: Basic setup before other blocks
@@ -130,7 +136,7 @@ static int gmc_v10_late_init(struct OBJGPU *adev) {
 /*
  * Hardware Fini: Clean up hardware state
  */
-__attribute__((unused)) static int gmc_v10_hw_fini(struct OBJGPU *adev) {
+static int gmc_v10_hw_fini(struct OBJGPU *adev) {
     os_prim_log("GMC v10: [HW Fini] Shutting down memory controller\n");
 
     // Disable VM
@@ -143,7 +149,7 @@ __attribute__((unused)) static int gmc_v10_hw_fini(struct OBJGPU *adev) {
 /*
  * Software Fini: Clean up software state
  */
-__attribute__((unused)) static int gmc_v10_sw_fini(struct OBJGPU *adev) {
+static int gmc_v10_sw_fini(struct OBJGPU *adev) {
     (void)adev;
     return 0;
 }
@@ -151,7 +157,7 @@ __attribute__((unused)) static int gmc_v10_sw_fini(struct OBJGPU *adev) {
 /*
  * Check if GMC is idle
  */
-__attribute__((unused)) static bool gmc_v10_is_idle(struct OBJGPU *adev) {
+static bool gmc_v10_is_idle(struct OBJGPU *adev) {
     (void)adev; // Suppress unused parameter
     // Check GMC status registers
     return true; // Assume idle for now
@@ -160,17 +166,17 @@ __attribute__((unused)) static bool gmc_v10_is_idle(struct OBJGPU *adev) {
 /*
  * Wait for GMC to become idle
  */
-__attribute__((unused)) static int gmc_v10_wait_for_idle(struct OBJGPU *adev) {
+static int gmc_v10_wait_for_idle(struct OBJGPU *adev) {
     (void)adev;
     return 0;
 }
 
-__attribute__((unused)) static int gmc_v10_suspend(struct OBJGPU *adev) {
+static int gmc_v10_suspend(struct OBJGPU *adev) {
     (void)adev;
     return 0;
 }
 
-__attribute__((unused)) static int gmc_v10_resume(struct OBJGPU *adev) {
+static int gmc_v10_resume(struct OBJGPU *adev) {
     (void)adev;
     return 0;
 }
