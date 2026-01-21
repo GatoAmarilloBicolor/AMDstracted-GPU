@@ -49,6 +49,22 @@ int r600_core_hw_init(struct OBJGPU *adev __attribute__((unused))) {
 
     // Power on graphics engine and set basic registers
     // Adapted from FreeBSD radeon_reg.h register programming
+    
+    if (adev && adev->mmio_base) {
+        volatile uint32_t *gfx_base = (volatile uint32_t *)adev->mmio_base;
+        
+        // Enable GFX power domain (simulation-safe)
+        uint32_t cmd_status = gfx_base[0x0] & ~0x2;  // Clear power-down bit
+        gfx_base[0x0] = cmd_status | 0x1;             // Set enable bit
+        
+        printf("[GFX R600] Enabled GFX power domain\n");
+        
+        // Initialize command processor
+        gfx_base[0x100] = 0x0;  // Clear CP control
+        gfx_base[0x104] = 0x1;  // Enable CP
+        
+        printf("[GFX R600] Initialized command processor\n");
+    }
 
     printf("[GFX R600] Hardware init complete\n");
     return 0;

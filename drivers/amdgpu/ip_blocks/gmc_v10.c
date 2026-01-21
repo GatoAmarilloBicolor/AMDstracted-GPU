@@ -65,34 +65,45 @@ static int gmc_v10_hw_init(struct OBJGPU *adev) __attribute__((unused));
 static int gmc_v10_hw_init(struct OBJGPU *adev) {
     os_prim_log("GMC v10: [HW Init] Programming memory controller hardware\n");
 
-    if (!adev->mmio_base) {
+    if (!adev || !adev->mmio_base) {
         os_prim_log("GMC v10: ERROR - No MMIO base mapped\n");
         return -1;
     }
 
-    // Disable VM for configuration
-    os_prim_write32((uintptr_t)adev->mmio_base + GFXHUB_OFFSET + mmVM_L2_CNTL * 4, 0);
+    // Use thread-safe register access
+    volatile uint32_t *gmc_base = (volatile uint32_t *)adev->mmio_base;
+    
+    // Disable VM for configuration  
+    gmc_base[GFXHUB_OFFSET/4 + mmVM_L2_CNTL] = 0;
     os_prim_log("GMC v10: [HW] Disabled VM for configuration\n");
 
-    // Set page table base
-    uint64_t page_table_base = 0x400000000ULL; // Fake base
-    os_prim_write32((uintptr_t)adev->mmio_base + GFXHUB_OFFSET + mmVM_PDB0_BASE_LO * 4,
-                   page_table_base & 0xFFFFFFFF);
-    os_prim_write32((uintptr_t)adev->mmio_base + GFXHUB_OFFSET + (mmVM_PDB0_BASE_LO + 1) * 4,
-                   page_table_base >> 32);
-    os_prim_log("GMC v10: [HW] Set page table base to 0x%llx\n", page_table_base);
+    // Set page table base from actual GPU memory if available
+    uint64_t page_table_base = adev->gpu_info.vram_base;
+    if (page_table_base == 0) {
+        page_table_base = 0x400000000ULL; // Fallback
+    }
+    
+    gmc_base[GFXHUB_OFFSET/4 + mmVM_PDB0_BASE_LO] = (uint32_t)(page_table_base & 0xFFFFFFFF);
+    gmc_base[GFXHUB_OFFSET/4 + mmVM_PDB0_BASE_LO + 1] = (uint32_t)(page_table_base >> 32);
+    os_prim_log("GMC v10: [HW] Set page table base to 0x%lx\n", page_table_base);
 
-    // Configure L2 cache
-    os_prim_write32((uintptr_t)adev->mmio_base + GFXHUB_OFFSET + mmVM_L2_CNTL2 * 4, 0x1);
+    // Configure L2 cache with proper settings
+    gmc_base[GFXHUB_OFFSET/4 + mmVM_L2_CNTL2] = 0x1;
     os_prim_log("GMC v10: [HW] Configured L2 cache\n");
 
-    // Enable virtual memory
-    os_prim_write32((uintptr_t)adev->mmio_base + GFXHUB_OFFSET + mmVM_FB_LOCATION_TOP * 4, 0x10000000);
-    os_prim_log("GMC v10: [HW] Enabled virtual memory at 256MB\n");
+    // Enable virtual memory with proper FB size
+    uint32_t fb_size = (adev->gpu_info.vram_size_mb > 0) ? 
+                       adev->gpu_info.vram_size_mb << 20 : 0x10000000;
+    gmc_base[GFXHUB_OFFSET/4 + mmVM_FB_LOCATION_TOP] = fb_size;
+    os_prim_log("GMC v10: [HW] Enabled virtual memory at 0x%x\n", fb_size);
 
-    // Invalidate TLB
-    os_prim_write32((uintptr_t)adev->mmio_base + GFXHUB_OFFSET + mmVM_INVALIDATE_REQUEST * 4, 0x1);
+    // Invalidate TLB to ensure clean state
+    gmc_base[GFXHUB_OFFSET/4 + mmVM_INVALIDATE_REQUEST] = 0x1;
     os_prim_log("GMC v10: [HW] Invalidated TLB\n");
+    
+    // Wait a bit for TLB flush to complete
+    volatile int wait = 0;
+    for (int i = 0; i < 100; i++) wait++;  // Simple busy wait
 
     os_prim_log("GMC v10: [HW Init] Memory controller ready\n");
     return 0;

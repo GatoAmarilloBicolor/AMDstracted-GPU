@@ -335,6 +335,27 @@ static int drm_is_real_available(void) {
 int amdgpu_device_init_hal(struct OBJGPU *adev) {
     os_prim_log("HAL: Initializing AMD GPU device...\n");
 
+    if (!adev) return -1;
+    
+    // Initialize synchronization primitives
+    if (pthread_mutex_init(&adev->lock, NULL) != 0) {
+        os_prim_log("HAL: ERROR - Failed to initialize GPU lock\n");
+        return -1;
+    }
+    
+    if (pthread_rwlock_init(&adev->mmio_lock, NULL) != 0) {
+        os_prim_log("HAL: ERROR - Failed to initialize MMIO lock\n");
+        pthread_mutex_destroy(&adev->lock);
+        return -1;
+    }
+    
+    // Initialize state
+    adev->state = AMD_GPU_STATE_RUNNING;
+    adev->hang_detected = 0;
+    adev->heartbeat_running = 0;
+    memset(&adev->ras, 0, sizeof(adev->ras));
+    memset(&adev->shadow, 0, sizeof(adev->shadow));
+
     // Try hardware access in order of preference: DRM → Direct MMIO → Simulation
     os_prim_log("HAL: 🔍 Attempting GPU hardware access...\n");
 
@@ -400,6 +421,14 @@ int amdgpu_device_init_hal(struct OBJGPU *adev) {
 
 // AMD GPU device finalization
 void amdgpu_device_fini_hal(struct OBJGPU *adev) {
+    if (!adev) return;
+    
+    // Stop heartbeat thread
+    adev->heartbeat_running = 0;
+    if (adev->heartbeat_thread) {
+        pthread_join(adev->heartbeat_thread, NULL);
+    }
+    
     // Close hardware access in reverse order
     mmio_direct_close();
     drm_close_device();
@@ -414,6 +443,10 @@ void amdgpu_device_fini_hal(struct OBJGPU *adev) {
         adev->mmio_base = 0;
         adev->mmio_size = 0;
     }
+    
+    // Destroy synchronization primitives
+    pthread_mutex_destroy(&adev->lock);
+    pthread_rwlock_destroy(&adev->mmio_lock);
 
     os_prim_log("HAL: AMD GPU device finalized (mode: %d)\n", drm_real_mode);
 }
@@ -518,9 +551,10 @@ int amdgpu_buffer_alloc_hal(struct OBJGPU *adev, size_t size, struct amdgpu_buff
 
 // Buffer free with DRM support
 void amdgpu_buffer_free_hal(struct OBJGPU *adev, struct amdgpu_buffer *buf) {
-    (void)adev;
     if (!buf) return;
 
+    amdgpu_lock_gpu(adev);
+    
     if (drm_real_mode && drm_fd >= 0 && buf->handle > 0) {
         // REAL DRM: Clean up GEM buffer
         os_prim_log("HAL: 📡 Freeing real GEM buffer (handle: %u)\n", buf->handle);
@@ -532,7 +566,10 @@ void amdgpu_buffer_free_hal(struct OBJGPU *adev, struct amdgpu_buffer *buf) {
 
         // Close GEM handle
         struct hal_drm_gem_close close_args = {.handle = buf->handle};
-        ioctl(drm_fd, DRM_IOCTL_GEM_CLOSE, &close_args);
+        if (ioctl(drm_fd, DRM_IOCTL_GEM_CLOSE, &close_args) != 0) {
+            os_prim_log("HAL: ⚠️  GEM close failed\n");
+            amdgpu_ras_record_error(adev, 0); // Record error
+        }
 
         os_prim_log("HAL: ✅ Real GEM buffer freed\n");
     } else if (buf->cpu_addr) {
@@ -540,6 +577,8 @@ void amdgpu_buffer_free_hal(struct OBJGPU *adev, struct amdgpu_buffer *buf) {
         os_prim_log("HAL: 🎭 Freeing simulation buffer\n");
         os_prim_free(buf->cpu_addr);
     }
+
+    amdgpu_unlock_gpu(adev);
 
     // Clear buffer structure
     memset(buf, 0, sizeof(*buf));
@@ -565,16 +604,183 @@ int amdgpu_hal_reset(struct OBJGPU *adev) {
     return 0;
 }
 
-// Heartbeat
+// Heartbeat with error detection
 void *amdgpu_hal_heartbeat(void *arg) {
-    struct OBJGPU *adev = arg;
-    (void)adev;
+    struct OBJGPU *adev = (struct OBJGPU *)arg;
+    if (!adev) return NULL;
+    
     os_prim_log("HAL: Heartbeat thread started\n");
+    adev->heartbeat_running = 1;
 
-    while (1) {
-        // Check GPU health
-        os_prim_delay_us(1000000); // 1 second
+    while (adev->heartbeat_running) {
+        // Check GPU health every 100ms
+        os_prim_delay_us(100000);
+        
+        if (!adev || adev->state == AMD_GPU_STATE_RESETTING) {
+            continue;
+        }
+        
+        // Check if GPU is idle (simple health check)
+        if (adev->handler && adev->handler->is_hardware_idle) {
+            if (!adev->handler->is_hardware_idle(adev->handler)) {
+                // GPU is working, continue
+                continue;
+            }
+        }
+        
+        // Check for errors periodically
+        if (adev->ras.ue_count > 0 || adev->ras.poison_count > 0) {
+            os_prim_log("HAL: ⚠️  Error detected! UE=%lu, Poison=%lu\n", 
+                       adev->ras.ue_count, adev->ras.poison_count);
+            adev->hang_detected = 1;
+            adev->state = AMD_GPU_STATE_RESETTING;
+            amdgpu_gpu_recover(adev);
+        }
     }
 
+    os_prim_log("HAL: Heartbeat thread stopped\n");
     return NULL;
+}
+
+// Error tracking implementation
+void amdgpu_ras_record_error(struct OBJGPU *adev, int error_type) {
+    if (!adev) return;
+    
+    amdgpu_lock_gpu(adev);
+    
+    // error_type: 0=UE, 1=CE, 2=Poison
+    if (error_type == 0) {
+        adev->ras.ue_count++;
+        os_prim_log("HAL: 🔴 Uncorrectable Error recorded (total: %lu)\n", adev->ras.ue_count);
+    } else if (error_type == 1) {
+        adev->ras.ce_count++;
+        os_prim_log("HAL: 🟡 Correctable Error recorded (total: %lu)\n", adev->ras.ce_count);
+    } else if (error_type == 2) {
+        adev->ras.poison_count++;
+        os_prim_log("HAL: 🟠 Poison Error recorded (total: %lu)\n", adev->ras.poison_count);
+    }
+    
+    amdgpu_unlock_gpu(adev);
+}
+
+int amdgpu_ras_get_error_count(struct OBJGPU *adev, int error_type) {
+    if (!adev) return 0;
+    
+    amdgpu_lock_gpu(adev);
+    int count = 0;
+    
+    if (error_type == 0) {
+        count = (int)adev->ras.ue_count;
+    } else if (error_type == 1) {
+        count = (int)adev->ras.ce_count;
+    } else if (error_type == 2) {
+        count = (int)adev->ras.poison_count;
+    }
+    
+    amdgpu_unlock_gpu(adev);
+    return count;
+}
+
+void amdgpu_ras_reset_counters(struct OBJGPU *adev) {
+    if (!adev) return;
+    
+    amdgpu_lock_gpu(adev);
+    memset(&adev->ras, 0, sizeof(adev->ras));
+    amdgpu_unlock_gpu(adev);
+    
+    os_prim_log("HAL: RAS counters reset\n");
+}
+
+// Thread-safe register access
+int amdgpu_lock_gpu(struct OBJGPU *adev) {
+    if (!adev) return -1;
+    return pthread_mutex_lock(&adev->lock);
+}
+
+int amdgpu_unlock_gpu(struct OBJGPU *adev) {
+    if (!adev) return -1;
+    return pthread_mutex_unlock(&adev->lock);
+}
+
+int amdgpu_read_reg_locked(struct OBJGPU *adev, uint32_t offset) {
+    if (!adev || !adev->mmio_base) return 0;
+    
+    pthread_rwlock_rdlock(&adev->mmio_lock);
+    uint32_t value = *(volatile uint32_t *)((uintptr_t)adev->mmio_base + offset);
+    pthread_rwlock_unlock(&adev->mmio_lock);
+    
+    return value;
+}
+
+void amdgpu_write_reg_locked(struct OBJGPU *adev, uint32_t offset, uint32_t value) {
+    if (!adev || !adev->mmio_base) return;
+    
+    pthread_rwlock_wrlock(&adev->mmio_lock);
+    *(volatile uint32_t *)((uintptr_t)adev->mmio_base + offset) = value;
+    adev->shadow.regs[offset / 4] = value;
+    adev->shadow.valid[offset / 4] = true;
+    pthread_rwlock_unlock(&adev->mmio_lock);
+}
+
+// GPU Recovery Implementation
+int amdgpu_gpu_recover(struct OBJGPU *adev) {
+    if (!adev) return -1;
+    
+    os_prim_log("HAL: 🚨 Initiating GPU recovery...\n");
+    adev->state = AMD_GPU_STATE_RESETTING;
+    
+    amdgpu_lock_gpu(adev);
+    
+    // Step 1: Save current state
+    os_prim_log("HAL: [Recovery] Saving GPU state...\n");
+    for (int i = 0; i < 256; i++) {
+        if (adev->shadow.valid[i]) {
+            // State already in shadow
+        }
+    }
+    
+    // Step 2: Stop command submission
+    os_prim_log("HAL: [Recovery] Stopping GPU...\n");
+    if (adev->handler && adev->handler->wait_for_idle) {
+        adev->handler->wait_for_idle(adev->handler);
+    }
+    
+    // Step 3: Reset hardware
+    os_prim_log("HAL: [Recovery] Resetting hardware...\n");
+    int ret = amdgpu_hal_reset(adev);
+    if (ret != 0) {
+        os_prim_log("HAL: ❌ Hardware reset failed\n");
+        amdgpu_unlock_gpu(adev);
+        return -1;
+    }
+    
+    // Step 4: Reinitialize IP blocks
+    os_prim_log("HAL: [Recovery] Reinitializing IP blocks...\n");
+    if (adev->handler && adev->handler->init_hardware) {
+        ret = adev->handler->init_hardware(adev->handler);
+        if (ret != 0) {
+            os_prim_log("HAL: ❌ IP block reinitialization failed\n");
+            amdgpu_unlock_gpu(adev);
+            return -1;
+        }
+    }
+    
+    // Step 5: Restore shadow state if available
+    os_prim_log("HAL: [Recovery] Restoring state...\n");
+    if (adev->mmio_base) {
+        for (int i = 0; i < 256; i++) {
+            if (adev->shadow.valid[i]) {
+                volatile uint32_t *reg = (volatile uint32_t *)((uintptr_t)adev->mmio_base + i * 4);
+                *reg = adev->shadow.regs[i];
+            }
+        }
+    }
+    
+    adev->hang_detected = 0;
+    adev->state = AMD_GPU_STATE_RUNNING;
+    
+    amdgpu_unlock_gpu(adev);
+    
+    os_prim_log("HAL: ✅ GPU recovery complete\n");
+    return 0;
 }

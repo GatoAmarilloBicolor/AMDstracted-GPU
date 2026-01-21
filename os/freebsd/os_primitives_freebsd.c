@@ -1,396 +1,368 @@
 /*
- * FreeBSD OS Primitives Layer - COMPLETE IMPLEMENTATION
+ * FreeBSD OS Primitives Implementation
  * 
- * Translates GPU driver calls to FreeBSD syscalls and kernel APIs.
- * Fully implements: PCI scanning, MMIO mapping, interrupts, display
- * 
+ * Provides OS-level hardware access for FreeBSD operating system
  * Developed by: Haiku Imposible Team (HIT)
  */
 
-#include "../os_primitives.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
 #include <unistd.h>
-#include <pthread.h>
-#include <signal.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <stdarg.h>
+#include <time.h>
 #include <sys/mman.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
 
-/* FreeBSD-specific headers - only on FreeBSD */
 #ifdef __FreeBSD__
+#include <sys/pciio.h>
+#include <sys/types.h>
 #include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
-#include <sys/bus.h>
 #endif
 
+#include "../os_primitives.h"
+
 /* ============================================================================
- * GLOBAL STATE
+ * Memory Management
  * ============================================================================ */
 
-static pthread_mutex_t g_mmio_lock = PTHREAD_MUTEX_INITIALIZER;
-
-/* ============================================================================
- * MEMORY ALLOCATION
- * ============================================================================ */
-
-void *os_prim_alloc(size_t size) { 
-    void *ptr = malloc(size);
-    if (!ptr) {
-        os_prim_log("ERROR: Failed to allocate %zu bytes\n", size);
-    }
-    return ptr;
+void *os_prim_alloc(size_t size) {
+    return malloc(size);
 }
 
-void os_prim_free(void *ptr) { 
-    if (ptr) free(ptr); 
+void *os_prim_calloc(size_t count, size_t size) {
+    return calloc(count, size);
 }
 
-/* ============================================================================
- * DELAYS (FreeBSD usleep/pause)
- * ============================================================================ */
+void *os_prim_realloc(void *ptr, size_t size) {
+    return realloc(ptr, size);
+}
 
-void os_prim_delay_us(uint32_t us) {
-    if (us == 0) return;
-    usleep(us);  // FreeBSD microsecond sleep
+void os_prim_free(void *ptr) {
+    if (ptr) free(ptr);
+}
+
+void os_prim_memcpy(void *dst, const void *src, size_t size) {
+    memcpy(dst, src, size);
+}
+
+void os_prim_memset(void *ptr, int value, size_t size) {
+    memset(ptr, value, size);
 }
 
 /* ============================================================================
- * MMIO REGISTER ACCESS
- * ============================================================================ */
-
-uint32_t os_prim_read32(uintptr_t addr) { 
-    if (!addr) return 0;
-    return *(volatile uint32_t *)addr; 
-}
-
-void os_prim_write32(uintptr_t addr, uint32_t val) {
-    if (!addr) return;
-    *(volatile uint32_t *)addr = val;
-    (void)*(volatile uint32_t *)addr;  // Memory barrier
-}
-
-/* ============================================================================
- * LOCKING (pthread_mutex)
- * ============================================================================ */
-
-void os_prim_lock(void) {
-    pthread_mutex_lock(&g_mmio_lock);
-}
-
-void os_prim_unlock(void) {
-    pthread_mutex_unlock(&g_mmio_lock);
-}
-
-/* ============================================================================
- * LOGGING
+ * Logging
  * ============================================================================ */
 
 void os_prim_log(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    
-    fprintf(stderr, "[AMD-GPU] ");
     vfprintf(stderr, fmt, args);
-    fflush(stderr);
-    
     va_end(args);
+    fflush(stderr);
 }
 
 /* ============================================================================
- * PCI DEVICE DISCOVERY - FreeBSD pciconf/libpci
+ * Timing
  * ============================================================================ */
 
-typedef struct {
-    uint16_t vendor_id;
-    uint16_t device_id;
-    uint8_t bus;
-    uint8_t device;
-    uint8_t function;
-} freebsd_pci_device_t;
-
-static freebsd_pci_device_t g_amd_devices[16];
-static int g_amd_device_count = 0;
-
-// Internal function to scan /sys/bus/pci via sysctl or pciconf
-static void os_prim_scan_pci_devices(void) {
-    if (g_amd_device_count > 0) return;  // Already scanned
-    
-    // Try pciconf -l approach
-    FILE *fp = popen("pciconf -l | grep -i amd", "r");
-    if (!fp) {
-        os_prim_log("PCI: pciconf not available, using simulation\n");
-        g_amd_devices[0].vendor_id = 0x1002;
-        g_amd_devices[0].device_id = 0x9806;  // Wrestler
-        g_amd_device_count = 1;
-        return;
-    }
-    
-    // Parse pciconf output
-    char line[256];
-    while (fgets(line, sizeof(line), fp) && g_amd_device_count < 16) {
-        unsigned int bus, dev, func;
-        unsigned int vendor, device;
-        
-        // Example: pci0:0:0:0: class=0x060000 card=0x00000000 chip=0x10020b3c rev=0x00 hdr=0x80
-        if (sscanf(line, "pci%*d:%u:%u:%u: class=%*x card=%*x chip=0x%x%x rev=%*x",
-                   &bus, &dev, &func, &vendor, &device) == 5) {
-            
-            if (vendor == 0x1002) {
-                g_amd_devices[g_amd_device_count].vendor_id = 0x1002;
-                g_amd_devices[g_amd_device_count].device_id = device;
-                g_amd_devices[g_amd_device_count].bus = bus;
-                g_amd_devices[g_amd_device_count].device = dev;
-                g_amd_devices[g_amd_device_count].function = func;
-                
-                os_prim_log("PCI: Found AMD GPU 0x%04x at %d:%d:%d\n",
-                           device, bus, dev, func);
-                
-                g_amd_device_count++;
-            }
-        }
-    }
-    
-    pclose(fp);
-    
-    if (g_amd_device_count == 0) {
-        // Fallback to simulation
-        g_amd_devices[0].vendor_id = 0x1002;
-        g_amd_devices[0].device_id = 0x9806;
-        g_amd_devices[0].bus = 0;
-        g_amd_devices[0].device = 1;
-        g_amd_devices[0].function = 0;
-        g_amd_device_count = 1;
-        os_prim_log("PCI: Using simulation (Wrestler APU)\n");
-    }
+void os_prim_delay_us(uint32_t microseconds) {
+    usleep(microseconds);
 }
 
-int os_prim_pci_find_device(uint16_t vendor, uint16_t device, void **handle) {
-    if (!handle) return -1;
-    
-    // Only support AMD
-    if (vendor != 0x1002) {
-        *handle = (void *)0x9806;
-        return 0;
-    }
-    
-    os_prim_scan_pci_devices();
-    
-    for (int i = 0; i < g_amd_device_count; i++) {
-        if (device == 0 || device == g_amd_devices[i].device_id) {
-            // Store device ID as handle
-            *handle = (void *)(uintptr_t)g_amd_devices[i].device_id;
-            return 0;
-        }
-    }
-    
-    *handle = (void *)0x9806;
-    return 0;
-}
-
-int os_prim_pci_read_config(void *handle, int offset, uint32_t *val) {
-    if (!val) return -1;
-    
-    uint16_t device_id = (uint16_t)(uintptr_t)handle;
-    
-    // Find device and read via pciconf
-    char cmd[256];
-    FILE *fp;
-    
-    snprintf(cmd, sizeof(cmd), "pciconf -r pci%d:%d:%d 0x%x",
-             0, 1, 0, offset);  // Simplified for simulation
-    
-    fp = popen(cmd, "r");
-    if (!fp) {
-        *val = (uint32_t)device_id;
-        return 0;
-    }
-    
-    unsigned int val_read;
-    fscanf(fp, "0x%x", &val_read);
-    pclose(fp);
-    
-    *val = val_read;
-    return 0;
-}
-
-int os_prim_pci_write_config(void *handle, int offset, uint32_t val) {
-    // In FreeBSD userspace, PCI config write requires elevated privileges
-    // Usually done via /dev/pci or kernel ioctl
-    return 0;  // Stub for now
-}
-
-int os_prim_pci_get_ids(void *handle, uint16_t *vendor, uint16_t *device) {
-    if (vendor) *vendor = 0x1002;
-    if (device) *device = (uint16_t)(uintptr_t)handle;
-    return 0;
+uint64_t os_prim_get_time_us(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
 }
 
 /* ============================================================================
- * PCI RESOURCE MAPPING - FreeBSD /dev/io and mmap
+ * PCI Bus Access (FreeBSD)
  * ============================================================================ */
 
-void *os_prim_pci_map_resource(void *handle, int bar) {
-    size_t size = 0x100000;  // 1MB default
-    
-    // Try /dev/io approach (requires root)
-    int fd = open("/dev/io", O_RDWR);
-    if (fd >= 0) {
-        // Would need to calculate BAR address from PCI config
-        // For now, use simulation
-        void *addr = malloc(size);
-        close(fd);
-        
-        if (addr) {
-            os_prim_log("PCI: Mapped BAR %d (simulated via /dev/io) at %p\n", bar, addr);
-        }
-        return addr;
-    }
-    
-    // Fallback: malloc simulation
-    void *addr = malloc(size);
-    if (addr) {
-        os_prim_log("PCI: Mapped BAR %d (simulated) at %p\n", bar, addr);
-    }
-    
-    return addr;
-}
+static int pci_fd = -1;
 
-void os_prim_pci_unmap_resource(void *addr) { 
-    if (addr) free(addr);
-}
-
-/* ============================================================================
- * DISPLAY (Framebuffer via /dev/fb or /dev/vga)
- * ============================================================================ */
-
-static int g_fb_fd = -1;
-static void *g_fb_mem = NULL;
-static size_t g_fb_size = 0;
-
-int os_prim_display_init(void) {
-    // Try VGA memory at 0xA0000
-    g_fb_fd = open("/dev/mem", O_RDWR | O_SYNC);
-    if (g_fb_fd >= 0) {
-        g_fb_size = 1920 * 1080 * 4;
-        g_fb_mem = mmap(NULL, g_fb_size, PROT_READ | PROT_WRITE,
-                       MAP_SHARED, g_fb_fd, 0xA0000ULL);
-        
-        if (g_fb_mem && g_fb_mem != MAP_FAILED) {
-            os_prim_log("DISPLAY: Mapped video memory via /dev/mem\n");
-            return 0;
-        }
-    }
+static int freebsd_pci_init(void) {
+    if (pci_fd >= 0) return 0;  // Already initialized
     
-    // Fallback: simulate in RAM
-    g_fb_size = 1920 * 1080 * 4;
-    g_fb_mem = malloc(g_fb_size);
-    
-    if (g_fb_mem) {
-        memset(g_fb_mem, 0, g_fb_size);
-        os_prim_log("DISPLAY: Framebuffer initialized (simulated, %zu bytes)\n", g_fb_size);
-        return 0;
-    }
-    
-    os_prim_log("DISPLAY: Failed to initialize\n");
-    return -1;
-}
-
-void os_prim_display_put_pixel(int x, int y, uint32_t color) {
-    if (!g_fb_mem || g_fb_size == 0) return;
-    
-    if (x < 0 || x >= 1920 || y < 0 || y >= 1080) return;
-    
-    int offset = (y * 1920 + x) * 4;
-    if (offset < (int)g_fb_size) {
-        uint32_t *pixel = (uint32_t *)g_fb_mem + offset / 4;
-        *pixel = color;
-    }
-}
-
-/* ============================================================================
- * INTERRUPTS - FreeBSD signal handling
- * ============================================================================ */
-
-typedef struct {
-    int irq;
-    os_prim_interrupt_handler handler;
-    void *data;
-} irq_handler_entry_t;
-
-#define MAX_IRQ_HANDLERS 16
-static irq_handler_entry_t g_irq_handlers[MAX_IRQ_HANDLERS];
-static int g_irq_count = 0;
-static pthread_mutex_t g_irq_lock = PTHREAD_MUTEX_INITIALIZER;
-
-static void os_prim_signal_handler(int sig, siginfo_t *info, void *context) {
-    pthread_mutex_lock(&g_irq_lock);
-    
-    for (int i = 0; i < g_irq_count; i++) {
-        if (g_irq_handlers[i].handler) {
-            g_irq_handlers[i].handler(g_irq_handlers[i].data);
-        }
-    }
-    
-    pthread_mutex_unlock(&g_irq_lock);
-}
-
-int os_prim_register_interrupt(int irq, os_prim_interrupt_handler handler,
-                               void *data) {
-    pthread_mutex_lock(&g_irq_lock);
-    
-    if (g_irq_count >= MAX_IRQ_HANDLERS) {
-        pthread_mutex_unlock(&g_irq_lock);
+#ifdef __FreeBSD__
+    pci_fd = open("/dev/pci", O_RDWR);
+    if (pci_fd < 0) {
+        fprintf(stderr, "[FreeBSD] Failed to open /dev/pci: %s\n", strerror(errno));
         return -1;
     }
     
-    g_irq_handlers[g_irq_count].irq = irq;
-    g_irq_handlers[g_irq_count].handler = handler;
-    g_irq_handlers[g_irq_count].data = data;
-    g_irq_count++;
+    fprintf(stderr, "[FreeBSD] PCI device opened\n");
+    return 0;
+#else
+    fprintf(stderr, "[FreeBSD] Not running on FreeBSD - PCI unavailable\n");
+    return -1;
+#endif
+}
+
+int os_prim_pci_find_device(uint16_t vendor_id, uint16_t device_id, void **out_handle) {
+    if (!out_handle) return -1;
     
-    // Register signal handler (using SIGUSR1)
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_sigaction = os_prim_signal_handler;
-    sa.sa_flags = SA_SIGINFO;
-    sigaction(SIGUSR1, &sa, NULL);
+    if (freebsd_pci_init() != 0) {
+        return -1;
+    }
     
-    os_prim_log("IRQ: Registered handler for IRQ %d\n", irq);
+#ifdef __FreeBSD__
+    struct pci_match_conf pmc[1];
+    struct pci_conf_io pc;
     
-    pthread_mutex_unlock(&g_irq_lock);
+    memset(&pmc, 0, sizeof(pmc));
+    memset(&pc, 0, sizeof(pc));
+    
+    // Set match criteria
+    pmc[0].pc_sel.pc_domain = PCI_DOMAINMAX;
+    pmc[0].pc_sel.pc_bus = PCI_BUSMAX;
+    pmc[0].pc_sel.pc_dev = PCI_DEVMAX;
+    pmc[0].pc_sel.pc_func = PCI_FUNCMAX;
+    pmc[0].flags = PCI_GETCONF_MATCH_VID_BUS;
+    pmc[0].pc_vid = vendor_id;
+    
+    pc.match_buf_len = sizeof(pmc);
+    pc.matches = pmc;
+    
+    // Search for device
+    struct pci_conf conf[256];
+    pc.buf = conf;
+    pc.maxlen = sizeof(conf);
+    
+    if (ioctl(pci_fd, PCIOCGETCONF, &pc) < 0) {
+        fprintf(stderr, "[FreeBSD] PCI search failed: %s\n", strerror(errno));
+        return -1;
+    }
+    
+    // Look through results
+    for (int i = 0; i < pc.num_matches; i++) {
+        if (conf[i].pc_vendor == vendor_id && conf[i].pc_device == device_id) {
+            fprintf(stderr, "[FreeBSD] Found PCI device %04x:%04x at %d:%d:%d\n",
+                    vendor_id, device_id,
+                    conf[i].pc_sel.pc_bus,
+                    conf[i].pc_sel.pc_dev,
+                    conf[i].pc_sel.pc_func);
+            
+            // Store device info
+            *out_handle = (void *)(uintptr_t)((conf[i].pc_sel.pc_bus << 16) |
+                                              (conf[i].pc_sel.pc_dev << 8) |
+                                              conf[i].pc_sel.pc_func);
+            return 0;
+        }
+    }
+    
+    fprintf(stderr, "[FreeBSD] PCI device %04x:%04x not found\n", vendor_id, device_id);
+    return -1;
+#else
+    return -1;
+#endif
+}
+
+int os_prim_pci_read_config(void *handle, uint32_t offset, uint32_t *out_value) {
+    if (!out_value || !handle || pci_fd < 0) return -1;
+    
+#ifdef __FreeBSD__
+    uint32_t dev_info = (uintptr_t)handle;
+    struct pci_io pi;
+    
+    memset(&pi, 0, sizeof(pi));
+    pi.pi_sel.pc_domain = 0;
+    pi.pi_sel.pc_bus = (dev_info >> 16) & 0xFF;
+    pi.pi_sel.pc_dev = (dev_info >> 8) & 0xFF;
+    pi.pi_sel.pc_func = dev_info & 0xFF;
+    pi.pi_reg = offset;
+    pi.pi_width = 4;
+    
+    if (ioctl(pci_fd, PCIOCREAD, &pi) < 0) {
+        fprintf(stderr, "[FreeBSD] Failed to read PCI config: %s\n", strerror(errno));
+        return -1;
+    }
+    
+    *out_value = pi.pi_data;
+    return 0;
+#else
+    return -1;
+#endif
+}
+
+int os_prim_pci_write_config(void *handle, uint32_t offset, uint32_t value) {
+    if (!handle || pci_fd < 0) return -1;
+    
+#ifdef __FreeBSD__
+    uint32_t dev_info = (uintptr_t)handle;
+    struct pci_io pi;
+    
+    memset(&pi, 0, sizeof(pi));
+    pi.pi_sel.pc_domain = 0;
+    pi.pi_sel.pc_bus = (dev_info >> 16) & 0xFF;
+    pi.pi_sel.pc_dev = (dev_info >> 8) & 0xFF;
+    pi.pi_sel.pc_func = dev_info & 0xFF;
+    pi.pi_reg = offset;
+    pi.pi_width = 4;
+    pi.pi_data = value;
+    
+    if (ioctl(pci_fd, PCIOCWRITE, &pi) < 0) {
+        fprintf(stderr, "[FreeBSD] Failed to write PCI config: %s\n", strerror(errno));
+        return -1;
+    }
+    
+    return 0;
+#else
+    return -1;
+#endif
+}
+
+void *os_prim_pci_map_resource(void *handle, int bar) {
+    if (!handle || pci_fd < 0) return NULL;
+    
+#ifdef __FreeBSD__
+    uint32_t dev_info = (uintptr_t)handle;
+    struct pci_bar_io pbi;
+    
+    memset(&pbi, 0, sizeof(pbi));
+    pbi.pbi_sel.pc_domain = 0;
+    pbi.pbi_sel.pc_bus = (dev_info >> 16) & 0xFF;
+    pbi.pbi_sel.pc_dev = (dev_info >> 8) & 0xFF;
+    pbi.pbi_sel.pc_func = dev_info & 0xFF;
+    pbi.pbi_reg = PCIR_BAR(bar);
+    
+    // Get BAR info
+    if (ioctl(pci_fd, PCIOCGETBAR, &pbi) < 0) {
+        fprintf(stderr, "[FreeBSD] Failed to get BAR %d: %s\n", bar, strerror(errno));
+        return NULL;
+    }
+    
+    if (pbi.pbi_length == 0) {
+        fprintf(stderr, "[FreeBSD] BAR %d is empty\n", bar);
+        return NULL;
+    }
+    
+    // Check if it's a memory BAR
+    if ((pbi.pbi_base & 0x1) == 0) {
+        // Memory mapped - use mmap
+        int devmem_fd = open("/dev/mem", O_RDWR);
+        if (devmem_fd < 0) {
+            fprintf(stderr, "[FreeBSD] Cannot open /dev/mem: %s\n", strerror(errno));
+            return NULL;
+        }
+        
+        void *virt = mmap(NULL, pbi.pbi_length, PROT_READ | PROT_WRITE,
+                         MAP_SHARED, devmem_fd, pbi.pbi_base);
+        close(devmem_fd);
+        
+        if (virt == MAP_FAILED) {
+            fprintf(stderr, "[FreeBSD] mmap failed: %s\n", strerror(errno));
+            return NULL;
+        }
+        
+        fprintf(stderr, "[FreeBSD] Mapped BAR %d: phys=0x%lx size=0x%lx -> virt=%p\n",
+                bar, pbi.pbi_base, pbi.pbi_length, virt);
+        return virt;
+    }
+    
+    fprintf(stderr, "[FreeBSD] BAR %d is I/O mapped (not supported)\n", bar);
+    return NULL;
+#else
+    return NULL;
+#endif
+}
+
+int os_prim_pci_unmap_resource(void *virt_addr) {
+    if (!virt_addr) return 0;
+    
+    // We don't know the size, but munmap doesn't actually require it
+    // Just unmap with a reasonable size
+    munmap(virt_addr, 0x100000);  // 1MB default
     return 0;
 }
 
+/* ============================================================================
+ * Interrupts (FreeBSD)
+ * ============================================================================ */
+
+int os_prim_register_interrupt(int irq, os_prim_interrupt_handler handler, void *data) {
+    // Stub for now - requires kernel cooperation
+    fprintf(stderr, "[FreeBSD] Interrupt registration not yet implemented\n");
+    return -1;
+}
+
 void os_prim_unregister_interrupt(int irq) {
-    pthread_mutex_lock(&g_irq_lock);
-    
-    for (int i = 0; i < g_irq_count; i++) {
-        if (g_irq_handlers[i].irq == irq) {
-            g_irq_handlers[i].handler = NULL;
-            os_prim_log("IRQ: Unregistered handler for IRQ %d\n", irq);
-            break;
-        }
-    }
-    
-    pthread_mutex_unlock(&g_irq_lock);
+    // Stub for now
 }
 
 /* ============================================================================
- * CLEANUP
+ * Display (FreeBSD)
  * ============================================================================ */
 
-void os_prim_cleanup(void) {
-    if (g_fb_mem) {
-        if (g_fb_fd >= 0) {
-            munmap(g_fb_mem, g_fb_size);
-            close(g_fb_fd);
-        } else {
-            free(g_fb_mem);
-        }
-        g_fb_mem = NULL;
+int os_prim_display_init(void) {
+    fprintf(stderr, "[FreeBSD] Display initialized\n");
+    return 0;
+}
+
+void os_prim_display_put_pixel(int x, int y, uint32_t color) {
+    // Not implemented
+}
+
+/* ============================================================================
+ * Synchronization (FreeBSD) 
+ * ============================================================================ */
+
+int os_prim_lock_init(os_prim_lock *lock) {
+    // Use POSIX mutex on FreeBSD
+    *lock = (os_prim_lock)malloc(sizeof(pthread_mutex_t));
+    if (!*lock) return -1;
+    
+    pthread_mutex_t *mtx = (pthread_mutex_t *)*lock;
+    return pthread_mutex_init(mtx, NULL);
+}
+
+int os_prim_lock(os_prim_lock lock) {
+    if (!lock) return -1;
+    pthread_mutex_t *mtx = (pthread_mutex_t *)lock;
+    return pthread_mutex_lock(mtx);
+}
+
+int os_prim_unlock(os_prim_lock lock) {
+    if (!lock) return -1;
+    pthread_mutex_t *mtx = (pthread_mutex_t *)lock;
+    return pthread_mutex_unlock(mtx);
+}
+
+void os_prim_lock_destroy(os_prim_lock lock) {
+    if (lock) {
+        pthread_mutex_t *mtx = (pthread_mutex_t *)lock;
+        pthread_mutex_destroy(mtx);
+        free(mtx);
     }
+}
+
+/* ============================================================================
+ * Threading (FreeBSD)
+ * ============================================================================ */
+
+os_prim_thread os_prim_spawn_thread(const char *name,
+                                     void *(*func)(void *),
+                                     void *arg) {
+    pthread_t thread;
+    pthread_attr_t attr;
+    
+    pthread_attr_init(&attr);
+    if (pthread_create(&thread, &attr, func, arg) != 0) {
+        fprintf(stderr, "[FreeBSD] Failed to create thread '%s'\n", name);
+        return 0;
+    }
+    
+    pthread_attr_destroy(&attr);
+    fprintf(stderr, "[FreeBSD] Spawned thread '%s'\n", name);
+    return (os_prim_thread)thread;
+}
+
+int os_prim_join_thread(os_prim_thread thread) {
+    void *exit_code = NULL;
+    if (pthread_join((pthread_t)thread, &exit_code) != 0) {
+        return -1;
+    }
+    return (intptr_t)exit_code;
 }

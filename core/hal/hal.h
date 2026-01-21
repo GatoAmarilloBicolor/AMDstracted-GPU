@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <pthread.h>
 
 /* Haiku: Include display mode definitions early */
 #ifdef __HAIKU__
@@ -211,6 +212,13 @@ enum amd_gpu_state {
   AMD_GPU_STATE_RESETTING,
 };
 
+// Error counter for RAS tracking
+struct amd_ras_counters {
+  uint64_t ue_count;     // Uncorrectable errors
+  uint64_t ce_count;     // Correctable errors
+  uint64_t poison_count; // Poisoned errors
+};
+
 // The "Main Brain" (OBJGPU) that manages all our specialists
 struct OBJGPU {
   enum amd_asic_type asic_type; // What kind of GPU chip is this?
@@ -233,12 +241,19 @@ struct OBJGPU {
   // GPU capabilities and memory info
   struct amdgpu_gpu_info gpu_info;  // Cached GPU info (VRAM base, size, clock)
 
-  /* Synchronization via OS primitives (os_prim_lock/unlock) */
-
+  // Synchronization - REAL locking for thread safety
+  pthread_mutex_t lock;
+  pthread_rwlock_t mmio_lock;
+  
+  // Error handling and RAS
+  struct amd_ras_counters ras;
+  int hang_detected;
+  
   // Belter Strategy: Resilience Layer
   struct amd_shadow_state shadow;
   enum amd_gpu_state state;
-  /* Thread handling via os_prim_spawn_thread */
+  pthread_t heartbeat_thread;
+  int heartbeat_running;
 };
 
 // The HAL API: The main commands you will use!
@@ -270,6 +285,18 @@ int amdgpu_device_ip_block_add(
 void amdgpu_hal_shadow_write(struct OBJGPU *adev, uint32_t offset,
                              uint32_t value);
 int amdgpu_hal_reset(struct OBJGPU *adev);
+int amdgpu_gpu_recover(struct OBJGPU *adev);
 void *amdgpu_hal_heartbeat(void *arg);
+
+// Error tracking
+void amdgpu_ras_record_error(struct OBJGPU *adev, int error_type);
+int amdgpu_ras_get_error_count(struct OBJGPU *adev, int error_type);
+void amdgpu_ras_reset_counters(struct OBJGPU *adev);
+
+// Thread-safe operations
+int amdgpu_lock_gpu(struct OBJGPU *adev);
+int amdgpu_unlock_gpu(struct OBJGPU *adev);
+int amdgpu_read_reg_locked(struct OBJGPU *adev, uint32_t offset);
+void amdgpu_write_reg_locked(struct OBJGPU *adev, uint32_t offset, uint32_t value);
 
 #endif /* AMD_HAL_H */
