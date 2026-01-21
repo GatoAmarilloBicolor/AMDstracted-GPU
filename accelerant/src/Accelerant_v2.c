@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <inttypes.h>
 
 /* Ensure uint8_t, uint16_t, uint32_t are available */
 #ifdef __HAIKU__
@@ -21,6 +22,12 @@
 /* Platform abstraction */
 #include "accelerant_api.h"
 #include "accelerant_haiku.h"
+
+/* Safe function pointer to void* conversion union */
+typedef union {
+    void *ptr;
+    void (*func)(void);
+} func_ptr_union;
 
 /* ============================================================================
  * Global State
@@ -330,13 +337,14 @@ amd_set_cursor_shape(uint16_t width, uint16_t height,
  * ============================================================================ */
 
 void *
-amd_get_accelerant_hook(uint32_t feature, void *data)
+amd_get_accelerant_hook(uint32_t feature, void *data __attribute__((unused)))
 {
     switch (feature) {
         /* Initialization */
         case B_INIT_ACCELERANT: {
             typedef status_t (*fn_t)(int);
-            return (void *)(fn_t)amd_accelerant_init;
+            fn_t f = amd_accelerant_init;
+            return (void *)(uintptr_t)f;
         }
         case B_UNINIT_ACCELERANT: {
             typedef void (*fn_t)(void);
