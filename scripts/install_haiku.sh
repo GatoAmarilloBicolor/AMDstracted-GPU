@@ -101,29 +101,39 @@ if [ "$ON_HAIKU" = true ]; then
 fi
 
 if [ "$ON_HAIKU" = true ]; then
-    log_info "Building Mesa for Haiku..."
+    log_info "Building libdrm for Haiku..."
+    cd "$baseDir/libdrm"
+    buildDir="$baseDir/builddir_libdrm"
+    [ -d "$buildDir" ] && rm -rf "$buildDir"
+    meson setup "$buildDir" -Dprefix="$installDir"
+    ninja -C "$buildDir"
+    ninja -C "$buildDir" install
+    log_ok "libdrm built successfully"
+
+    log_info "Building Mesa for Haiku with GPU acceleration..."
     cd "$baseDir"
     [ ! -d "mesa_source/.git" ] && git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa_source
     buildDir="$baseDir/builddir_mesa"
     [ -d "$buildDir" ] && rm -rf "$buildDir"
-    log_info "Configuring Mesa for Haiku OS..."
+    log_info "Configuring Mesa for Haiku OS with HW acceleration..."
     
     meson setup "$buildDir" "$baseDir/mesa_source" \
         -Dprefix="$installDir" \
         -Dbuildtype=release \
         -Doptimization=3 \
-        -Dgallium-drivers= \
+        -Dgallium-drivers=radeonsi \
         -Dplatforms=haiku \
         -Dopengl=true \
         -Dglx=disabled \
-        -Degl=disabled \
+        -Degl=enabled \
+        -Dgles1=disabled \
         -Dgles2=enabled \
         -Dshader-cache=enabled \
-        -Dvulkan-drivers=
+        -Dvulkan-drivers=amd
     
     ninja -C "$buildDir"
     ninja -C "$buildDir" install
-    log_ok "Mesa built successfully for Haiku"
+    log_ok "Mesa with GPU acceleration built successfully for Haiku"
 else
     log_info "Skipping Mesa build on Linux"
 fi
