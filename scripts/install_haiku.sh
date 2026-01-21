@@ -95,8 +95,7 @@ if [ "$ON_HAIKU" = true ]; then
     [ -d "builddir_mesa" ] && rm -rf "builddir_mesa"
     log_info "Configuring Mesa for Haiku OS with HW acceleration..."
 
-    cd mesa_source
-    meson setup "../builddir_mesa" . \
+    meson setup builddir_mesa mesa_source \
         --buildtype=release \
         -Dplatforms=haiku \
         -Dgallium-drivers=r600,swrast \
@@ -108,9 +107,8 @@ if [ "$ON_HAIKU" = true ]; then
         -Dgles2=enabled \
         --prefix="$INSTALL_DIR"
 
-    ninja -C "../builddir_mesa"
-    ninja -C "../builddir_mesa" install
-    cd "$PROJECT_ROOT/AMDGPU_Abstracted"
+    ninja -C builddir_mesa
+    ninja -C builddir_mesa install
     log_ok "Mesa with GPU acceleration built successfully for Haiku"
 else
     log_info "Skipping Mesa build on Linux"
