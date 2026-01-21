@@ -26,22 +26,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 INSTALL_PREFIX="${1:-/boot/home/config/non-packaged}"
-INSTALL_DIR="$INSTALL_PREFIX"  # Alias for compatibility
-
-# Detect if we're on Haiku
-if command -v getarch &> /dev/null; then
-    ON_HAIKU=true
-else
-    ON_HAIKU=false
-fi
-
-# Helper: Check if command exists
-check_command() {
-    if ! command -v "$1" &> /dev/null; then
-        log_error "Required command not found: $1"
-        exit 1
-    fi
-}
 
 log_header "AMDGPU_ABSTRACTED INSTALLATION FOR HAIKU"
 log_info "Installation prefix: $INSTALL_PREFIX"
@@ -66,86 +50,117 @@ rm -rf "$PROJECT_ROOT/builddir_AMDGPU_Abstracted" 2>/dev/null || true
 log_ok "Repository updated and cleaned"
 
 # ============================================================================
-# Step 1: Check Prerequisites
+# Ensure Build.sh has correct meson syntax (always replace to be safe)
 # ============================================================================
 
-log_header "Step 1: Check Prerequisites"
+log_info "Preparing Build.sh with correct meson syntax..."
 
-check_command gcc
-check_command meson
-check_command ninja
-if [ "$ON_HAIKU" = true ]; then
-    check_command getarch
+# ALWAYS replace Build.sh to ensure correct syntax
+cat > "$PROJECT_ROOT/Build.sh" << 'EOFBUILD'
+#!/bin/bash
+set -e
+
+baseDir="$PWD"
+
+# Detect OS
+if command -v getarch &> /dev/null; then
+    ARCH="$(getarch)"
+    ON_HAIKU=true
+else
+    ARCH="$(uname -m)"
+    ON_HAIKU=false
 fi
 
-log_ok "All prerequisites found"
+buildBaseDir="$PWD/build.$ARCH"
+installDir="$PWD/install.$ARCH"
 
-# ============================================================================
-# Step 1.5: Build Components
-# ============================================================================
+function log_info() { echo "[INFO] $*"; }
+function log_ok() { echo "[✓] $*"; }
+function log_error() { echo "[✗] $*" >&2; }
 
-log_header "Building Components"
+mkdir -p "$installDir/develop/lib/pkgconfig"
 
 log_info "Building AMDGPU_Abstracted core..."
-cd "$PROJECT_ROOT"
-buildDir="$PROJECT_ROOT/builddir_AMDGPU_Abstracted"
+cd "$baseDir"
+buildDir="$baseDir/builddir_AMDGPU_Abstracted"
 [ -d "$buildDir" ] && rm -rf "$buildDir"
-meson setup "$buildDir" -Dprefix="$INSTALL_DIR"
+meson setup "$buildDir" -Dprefix="$installDir"
 ninja -C "$buildDir"
 ninja -C "$buildDir" install
 log_ok "AMDGPU_Abstracted built successfully"
 
 if [ "$ON_HAIKU" = true ]; then
     log_info "Building Haiku Accelerant..."
-    cd "$PROJECT_ROOT/accelerant"
-    accelBuildDir="$PROJECT_ROOT/builddir_accelerant"
+    cd "$baseDir/accelerant"
+    accelBuildDir="$baseDir/builddir_accelerant"
     [ -d "$accelBuildDir" ] && rm -rf "$accelBuildDir"
-    meson setup "$accelBuildDir" -Dprefix="$INSTALL_DIR"
+    meson setup "$accelBuildDir" -Dprefix="$installDir"
     ninja -C "$accelBuildDir"
     ninja -C "$accelBuildDir" install
     log_ok "Accelerant module built successfully"
 fi
 
 if [ "$ON_HAIKU" = true ]; then
-    log_info "Building libdrm for Haiku..."
-    cd "$PROJECT_ROOT/libdrm"
-    buildDir="$PROJECT_ROOT/builddir_libdrm"
+    log_info "Building Mesa for Haiku..."
+    cd "$baseDir"
+    [ ! -d "mesa_source/.git" ] && git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa_source
+    buildDir="$baseDir/builddir_mesa"
     [ -d "$buildDir" ] && rm -rf "$buildDir"
-    meson setup "$buildDir" . -Dprefix="$INSTALL_DIR" -Ddefault_library=shared
+    log_info "Configuring Mesa for Haiku OS..."
+    
+    meson setup "$buildDir" \
+        -Dprefix="$installDir" \
+        -Dbuildtype=release \
+        -Doptimization=3 \
+        -Dgallium-drivers=r600 \
+        -Dplatforms=haiku \
+        -Dopengl=true \
+        -Dglx=disabled \
+        -Degl=disabled \
+        -Dgles2=enabled \
+        -Dshader-cache=enabled \
+        -Dvulkan-drivers= \
+        "${baseDir}/mesa_source"
+    
     ninja -C "$buildDir"
     ninja -C "$buildDir" install
-    log_ok "libdrm built successfully"
-
-    log_info "Building Mesa for Haiku with GPU acceleration..."
-    cd "$PROJECT_ROOT"
-    [ ! -d "mesa_source/.git" ] && git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa_source
-    [ -d "builddir_mesa" ] && rm -rf "builddir_mesa"
-    log_info "Configuring Mesa for Haiku OS with HW acceleration..."
-
-    cd "$PROJECT_ROOT/mesa_source" || {
-        log_error "Cannot cd to mesa_source directory"
-        exit 1
-    }
-    log_info "Running: meson setup ../builddir_mesa [options]"
-    meson setup ../builddir_mesa \
-        --buildtype=release \
-        -Dplatforms=haiku \
-        -Dgallium-drivers=r600,swrast \
-        -Ddri-drivers=[] \
-        -Dvulkan-drivers=[] \
-        -Dopengl=true \
-        -Degl=enabled \
-        -Dgles1=disabled \
-        -Dgles2=enabled \
-        --prefix="$INSTALL_DIR"
-
-    ninja -C ../builddir_mesa
-    ninja -C ../builddir_mesa install
-    cd "$PROJECT_ROOT"
-    log_ok "Mesa with GPU acceleration built successfully for Haiku"
+    log_ok "Mesa built successfully for Haiku"
 else
     log_info "Skipping Mesa build on Linux"
 fi
+
+echo ""
+echo "════════════════════════════════════════════════════════════"
+echo "Build complete!"
+echo "════════════════════════════════════════════════════════════"
+EOFBUILD
+
+chmod +x "$PROJECT_ROOT/Build.sh"
+log_ok "Build.sh prepared with correct meson syntax"
+
+# ============================================================================
+# Step 1: Verify Prerequisites
+# ============================================================================
+
+log_header "Step 1: Verify Prerequisites"
+
+check_command() {
+    if command -v "$1" &>/dev/null; then
+        log_ok "$1"
+        return 0
+    else
+        log_error "$1 not found"
+        log_info "Install with: pkgman install $1"
+        return 1
+    fi
+}
+
+check_command gcc
+check_command meson
+check_command ninja
+check_command getarch
+
+log_ok "All prerequisites found"
 
 # ============================================================================
 # Step 2: Detect AMD GPU (from original script)
