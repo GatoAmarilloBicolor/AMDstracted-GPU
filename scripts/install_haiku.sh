@@ -112,7 +112,7 @@ if [ "$ON_HAIKU" = true ]; then
 
     log_info "Building Mesa for Haiku with GPU acceleration..."
     cd "$baseDir"
-    [ ! -d "mesa_source/.git" ] && git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa_source
+    [ ! -d "mesa_source/.git" ] && git clone --depth 1 --branch 25.0.2 https://gitlab.freedesktop.org/mesa/mesa.git mesa_source
     buildDir="$baseDir/builddir_mesa"
     [ -d "$buildDir" ] && rm -rf "$buildDir"
     log_info "Configuring Mesa for Haiku OS with HW acceleration..."
