@@ -113,12 +113,11 @@ if [ "$ON_HAIKU" = true ]; then
     log_info "Building Mesa for Haiku with GPU acceleration..."
     cd "$baseDir"
     [ ! -d "mesa_source/.git" ] && git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa_source
-    buildDir="$baseDir/builddir_mesa"
-    [ -d "$buildDir" ] && rm -rf "$buildDir"
+    [ -d "builddir_mesa" ] && rm -rf "builddir_mesa"
     log_info "Configuring Mesa for Haiku OS with HW acceleration..."
 
     cd mesa_source
-    meson setup "$buildDir" \
+    meson setup "../builddir_mesa" \
         --buildtype=release \
         -Dplatforms=haiku \
         -Dgallium-drivers=r600,swrast \
@@ -130,8 +129,8 @@ if [ "$ON_HAIKU" = true ]; then
         -Dgles2=enabled \
         --prefix="$installDir"
 
-    ninja -C "$buildDir"
-    ninja -C "$buildDir" install
+    ninja -C "../builddir_mesa"
+    ninja -C "../builddir_mesa" install
     cd "$baseDir"
     log_ok "Mesa with GPU acceleration built successfully for Haiku"
 else
