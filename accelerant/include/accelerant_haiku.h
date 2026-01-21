@@ -102,13 +102,25 @@ typedef struct {
 #define B_SHOW_CURSOR                  0x08000013
 #define B_SET_CURSOR_SHAPE             0x08000014
 
-/* Status codes */
+/* Status codes - use ifndef to avoid conflicts with real Haiku headers */
+#ifndef B_OK
 #define B_OK                    0
+#endif
+#ifndef B_ERROR
 #define B_ERROR                -1
+#endif
+#ifndef B_BAD_VALUE
 #define B_BAD_VALUE            -2
+#endif
+#ifndef B_NO_MEMORY
 #define B_NO_MEMORY            -3
+#endif
+#ifndef B_BUSY
 #define B_BUSY                 -6
+#endif
+#ifndef B_TIMED_OUT
 #define B_TIMED_OUT            -7
+#endif
 
 /* Type aliases - map Haiku types to themselves */
 typedef display_mode amd_display_mode_haiku_t;

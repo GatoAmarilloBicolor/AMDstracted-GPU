@@ -69,7 +69,7 @@ int r600_core_late_init(struct OBJGPU *adev) {
 /*
  * Hardware Fini: Power off
  */
-int r600_core_hw_fini(struct OBJGPU *adev) {
+int r600_core_hw_fini(struct OBJGPU *adev __attribute__((unused))) {
     printf("[GFX R600] Hardware finalization\n");
 
     // Power off graphics engine cleanly
@@ -81,7 +81,7 @@ int r600_core_hw_fini(struct OBJGPU *adev) {
 /*
  * Is Idle: Check if GFX is idle
  */
-bool r600_core_is_idle(struct OBJGPU *adev) {
+bool r600_core_is_idle(struct OBJGPU *adev __attribute__((unused))) {
     printf("[GFX R600] Checking idle status\n");
 
     // Check if R600 GFX engine is idle
@@ -94,7 +94,7 @@ bool r600_core_is_idle(struct OBJGPU *adev) {
 /*
  * Wait for Idle: Wait until GFX is idle
  */
-int r600_core_wait_for_idle(struct OBJGPU *adev) {
+int r600_core_wait_for_idle(struct OBJGPU *adev __attribute__((unused))) {
     printf("[GFX R600] Waiting for idle\n");
 
     // Wait for R600 GFX to become idle
@@ -107,7 +107,7 @@ int r600_core_wait_for_idle(struct OBJGPU *adev) {
 /*
  * Software Fini: Clean up
  */
-int r600_core_sw_fini(struct OBJGPU *adev) {
+int r600_core_sw_fini(struct OBJGPU *adev __attribute__((unused))) {
     printf("[GFX R600] Software finalization\n");
 
     // Clean up software state
