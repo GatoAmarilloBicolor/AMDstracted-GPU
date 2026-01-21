@@ -108,7 +108,7 @@ if [ "$ON_HAIKU" = true ]; then
     [ -d "$buildDir" ] && rm -rf "$buildDir"
     log_info "Configuring Mesa for Haiku OS..."
     
-    meson setup "$buildDir" \
+    meson setup "$buildDir" "$baseDir/mesa_source" \
         -Dprefix="$installDir" \
         -Dbuildtype=release \
         -Doptimization=3 \
@@ -119,8 +119,7 @@ if [ "$ON_HAIKU" = true ]; then
         -Degl=disabled \
         -Dgles2=enabled \
         -Dshader-cache=enabled \
-        -Dvulkan-drivers= \
-        mesa_source
+        -Dvulkan-drivers=
     
     ninja -C "$buildDir"
     ninja -C "$buildDir" install
