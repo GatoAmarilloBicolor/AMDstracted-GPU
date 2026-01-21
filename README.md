@@ -1,6 +1,37 @@
-# AMD GPU Driver - Haiku & Linux
+# AMD GPU Driver - Haiku, Linux & FreeBSD
 
-Complete GPU acceleration driver for AMD graphics hardware on Haiku OS.
+**Version**: v0.3.0 | **Status**: ✅ Production Ready | **Phase**: 3 Complete
+
+Complete GPU acceleration driver for AMD graphics hardware with hardware integration, error recovery, and cross-platform support.
+
+> **New in v0.3**: Thread-safe operations, RAS error tracking, GPU recovery, Haiku/FreeBSD support
+
+## ✨ Features
+
+### Phase 3: Hardware Integration ✅
+- ✅ Real MMIO register programming
+- ✅ Thread-safe GPU operations (mutex + rwlock)
+- ✅ RAS error tracking (UE, CE, Poison)
+- ✅ Automatic GPU recovery on hang
+- ✅ Heartbeat health monitoring
+
+### Phase 2: GPU Communication ✅
+- ✅ SPIR-V to RDNA ISA shader compilation
+- ✅ GPU memory management (GEM allocator)
+- ✅ Command ring buffers
+- ✅ OpenGL 4.6 via Zink
+- ✅ Vulkan via RADV
+
+### Phase 1: Architecture ✅
+- ✅ Hardware Abstraction Layer
+- ✅ IP Block framework (GMC, GFX, DCE)
+- ✅ Resource management
+- ✅ DRM integration
+
+### Cross-Platform Support ✅
+- ✅ **Linux**: Full DRM + X11/Wayland support
+- ✅ **Haiku**: PCI discovery, MMIO mapping, threads
+- ✅ **FreeBSD**: PCI via ioctl, memory mapping, POSIX
 
 ## Quick Start
 
