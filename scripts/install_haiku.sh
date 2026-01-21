@@ -26,6 +26,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 INSTALL_PREFIX="${1:-/boot/home/config/non-packaged}"
+INSTALL_DIR="$INSTALL_PREFIX"  # Alias for compatibility
+
+# Detect if we're on Haiku
+if command -v getarch &> /dev/null; then
+    ON_HAIKU=true
+else
+    ON_HAIKU=false
+fi
+
+# Helper: Check if command exists
+check_command() {
+    if ! command -v "$1" &> /dev/null; then
+        log_error "Required command not found: $1"
+        exit 1
+    fi
+}
 
 log_header "AMDGPU_ABSTRACTED INSTALLATION FOR HAIKU"
 log_info "Installation prefix: $INSTALL_PREFIX"
@@ -50,14 +66,25 @@ rm -rf "$PROJECT_ROOT/builddir_AMDGPU_Abstracted" 2>/dev/null || true
 log_ok "Repository updated and cleaned"
 
 # ============================================================================
-# Ensure Build.sh has correct meson syntax (always replace to be safe)
+# Step 1: Check Prerequisites
 # ============================================================================
 
-log_info "Executing build directly..."
+log_header "Step 1: Check Prerequisites"
+
+check_command gcc
+check_command meson
+check_command ninja
+if [ "$ON_HAIKU" = true ]; then
+    check_command getarch
+fi
+
+log_ok "All prerequisites found"
 
 # ============================================================================
-# Execute Build Directly
+# Step 1.5: Build Components
 # ============================================================================
+
+log_header "Building Components"
 
 log_info "Building AMDGPU_Abstracted core..."
 cd "$PROJECT_ROOT"
@@ -95,7 +122,10 @@ if [ "$ON_HAIKU" = true ]; then
     [ -d "builddir_mesa" ] && rm -rf "builddir_mesa"
     log_info "Configuring Mesa for Haiku OS with HW acceleration..."
 
-    cd mesa_source
+    cd "$PROJECT_ROOT/mesa_source" || {
+        log_error "Cannot cd to mesa_source directory"
+        exit 1
+    }
     log_info "Running: meson setup ../builddir_mesa [options]"
     meson setup ../builddir_mesa \
         --buildtype=release \
@@ -116,14 +146,6 @@ if [ "$ON_HAIKU" = true ]; then
 else
     log_info "Skipping Mesa build on Linux"
 fi
-}
-
-check_command gcc
-check_command meson
-check_command ninja
-check_command getarch
-
-log_ok "All prerequisites found"
 
 # ============================================================================
 # Step 2: Detect AMD GPU (from original script)
