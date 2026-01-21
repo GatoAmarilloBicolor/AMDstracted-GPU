@@ -136,6 +136,7 @@ static int gmc_v10_late_init(struct OBJGPU *adev) {
 /*
  * Hardware Fini: Clean up hardware state
  */
+static int gmc_v10_hw_fini(struct OBJGPU *adev) __attribute__((unused));
 static int gmc_v10_hw_fini(struct OBJGPU *adev) {
     os_prim_log("GMC v10: [HW Fini] Shutting down memory controller\n");
 
@@ -149,6 +150,7 @@ static int gmc_v10_hw_fini(struct OBJGPU *adev) {
 /*
  * Software Fini: Clean up software state
  */
+static int gmc_v10_sw_fini(struct OBJGPU *adev) __attribute__((unused));
 static int gmc_v10_sw_fini(struct OBJGPU *adev) {
     (void)adev;
     return 0;
@@ -157,6 +159,7 @@ static int gmc_v10_sw_fini(struct OBJGPU *adev) {
 /*
  * Check if GMC is idle
  */
+static bool gmc_v10_is_idle(struct OBJGPU *adev) __attribute__((unused));
 static bool gmc_v10_is_idle(struct OBJGPU *adev) {
     (void)adev; // Suppress unused parameter
     // Check GMC status registers
@@ -166,16 +169,19 @@ static bool gmc_v10_is_idle(struct OBJGPU *adev) {
 /*
  * Wait for GMC to become idle
  */
+static int gmc_v10_wait_for_idle(struct OBJGPU *adev) __attribute__((unused));
 static int gmc_v10_wait_for_idle(struct OBJGPU *adev) {
     (void)adev;
     return 0;
 }
 
+static int gmc_v10_suspend(struct OBJGPU *adev) __attribute__((unused));
 static int gmc_v10_suspend(struct OBJGPU *adev) {
     (void)adev;
     return 0;
 }
 
+static int gmc_v10_resume(struct OBJGPU *adev) __attribute__((unused));
 static int gmc_v10_resume(struct OBJGPU *adev) {
     (void)adev;
     return 0;
