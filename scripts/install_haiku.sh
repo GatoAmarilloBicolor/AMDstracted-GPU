@@ -125,9 +125,9 @@ if [ "$ON_HAIKU" = true ]; then
         -Dvulkan-drivers=[] \
         -Dopengl=true \
         --prefix="$installDir"
-    
-    ninja -C "$buildDir"
-    ninja -C "$buildDir" install
+
+    meson compile -C "$buildDir"
+    meson install -C "$buildDir"
     log_ok "Mesa with GPU acceleration built successfully for Haiku"
 else
     log_info "Skipping Mesa build on Linux"
