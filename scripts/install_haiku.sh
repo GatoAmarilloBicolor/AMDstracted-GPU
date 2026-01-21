@@ -53,48 +53,27 @@ log_ok "Repository updated and cleaned"
 # Ensure Build.sh has correct meson syntax (always replace to be safe)
 # ============================================================================
 
-log_info "Preparing Build.sh with correct meson syntax..."
+log_info "Executing build directly..."
 
-# ALWAYS replace Build.sh to ensure correct syntax
-cat > "$PROJECT_ROOT/Build.sh" << 'EOFBUILD'
-#!/bin/bash
-set -e
-
-baseDir="$PWD"
-
-# Detect OS
-if command -v getarch &> /dev/null; then
-    ARCH="$(getarch)"
-    ON_HAIKU=true
-else
-    ARCH="$(uname -m)"
-    ON_HAIKU=false
-fi
-
-buildBaseDir="$PWD/build.$ARCH"
-installDir="$PWD/install.$ARCH"
-
-function log_info() { echo "[INFO] $*"; }
-function log_ok() { echo "[✓] $*"; }
-function log_error() { echo "[✗] $*" >&2; }
-
-mkdir -p "$installDir/develop/lib/pkgconfig"
+# ============================================================================
+# Execute Build Directly
+# ============================================================================
 
 log_info "Building AMDGPU_Abstracted core..."
-cd "$baseDir"
-buildDir="$baseDir/builddir_AMDGPU_Abstracted"
+cd "$PROJECT_ROOT"
+buildDir="$PROJECT_ROOT/builddir_AMDGPU_Abstracted"
 [ -d "$buildDir" ] && rm -rf "$buildDir"
-meson setup "$buildDir" -Dprefix="$installDir"
+meson setup "$buildDir" -Dprefix="$INSTALL_DIR"
 ninja -C "$buildDir"
 ninja -C "$buildDir" install
 log_ok "AMDGPU_Abstracted built successfully"
 
 if [ "$ON_HAIKU" = true ]; then
     log_info "Building Haiku Accelerant..."
-    cd "$baseDir/accelerant"
-    accelBuildDir="$baseDir/builddir_accelerant"
+    cd "$PROJECT_ROOT/AMDGPU_Abstracted/accelerant"
+    accelBuildDir="$PROJECT_ROOT/builddir_accelerant"
     [ -d "$accelBuildDir" ] && rm -rf "$accelBuildDir"
-    meson setup "$accelBuildDir" -Dprefix="$installDir"
+    meson setup "$accelBuildDir" -Dprefix="$INSTALL_DIR"
     ninja -C "$accelBuildDir"
     ninja -C "$accelBuildDir" install
     log_ok "Accelerant module built successfully"
@@ -102,16 +81,16 @@ fi
 
 if [ "$ON_HAIKU" = true ]; then
     log_info "Building libdrm for Haiku..."
-    cd "$baseDir/libdrm"
-    buildDir="$baseDir/builddir_libdrm"
+    cd "$PROJECT_ROOT/AMDGPU_Abstracted/libdrm"
+    buildDir="$PROJECT_ROOT/builddir_libdrm"
     [ -d "$buildDir" ] && rm -rf "$buildDir"
-    meson setup "$buildDir" -Dprefix="$installDir" -Ddefault_library=shared
+    meson setup "$buildDir" . -Dprefix="$INSTALL_DIR" -Ddefault_library=shared
     ninja -C "$buildDir"
     ninja -C "$buildDir" install
     log_ok "libdrm built successfully"
 
     log_info "Building Mesa for Haiku with GPU acceleration..."
-    cd "$baseDir"
+    cd "$PROJECT_ROOT/AMDGPU_Abstracted"
     [ ! -d "mesa_source/.git" ] && git clone --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa_source
     [ -d "builddir_mesa" ] && rm -rf "builddir_mesa"
     log_info "Configuring Mesa for Haiku OS with HW acceleration..."
@@ -127,40 +106,15 @@ if [ "$ON_HAIKU" = true ]; then
         -Degl=enabled \
         -Dgles1=disabled \
         -Dgles2=enabled \
-        --prefix="$installDir"
+        --prefix="$INSTALL_DIR"
 
     ninja -C "../builddir_mesa"
     ninja -C "../builddir_mesa" install
-    cd "$baseDir"
+    cd "$PROJECT_ROOT/AMDGPU_Abstracted"
     log_ok "Mesa with GPU acceleration built successfully for Haiku"
 else
     log_info "Skipping Mesa build on Linux"
 fi
-
-echo ""
-echo "════════════════════════════════════════════════════════════"
-echo "Build complete!"
-echo "════════════════════════════════════════════════════════════"
-EOFBUILD
-
-chmod +x "$PROJECT_ROOT/Build.sh"
-log_ok "Build.sh prepared with correct meson syntax"
-
-# ============================================================================
-# Step 1: Verify Prerequisites
-# ============================================================================
-
-log_header "Step 1: Verify Prerequisites"
-
-check_command() {
-    if command -v "$1" &>/dev/null; then
-        log_ok "$1"
-        return 0
-    else
-        log_error "$1 not found"
-        log_info "Install with: pkgman install $1"
-        return 1
-    fi
 }
 
 check_command gcc
