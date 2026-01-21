@@ -80,27 +80,69 @@ typedef struct {
 } accelerant_device_info;
 
 /* Haiku accelerant hook constants */
+#ifndef B_INIT_ACCELERANT
 #define B_INIT_ACCELERANT              0x08000000
+#endif
+#ifndef B_UNINIT_ACCELERANT
 #define B_UNINIT_ACCELERANT            0x08000001
+#endif
+#ifndef B_GET_ACCELERANT_DEVICE_INFO
 #define B_GET_ACCELERANT_DEVICE_INFO   0x08000002
+#endif
+#ifndef B_ACCELERANT_MODE_COUNT
 #define B_ACCELERANT_MODE_COUNT        0x08000003
+#endif
+#ifndef B_GET_MODE_LIST
 #define B_GET_MODE_LIST                0x08000004
+#endif
+#ifndef B_SET_DISPLAY_MODE
 #define B_SET_DISPLAY_MODE             0x08000005
+#endif
+#ifndef B_GET_DISPLAY_MODE
 #define B_GET_DISPLAY_MODE             0x08000006
+#endif
+#ifndef B_GET_PIXEL_CLOCK_LIMITS
 #define B_GET_PIXEL_CLOCK_LIMITS       0x08000007
+#endif
+#ifndef B_GET_FRAME_BUFFER_CONFIG
 #define B_GET_FRAME_BUFFER_CONFIG      0x08000008
+#endif
+#ifndef B_ACCELERANT_ENGINE_COUNT
 #define B_ACCELERANT_ENGINE_COUNT      0x08000009
+#endif
+#ifndef B_ACQUIRE_ENGINE
 #define B_ACQUIRE_ENGINE               0x0800000A
+#endif
+#ifndef B_RELEASE_ENGINE
 #define B_RELEASE_ENGINE               0x0800000B
+#endif
+#ifndef B_WAIT_ENGINE_IDLE
 #define B_WAIT_ENGINE_IDLE             0x0800000C
+#endif
+#ifndef B_FILL_RECTANGLE
 #define B_FILL_RECTANGLE               0x0800000D
+#endif
+#ifndef B_INVERT_RECTANGLE
 #define B_INVERT_RECTANGLE             0x0800000E
+#endif
+#ifndef B_BLIT
 #define B_BLIT                         0x0800000F
+#endif
+#ifndef B_TRANSPARENT_BLIT
 #define B_TRANSPARENT_BLIT             0x08000010
+#endif
+#ifndef B_SCALE_BLIT
 #define B_SCALE_BLIT                   0x08000011
+#endif
+#ifndef B_MOVE_CURSOR
 #define B_MOVE_CURSOR                  0x08000012
+#endif
+#ifndef B_SHOW_CURSOR
 #define B_SHOW_CURSOR                  0x08000013
+#endif
+#ifndef B_SET_CURSOR_SHAPE
 #define B_SET_CURSOR_SHAPE             0x08000014
+#endif
 
 /* Status codes - use ifndef to avoid conflicts with real Haiku headers */
 #ifndef B_OK
