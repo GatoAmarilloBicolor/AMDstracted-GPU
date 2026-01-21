@@ -96,6 +96,7 @@ if [ "$ON_HAIKU" = true ]; then
     log_info "Configuring Mesa for Haiku OS with HW acceleration..."
 
     cd mesa_source
+    log_info "Running: meson setup ../builddir_mesa [options]"
     meson setup ../builddir_mesa \
         --buildtype=release \
         -Dplatforms=haiku \
