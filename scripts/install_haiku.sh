@@ -119,7 +119,7 @@ if [ "$ON_HAIKU" = true ]; then
         -Degl=disabled \
         -Dgles2=enabled \
         -Dshader-cache=enabled \
-        -Dvulkan-drivers= \
+        -Dvulkan-drivers=
         "${baseDir}/mesa_source"
     
     ninja -C "$buildDir"
