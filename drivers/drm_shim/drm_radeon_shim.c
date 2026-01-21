@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <inttypes.h>
 #include "drm_to_rmapi.h"
 #include "device_manager.h"
 
@@ -76,10 +77,10 @@ int radeon_device_deinitialize(radeon_device *dev)
     return device_manager_remove(fd);
 }
 
-int radeon_bo_alloc(radeon_device *dev, uint32_t size, uint32_t alignment, uint32_t domain, uint32_t *handle, uint32_t *pitch)
+int radeon_bo_alloc(radeon_device *dev, uint32_t size, uint32_t alignment __attribute__((unused)), uint32_t domain __attribute__((unused)), uint32_t *handle, uint32_t *pitch)
 {
     printf("[DRM Radeon Shim] radeon_bo_alloc(dev=%p, size=%u)\n", dev, size);
-    int fd = (int)dev;
+    int fd = (intptr_t)dev;
     uint64_t va;
     int ret = drm_alloc_to_rmapi(fd, size, handle, &va);
     if (pitch) *pitch = 0;  // Stub

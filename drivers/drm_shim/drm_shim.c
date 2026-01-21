@@ -148,7 +148,7 @@ int amdgpu_cs_submit(amdgpu_context_handle ctx, uint32_t bo_list_handle, uint32_
     return 0;
 }
 
-int amdgpu_cs_wait_fences(amdgpu_context_handle ctx, uint32_t fence_count, uint32_t *handles, bool wait_all, uint64_t timeout_ns, uint32_t *status, uint64_t *first)
+int amdgpu_cs_wait_fences(amdgpu_context_handle ctx, uint32_t fence_count, uint32_t *handles, bool wait_all, uint64_t timeout_ns, uint32_t *status __attribute__((unused)), uint64_t *first __attribute__((unused)))
 {
     printf("[DRM Shim] amdgpu_cs_wait_fences(ctx=%p, fence_count=%u)\n", ctx, fence_count);
 

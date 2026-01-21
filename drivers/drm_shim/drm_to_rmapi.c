@@ -30,7 +30,7 @@ int drm_alloc_to_rmapi(int drm_fd, uint64_t size,
     rmapi_device *dev = drm_fd_to_rmapi_device(drm_fd);
     if (!dev) return -1;
     
-    printf("[DRM→RMAPI] Allocate: size=%llu\n", size);
+    printf("[DRM→RMAPI] Allocate: size=%lu\n", size);
     
     /* Allocate via RMAPI GPU object */
     struct OBJGPU *gpu = (struct OBJGPU *)device_manager_get_gpu(dev);
@@ -47,7 +47,7 @@ int drm_alloc_to_rmapi(int drm_fd, uint64_t size,
     *handle = (uint32_t)gpu_addr;  // Simple mapping for stub
     *va = gpu_addr;
     
-    printf("[DRM→RMAPI] ✓ handle=%u va=%llx\n", *handle, *va);
+    printf("[DRM→RMAPI] ✓ handle=%u va=%lx\n", *handle, *va);
     return 0;
 }
 
@@ -77,7 +77,7 @@ int drm_map_to_rmapi(int drm_fd, uint32_t handle,
     rmapi_device *dev = drm_fd_to_rmapi_device(drm_fd);
     if (!dev || !ptr) return -1;
     
-    printf("[DRM→RMAPI] Map: handle=%u offset=%llx size=%llx\n", 
+    printf("[DRM→RMAPI] Map: handle=%u offset=%lx size=%lx\n", 
            handle, offset, size);
     
     /* For stub implementation: just return pointer to handle + offset */
@@ -88,7 +88,7 @@ int drm_map_to_rmapi(int drm_fd, uint32_t handle,
 }
 
 /* CPU unmapping */
-int drm_unmap_to_rmapi(int drm_fd, uint32_t handle, void *ptr)
+int drm_unmap_to_rmapi(int drm_fd __attribute__((unused)), uint32_t handle, void *ptr)
 {
     printf("[DRM→RMAPI] Unmap: handle=%u ptr=%p\n", handle, ptr);
     return 0;
@@ -101,7 +101,7 @@ int drm_va_op_to_rmapi(int drm_fd, uint32_t handle,
     rmapi_device *dev = drm_fd_to_rmapi_device(drm_fd);
     if (!dev) return -1;
     
-    printf("[DRM→RMAPI] VA Op: handle=%u offset=%llx size=%llx va=%llx\n", 
+    printf("[DRM→RMAPI] VA Op: handle=%u offset=%lx size=%lx va=%lx\n", 
            handle, offset, size, va);
     
     /* Would set up GPU page table entry via hal_va_op() */
@@ -138,7 +138,7 @@ int drm_cs_wait_to_rmapi(int drm_fd, uint64_t timeout_ns)
     rmapi_device *dev = drm_fd_to_rmapi_device(drm_fd);
     if (!dev) return -1;
     
-    printf("[DRM→RMAPI] CS Wait: timeout=%llu ns\n", timeout_ns);
+    printf("[DRM→RMAPI] CS Wait: timeout=%lu ns\n", timeout_ns);
     
     /* Would wait for GPU completion via hal_wait() */
     

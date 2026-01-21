@@ -155,6 +155,7 @@ static int gmc_v10_suspend(struct OBJGPU *adev) {
     return 0;
 }
 
+static int gmc_v10_resume(struct OBJGPU *adev) __attribute__((unused));
 static int gmc_v10_resume(struct OBJGPU *adev) {
     (void)adev;
     return 0;

@@ -348,94 +348,134 @@ amd_get_accelerant_hook(uint32_t feature, void *data __attribute__((unused)))
         }
         case B_UNINIT_ACCELERANT: {
             typedef void (*fn_t)(void);
-            return (void *)(fn_t)amd_accelerant_uninit;
+            fn_t f = amd_accelerant_uninit;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         
         /* Device Info */
         case B_GET_ACCELERANT_DEVICE_INFO: {
             typedef status_t (*fn_t)(accelerant_device_info *);
-            return (void *)(fn_t)amd_get_device_info;
+            fn_t f = (fn_t)amd_get_device_info;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         
         /* Mode Management */
         case B_ACCELERANT_MODE_COUNT: {
             typedef uint32_t (*fn_t)(void);
-            return (void *)(fn_t)amd_mode_count;
+            fn_t f = amd_mode_count;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         case B_GET_MODE_LIST: {
             typedef status_t (*fn_t)(display_mode *);
-            return (void *)(fn_t)amd_get_mode_list;
+            fn_t f = (fn_t)amd_get_mode_list;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         case B_SET_DISPLAY_MODE: {
             typedef status_t (*fn_t)(display_mode *);
-            return (void *)(fn_t)amd_set_display_mode;
+            fn_t f = (fn_t)amd_set_display_mode;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         case B_GET_DISPLAY_MODE: {
             typedef status_t (*fn_t)(display_mode *);
-            return (void *)(fn_t)amd_get_display_mode;
+            fn_t f = (fn_t)amd_get_display_mode;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         case B_GET_PIXEL_CLOCK_LIMITS: {
             typedef status_t (*fn_t)(display_mode *, uint32_t *, uint32_t *);
-            return (void *)(fn_t)amd_get_pixel_clock_limits;
+            fn_t f = (fn_t)amd_get_pixel_clock_limits;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         case B_GET_FRAME_BUFFER_CONFIG: {
             typedef status_t (*fn_t)(frame_buffer_config *);
-            return (void *)(fn_t)amd_get_frame_buffer_config;
+            fn_t f = (fn_t)amd_get_frame_buffer_config;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         
         /* Engine Management */
         case B_ACCELERANT_ENGINE_COUNT: {
             typedef uint32_t (*fn_t)(void);
-            return (void *)(fn_t)amd_engine_count;
+            fn_t f = amd_engine_count;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         case B_ACQUIRE_ENGINE: {
             typedef status_t (*fn_t)(uint32_t, uint32_t, sync_token *, engine_token **);
-            return (void *)(fn_t)amd_acquire_engine;
+            fn_t f = (fn_t)amd_acquire_engine;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         case B_RELEASE_ENGINE: {
             typedef status_t (*fn_t)(engine_token *, sync_token *);
-            return (void *)(fn_t)amd_release_engine;
+            fn_t f = (fn_t)amd_release_engine;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         
         /* GPU Acceleration */
         case B_FILL_RECTANGLE: {
             typedef void (*fn_t)(engine_token *, uint32_t, fill_rect_params *, uint32_t);
-            return (void *)(fn_t)amd_fill_rectangle;
+            fn_t f = (fn_t)amd_fill_rectangle;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         case B_INVERT_RECTANGLE: {
             typedef void (*fn_t)(engine_token *, fill_rect_params *, uint32_t);
-            return (void *)(fn_t)amd_invert_rectangle;
+            fn_t f = (fn_t)amd_invert_rectangle;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         case B_BLIT: {
             typedef void (*fn_t)(engine_token *, blit_params *, uint32_t);
-            return (void *)(fn_t)amd_blit;
+            fn_t f = (fn_t)amd_blit;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         case B_TRANSPARENT_BLIT: {
             typedef void (*fn_t)(engine_token *, transparent_blit_params *, uint32_t);
-            return (void *)(fn_t)amd_transparent_blit;
+            fn_t f = (fn_t)amd_transparent_blit;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         case B_SCALE_BLIT: {
             typedef void (*fn_t)(engine_token *, scaled_blit_params *, uint32_t);
-            return (void *)(fn_t)amd_scale_blit;
+            fn_t f = (fn_t)amd_scale_blit;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         case B_WAIT_ENGINE_IDLE: {
             typedef status_t (*fn_t)(void);
-            return (void *)(fn_t)amd_wait_engine_idle;
+            fn_t f = amd_wait_engine_idle;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         
         /* Cursor Management */
         case B_MOVE_CURSOR: {
             typedef void (*fn_t)(uint16_t, uint16_t);
-            return (void *)(fn_t)amd_move_cursor;
+            fn_t f = (fn_t)amd_move_cursor;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         case B_SHOW_CURSOR: {
             typedef void (*fn_t)(bool);
-            return (void *)(fn_t)amd_show_cursor;
+            fn_t f = (fn_t)amd_show_cursor;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         case B_SET_CURSOR_SHAPE: {
             typedef status_t (*fn_t)(uint16_t, uint16_t, uint16_t, uint16_t,
                                      const uint8_t *, const uint8_t *);
-            return (void *)(fn_t)amd_set_cursor_shape;
+            fn_t f = (fn_t)amd_set_cursor_shape;
+            func_ptr_union u = {.func = (void (*)(void))f};
+            return u.ptr;
         }
         
         default:
