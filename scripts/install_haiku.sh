@@ -118,18 +118,13 @@ if [ "$ON_HAIKU" = true ]; then
     log_info "Configuring Mesa for Haiku OS with HW acceleration..."
     
     meson setup "$buildDir" "$baseDir/mesa_source" \
-        -Dprefix="$installDir" \
-        -Dbuildtype=release \
-        -Doptimization=3 \
-        -Dgallium-drivers=radeonsi \
+        --buildtype=release \
         -Dplatforms=haiku \
+        -Dgallium-drivers=r600,swrast \
+        -Ddri-drivers=[] \
+        -Dvulkan-drivers=[] \
         -Dopengl=true \
-        -Dglx=disabled \
-        -Degl=enabled \
-        -Dgles1=disabled \
-        -Dgles2=enabled \
-        -Dshader-cache=enabled \
-        -Dvulkan-drivers=amd
+        --prefix="$installDir"
     
     ninja -C "$buildDir"
     ninja -C "$buildDir" install

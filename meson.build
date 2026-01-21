@@ -1,4 +1,5 @@
-project('AMDGPU_Abstracted', 'c',
+project('AMDGPU_Abstracted',
+  'c',
   version: '0.9.0',
   default_options: [
     'c_std=c99',
@@ -8,6 +9,8 @@ project('AMDGPU_Abstracted', 'c',
   meson_version: '>=0.59.0'
 )
 
+# Suppress unused function warnings for IP blocks
+add_project_arguments('-Wno-unused-function', language: 'c')
 # Detect OS
 host_os = host_machine.system()
 
