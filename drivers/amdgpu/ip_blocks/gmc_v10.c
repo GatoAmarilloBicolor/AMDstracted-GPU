@@ -20,6 +20,7 @@
 /*
  * Early Init: Basic setup before other blocks
  */
+static int gmc_v10_early_init(struct OBJGPU *adev) __attribute__((unused));
 static int gmc_v10_early_init(struct OBJGPU *adev) {
     os_prim_log("GMC v10: [Early] Graphics memory controller initialization\n");
 
@@ -36,6 +37,7 @@ static int gmc_v10_early_init(struct OBJGPU *adev) {
 /*
  * Software Init: Set up page tables and memory structures
  */
+static int gmc_v10_sw_init(struct OBJGPU *adev) __attribute__((unused));
 static int gmc_v10_sw_init(struct OBJGPU *adev) {
     (void)adev;
     os_prim_log("GMC v10: [SW Init] Setting up page tables and memory layout\n");
@@ -59,6 +61,7 @@ static int gmc_v10_sw_init(struct OBJGPU *adev) {
 /*
  * Hardware Init: Program the actual hardware registers
  */
+static int gmc_v10_hw_init(struct OBJGPU *adev) __attribute__((unused));
 static int gmc_v10_hw_init(struct OBJGPU *adev) {
     os_prim_log("GMC v10: [HW Init] Programming memory controller hardware\n");
 
@@ -98,6 +101,7 @@ static int gmc_v10_hw_init(struct OBJGPU *adev) {
 /*
  * Late Init: Final sanity checks
  */
+static int gmc_v10_late_init(struct OBJGPU *adev) __attribute__((unused));
 static int gmc_v10_late_init(struct OBJGPU *adev) {
     os_prim_log("GMC v10: [Late] Final hardware checks\n");
 

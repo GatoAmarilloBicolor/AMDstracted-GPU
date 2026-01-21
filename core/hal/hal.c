@@ -83,7 +83,7 @@ extern struct ip_block_ops dcn_v1_ip_block;
 // Hardware access functions
 static int drm_open_device(const char *device_path);
 static void drm_close_device(void);
-static int drm_is_real_available(void);
+static int drm_is_real_available(void) __attribute__((unused));
 static int mmio_direct_open(uint16_t vendor_id, uint16_t device_id);
 static void mmio_direct_close(void);
 

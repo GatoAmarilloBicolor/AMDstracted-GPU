@@ -159,7 +159,7 @@ static void isa_builder_emit_return(isa_builder_t *builder) {
 
 // Simple SPIR-V to RDNA translation
 static int spirv_to_rdna(const uint32_t *spirv, size_t spirv_size,
-                         shader_type_t shader_type,
+                         shader_type_t shader_type __attribute__((unused)),
                          uint8_t **isa_out, size_t *isa_size_out) {
     if (!spirv || !isa_out || !isa_size_out) {
         return -1;

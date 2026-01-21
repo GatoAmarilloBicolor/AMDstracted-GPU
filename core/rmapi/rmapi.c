@@ -321,7 +321,7 @@ int rmapi_gl_create_program(const char* vertex_src, const char* fragment_src, un
     return 0;
 }
 
-int rmapi_gl_create_buffer(size_t size, const void* data, unsigned int* buffer) {
+int rmapi_gl_create_buffer(size_t size, const void* data __attribute__((unused)), unsigned int* buffer) {
     if (!buffer) return -1;
 
     os_prim_log("[RMAPI] Creating buffer (size: %zu bytes)\n", size);
@@ -332,7 +332,7 @@ int rmapi_gl_create_buffer(size_t size, const void* data, unsigned int* buffer) 
     return 0;
 }
 
-int rmapi_gl_create_texture(int width, int height, unsigned int format, const void* data, unsigned int* texture) {
+int rmapi_gl_create_texture(int width, int height, unsigned int format, const void* data __attribute__((unused)), unsigned int* texture) {
     if (!texture) return -1;
 
     os_prim_log("[RMAPI] Creating texture (%dx%d, format: %u)\n", width, height, format);

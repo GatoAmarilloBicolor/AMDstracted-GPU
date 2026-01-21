@@ -1,5 +1,7 @@
 #define _DEFAULT_SOURCE
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include "ipc_lib.h"
 #include <fcntl.h>
 #include <pthread.h>

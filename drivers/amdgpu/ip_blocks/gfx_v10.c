@@ -18,7 +18,7 @@
 /*
  * Early Init: Check if graphics engine responds
  */
-int r600_core_early_init(struct OBJGPU *adev) {
+int r600_core_early_init(struct OBJGPU *adev __attribute__((unused))) {
     printf("[GFX R600] Early initialization\n");
 
     // Initialize basic GFX state for R600
@@ -31,7 +31,7 @@ int r600_core_early_init(struct OBJGPU *adev) {
 /*
  * Software Init: Set up command rings, shaders
  */
-int r600_core_sw_init(struct OBJGPU *adev) {
+int r600_core_sw_init(struct OBJGPU *adev __attribute__((unused))) {
     printf("[GFX R600] Software initialization\n");
 
     // Set up command rings and shader state
@@ -44,7 +44,7 @@ int r600_core_sw_init(struct OBJGPU *adev) {
 /*
  * Hardware Init: Power on graphics engine
  */
-int r600_core_hw_init(struct OBJGPU *adev) {
+int r600_core_hw_init(struct OBJGPU *adev __attribute__((unused))) {
     printf("[GFX R600] Hardware initialization\n");
 
     // Power on graphics engine and set basic registers
@@ -57,7 +57,7 @@ int r600_core_hw_init(struct OBJGPU *adev) {
 /*
  * Late Init: Final setup
  */
-int r600_core_late_init(struct OBJGPU *adev) {
+int r600_core_late_init(struct OBJGPU *adev __attribute__((unused))) {
     printf("[GFX R600] Late initialization\n");
 
     // Final setup and validation
